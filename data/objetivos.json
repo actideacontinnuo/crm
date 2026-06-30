@@ -1,0 +1,10 @@
+{
+  "2026-06": {
+    "opsActivas": 10,
+    "cotizado": 200000,
+    "cobros": 800000,
+    "pipeline": 3000000,
+    "cliActivos": 100,
+    "comisiones": 50000
+  }
+}

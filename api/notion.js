@@ -1,0 +1,118 @@
+require('dotenv').config();
+const { Client } = require('@notionhq/client');
+
+const notion = new Client({ auth: process.env.NOTION_TOKEN });
+
+const DBS = {
+  prospectos:   process.env.NOTION_DB_PROSPECTOS,
+  clientes:     process.env.NOTION_DB_CLIENTES,
+  ops:          process.env.NOTION_DB_OPS,
+  cotizaciones: process.env.NOTION_DB_COTIZACIONES,
+  pagos:        process.env.NOTION_DB_PAGOS,
+  proveedores:  process.env.NOTION_DB_PROVEEDORES,
+  deudas:       process.env.NOTION_DB_DEUDAS,
+  casos:        process.env.NOTION_DB_CASOS,
+  tickets:      process.env.NOTION_DB_TICKETS,
+};
+
+async function queryDB(dbKey, filter = null, sorts = null) {
+  const params = { database_id: DBS[dbKey], page_size: 100 };
+  if (filter) params.filter = filter;
+  if (sorts) params.sorts = sorts;
+
+  let results = [];
+  let cursor;
+  do {
+    if (cursor) params.start_cursor = cursor;
+    const res = await notion.databases.query(params);
+    results = results.concat(res.results);
+    cursor = res.has_more ? res.next_cursor : null;
+  } while (cursor);
+
+  return results;
+}
+
+async function createPage(dbKey, properties) {
+  return notion.pages.create({
+    parent: { database_id: DBS[dbKey] },
+    properties,
+  });
+}
+
+async function updatePage(pageId, properties) {
+  return notion.pages.update({ page_id: pageId, properties });
+}
+
+async function getPage(pageId) {
+  return notion.pages.retrieve({ page_id: pageId });
+}
+
+async function archivePage(pageId) {
+  return notion.pages.update({ page_id: pageId, archived: true });
+}
+
+// ─── Property builders (write to Notion) ──────────────────
+function prop_title(val) {
+  return { title: [{ text: { content: String(val ?? '').substring(0, 2000) } }] };
+}
+function prop_text(val) {
+  const s = String(val ?? '').substring(0, 2000);
+  return { rich_text: s ? [{ text: { content: s } }] : [] };
+}
+function prop_number(val) {
+  const n = Number(val);
+  return { number: isNaN(n) ? null : n };
+}
+function prop_select(val) {
+  return val ? { select: { name: String(val) } } : { select: null };
+}
+function prop_date(val) {
+  return val ? { date: { start: val } } : { date: null };
+}
+function prop_checkbox(val) {
+  return { checkbox: Boolean(val) };
+}
+function prop_email(val) {
+  return { email: val || null };
+}
+function prop_phone(val) {
+  return { phone_number: val || null };
+}
+
+// ─── Property readers (read from Notion) ──────────────────
+function read_title(prop) {
+  return prop?.title?.[0]?.plain_text ?? '';
+}
+function read_text(prop) {
+  return prop?.rich_text?.map(r => r.plain_text).join('') ?? '';
+}
+function read_number(prop) {
+  return prop?.number ?? 0;
+}
+function read_select(prop) {
+  return prop?.select?.name ?? '';
+}
+function read_date(prop) {
+  return prop?.date?.start ?? null;
+}
+function read_checkbox(prop) {
+  return prop?.checkbox ?? false;
+}
+function read_email(prop) {
+  return prop?.email ?? '';
+}
+function read_phone(prop) {
+  return prop?.phone_number ?? '';
+}
+
+module.exports = {
+  notion,
+  DBS,
+  queryDB,
+  createPage,
+  updatePage,
+  getPage,
+  archivePage,
+  prop_title, prop_text, prop_number, prop_select, prop_date, prop_checkbox, prop_email, prop_phone,
+  read_title, read_text, read_number, read_select, read_date, read_checkbox, read_email, read_phone,
+};

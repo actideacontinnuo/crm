@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install:*)",
+      "Read(//usr/local/bin/**)",
+      "Bash(export PATH=\"$PATH:/opt/homebrew/bin:/usr/local/bin\")",
+      "Bash(npm --version)",
+      "Read(//Users/jorgezarur/.nvm/versions/**)",
+      "Read(//opt/homebrew/**)",
+      "Bash(ls /opt/homebrew/bin/node*)",
+      "Read(//Users/jorgezarur/**)",
+      "Bash(export PATH=\"$PATH:/Users/jorgezarur/.openclaw/tools/node-v22.22.0/bin\")"
+    ]
+  }
+}

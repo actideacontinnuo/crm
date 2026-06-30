@@ -1,0 +1,869 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Actidea CRM · Sistema Interno</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link rel="stylesheet" href="/css/main.css">
+</head>
+<body>
+
+<!-- ═══════════ LOGIN SCREEN ═══════════ -->
+<div id="login-screen" style="
+  position:fixed;inset:0;z-index:9999;
+  background:var(--cream);
+  display:flex;align-items:center;justify-content:center;">
+  <div style="width:340px;background:var(--white);border:1px solid var(--border);border-radius:14px;padding:36px 32px;box-shadow:0 8px 32px rgba(0,0,0,.10);">
+    <div style="text-align:center;margin-bottom:28px">
+      <div style="display:flex;align-items:center;justify-content:center;gap:9px;margin-bottom:10px">
+        <div style="width:10px;height:10px;background:var(--red);transform:rotate(45deg)"></div>
+        <div style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;letter-spacing:.12em">ACTIDEA CRM</div>
+      </div>
+      <div style="font-size:11px;color:var(--gray400);font-family:'JetBrains Mono',monospace;letter-spacing:.08em">INICIA SESIÓN PARA CONTINUAR</div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div>
+        <label class="fl">USUARIO</label>
+        <input class="fi" id="login-user" placeholder="natalia" autocomplete="username" onkeydown="if(event.key==='Enter')doLogin()">
+      </div>
+      <div>
+        <label class="fl">CONTRASEÑA</label>
+        <input class="fi" id="login-pass" type="password" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
+      </div>
+      <div id="login-error" style="display:none;font-size:11px;color:var(--red);font-family:'JetBrains Mono',monospace;text-align:center"></div>
+      <button class="btn btn-primary" style="width:100%;margin-top:4px" onclick="doLogin()">Entrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="t-logo">
+    <div class="t-diamond"></div>
+    <div><div class="t-name">ACTIDEA</div><div class="t-sub">EVENTOS QUE CONECTAN</div></div>
+  </div>
+  <div class="t-sep"></div>
+  <div class="t-tag">CRM INTERNO · V1.0</div>
+  <div class="t-right">
+    <div style="text-align:right">
+      <div class="u-name" id="topbar-nombre">—</div>
+      <div class="u-role" id="topbar-rol">—</div>
+    </div>
+    <div class="u-avatar" id="topbar-avatar" style="cursor:pointer" title="Cerrar sesión" onclick="cerrarSesion()">—</div>
+  </div>
+</div>
+<div class="layout">
+<!-- SIDEBAR -->
+<nav class="sidebar">
+  <div class="s-section">
+    <div class="s-label">PRINCIPAL</div>
+    <div class="nav-item active" onclick="nav('dashboard')"><span class="nav-icon">⊞</span>Dashboard</div>
+  </div>
+  <div class="s-section">
+    <div class="s-label">COMERCIAL</div>
+    <div class="nav-item" onclick="nav('prospectos')"><span class="nav-icon">👥</span>Prospectos<span class="nav-badge" id="badge-prospectos">0</span></div>
+    <div class="nav-item" onclick="nav('clientes')"><span class="nav-icon">🏢</span>Clientes</div>
+    <div class="nav-item" onclick="nav('casos')"><span class="nav-icon">🎫</span>Casos<span class="nav-badge am" id="badge-casos">0</span></div>
+  </div>
+  <div class="s-section">
+    <div class="s-label">OPERACIONES</div>
+    <div class="nav-item" onclick="nav('ops')"><span class="nav-icon">📋</span>OPs<span class="nav-badge am" id="badge-ops">0</span></div>
+    <div class="nav-item" onclick="nav('cotizaciones')"><span class="nav-icon">📝</span>Cotizaciones</div>
+  </div>
+  <div class="s-section role-admin role-administracion">
+    <div class="s-label">FINANZAS</div>
+    <div class="nav-item role-admin" onclick="nav('pagos')"><span class="nav-icon">💳</span>Pagos<span class="nav-badge" id="badge-pagos">0</span></div>
+    <div class="nav-item" onclick="nav('proveedores')"><span class="nav-icon">🌐</span>Proveedores</div>
+  </div>
+  <div class="s-section role-admin role-administracion">
+    <div class="s-label">REPORTES</div>
+    <div class="nav-item" onclick="nav('comercial')"><span class="nav-icon">📈</span>Dashboard Comercial</div>
+    <div class="nav-item role-admin" onclick="nav('reportes')"><span class="nav-icon">📊</span>Reportes Financieros</div>
+  </div>
+  <div class="s-section role-admin">
+    <div class="s-label">ADMINISTRACIÓN</div>
+    <div class="nav-item" onclick="abrirObjetivos()"><span class="nav-icon">🎯</span>Objetivos del Mes</div>
+  </div>
+  <div class="s-bottom">
+    <div>PLAINWORK · ACTIDEA V1.0</div>
+    <div style="margin-top:6px"><a onclick="cerrarSesion()" style="cursor:pointer;color:var(--gray400);font-size:10px">↩ Cerrar sesión</a></div>
+  </div>
+</nav>
+<main class="main" id="mainArea">
+
+<!-- ═══════════ VIEW: DASHBOARD ═══════════ -->
+<div id="view-dashboard" class="view active">
+  <div class="ph">
+    <div><div class="ph-eye" id="dash-date">RESUMEN GENERAL</div><div class="ph-title">Dashboard</div></div>
+    <div class="ph-actions">
+      <button class="btn btn-ghost btn-sm" onclick="nav('prospectos')">Ver Prospectos</button>
+      <button class="btn btn-primary btn-sm" onclick="openM('nueva-op')">+ Nueva OP</button>
+    </div>
+  </div>
+  <div class="kpis" id="dash-kpis"></div>
+  <div class="section-grid">
+    <div>
+      <div class="panel">
+        <div class="panel-hdr"><div class="panel-title">OPs EN PRODUCCIÓN</div><span class="link-red" onclick="nav('ops')">VER TODAS →</span></div>
+        <div id="dash-ops" style="padding:8px 14px;"></div>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:14px;">
+      <div class="panel">
+        <div class="panel-hdr"><div class="panel-title">PRÓXIMOS COBROS</div><span id="dash-cobros-badge" class="tag-red tag">0 URGENTES</span></div>
+        <div id="dash-cobros" style="padding:8px 16px;"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-hdr"><div class="panel-title">PROSPECTOS CALIENTES</div><span class="link-red" onclick="nav('prospectos')">VER →</span></div>
+        <div id="dash-prospectos" style="padding:8px 16px;"></div>
+      </div>
+    </div>
+  </div>
+  <div class="grid2">
+    <div class="panel">
+      <div class="panel-hdr"><div class="panel-title">SEGUIMIENTO HOY</div></div>
+      <div id="dash-seguimiento" style="padding:8px 16px;"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-hdr"><div class="panel-title">CASOS ABIERTOS</div><span class="link-red" onclick="nav('casos')">VER →</span></div>
+      <div id="dash-casos-widget" style="padding:8px 16px;"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ VIEW: PROSPECTOS ═══════════ -->
+<div id="view-prospectos" class="view">
+  <div class="ph">
+    <div><div class="ph-eye">PIPELINE COMERCIAL</div><div class="ph-title">Prospectos</div></div>
+    <div class="ph-actions">
+      <div class="vsel">
+        <button class="vsel-btn active" id="prosp-view-lista" onclick="setProspView('lista',this)">≡ LISTA</button>
+        <button class="vsel-btn" id="prosp-view-kanban" onclick="setProspView('kanban',this)">⊞ KANBAN</button>
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="openM('nuevo-prospecto')">+ Nuevo Prospecto</button>
+    </div>
+  </div>
+  <div class="search-bar" id="prosp-search-bar">
+    <div class="search-wrap">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input class="search-input" id="prosp-search" placeholder="Buscar empresa, contacto..." oninput="renderProspectos()">
+    </div>
+    <select class="fsel" id="prosp-status" onchange="renderProspectos()">
+      <option value="">TODOS LOS ESTATUS</option>
+      <option value="Nuevo">NUEVO</option>
+      <option value="Contactado">CONTACTADO</option>
+      <option value="En conversación">EN CONVERSACIÓN</option>
+      <option value="Listo p/ cotizar">LISTO P/ COTIZAR</option>
+    </select>
+    <select class="fsel" id="prosp-ejec" onchange="renderProspectos()">
+      <option value="">TODOS LOS EJECUTIVOS</option>
+      <option value="Natalia Gama">NATALIA GAMA</option>
+      <option value="Ximena">XIMENA</option>
+      <option value="Alexia">ALEXIA</option>
+    </select>
+  </div>
+  <div id="prosp-lista-wrap">
+    <div class="panel">
+      <table class="tbl">
+        <thead><tr>
+          <th>EMPRESA</th><th>CONTACTO</th><th>ESTATUS</th><th>EJECUTIVO</th>
+          <th>ESTIMADO</th><th>SEGUIMIENTO</th><th>FUENTE</th><th></th>
+        </tr></thead>
+        <tbody id="prosp-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+  <div id="prosp-kanban-wrap" style="display:none">
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;align-items:start" id="kanban-board"></div>
+  </div>
+</div>
+
+<!-- ═══════════ VIEW: CLIENTES ═══════════ -->
+<div id="view-clientes" class="view">
+  <div class="ph">
+    <div><div class="ph-eye">BASE DE CLIENTES</div><div class="ph-title">Clientes</div></div>
+    <div class="ph-actions">
+      <button class="btn btn-primary btn-sm" onclick="openM('nuevo-cliente')">+ Alta de Cliente</button>
+    </div>
+  </div>
+  <div class="search-bar">
+    <div class="search-wrap">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input class="search-input" id="cli-search" placeholder="Buscar por empresa, código..." oninput="renderClientes()">
+    </div>
+    <select class="fsel" id="cli-status" onchange="renderClientes()">
+      <option value="">TODOS LOS ESTATUS</option>
+      <option value="Activo">ACTIVO</option>
+      <option value="Bloqueado">BLOQUEADO</option>
+    </select>
+  </div>
+  <div class="panel">
+    <table class="tbl">
+      <thead><tr>
+        <th>CÓDIGO</th><th>EMPRESA</th><th>CONTACTO</th><th>EJECUTIVO</th>
+        <th>PAGO</th><th>ESTATUS</th><th>OPs</th><th>DOCS</th><th></th>
+      </tr></thead>
+      <tbody id="cli-tbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ═══════════ VIEW: OPs ═══════════ -->
+<div id="view-ops" class="view">
+  <div class="ph">
+    <div><div class="ph-eye">CONTROL OPERATIVO</div><div class="ph-title">Órdenes de Producción</div></div>
+    <div class="ph-actions">
+      <button class="btn btn-primary btn-sm" onclick="openM('nueva-op')">+ Nueva OP</button>
+    </div>
+  </div>
+  <div class="view-tabs">
+    <div class="vtab active" onclick="setOPTab('todas',this)">TODAS</div>
+    <div class="vtab" onclick="setOPTab('Cotización',this)">COTIZACIÓN</div>
+    <div class="vtab" onclick="setOPTab('En Producción',this)">EN PRODUCCIÓN</div>
+    <div class="vtab" onclick="setOPTab('Ejecutado',this)">EJECUTADAS</div>
+  </div>
+  <div class="panel">
+    <table class="tbl">
+      <thead><tr>
+        <th>NÚMERO OP</th><th>EVENTO / CLIENTE</th><th>ESTATUS</th><th>FECHA</th>
+        <th>EJECUTIVO</th><th>COTIZADO</th><th>COBRADO</th><th>UTILIDAD</th><th>COMISIÓN</th><th></th>
+      </tr></thead>
+      <tbody id="ops-tbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ═══════════ VIEW: COTIZACIONES ═══════════ -->
+<div id="view-cotizaciones" class="view">
+  <div class="ph">
+    <div><div class="ph-eye">HISTORIAL DE VERSIONES</div><div class="ph-title">Cotizaciones</div></div>
+    <div class="ph-actions">
+      <button class="btn btn-ghost btn-sm" onclick="openM('nuevo-caso')">🎫 Nuevo Caso</button>
+      <button class="btn btn-primary btn-sm" onclick="openM('cotizador')">+ Nueva Cotización</button>
+    </div>
+  </div>
+  <div class="panel" id="tickets-panel" style="border-left:3px solid var(--amber);">
+    <div class="panel-hdr"><div class="panel-title">CASOS ABIERTOS</div><span class="tag-amber tag" id="tickets-count">0 PENDIENTES</span></div>
+    <div id="tickets-list" style="padding:0 16px;"></div>
+  </div>
+  <div class="panel">
+    <table class="tbl">
+      <thead><tr>
+        <th>ID COTIZACIÓN</th><th>CLIENTE / EVENTO</th><th>VER</th><th>MONTO TOTAL c/IVA</th>
+        <th>FECHA</th><th>ESTATUS</th><th>TICKETS</th><th></th>
+      </tr></thead>
+      <tbody id="cot-tbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ═══════════ VIEW: PAGOS ═══════════ -->
+<div id="view-pagos" class="view">
+  <div class="ph">
+    <div><div class="ph-eye">CONTROL FINANCIERO · OSCAR</div><div class="ph-title">Pagos</div></div>
+    <div class="ph-actions">
+      <button class="btn btn-primary btn-sm" onclick="openM('nuevo-pago')">+ Registrar Pago</button>
+    </div>
+  </div>
+  <div class="kpis" style="grid-template-columns:repeat(4,1fr);margin-bottom:18px" id="pagos-kpis"></div>
+  <div class="view-tabs">
+    <div class="vtab active" onclick="setPagosTab('todos',this)">TODOS</div>
+    <div class="vtab" onclick="setPagosTab('Cobro a cliente',this)">💰 COBROS A CLIENTES</div>
+    <div class="vtab" onclick="setPagosTab('Pago a proveedor',this)">📤 PAGOS A PROVEEDORES</div>
+    <div class="vtab" onclick="setPagosTab('vencido',this)">⚠ VENCIDOS / URGENTES</div>
+  </div>
+  <div style="background:var(--white);border:1px solid var(--border);border-radius:10px;padding:14px 18px;margin-bottom:16px;display:flex;gap:24px;flex-wrap:wrap">
+    <div style="display:flex;align-items:center;gap:8px"><div style="width:10px;height:10px;border-radius:50%;background:var(--green)"></div><span style="font-size:12px"><strong>Cobro a cliente</strong> — dinero que entra</span></div>
+    <div style="display:flex;align-items:center;gap:8px"><div style="width:10px;height:10px;border-radius:50%;background:var(--amber)"></div><span style="font-size:12px"><strong>Pago a proveedor</strong> — dinero que sale</span></div>
+    <div style="display:flex;align-items:center;gap:8px"><div style="width:10px;height:10px;border-radius:50%;background:var(--green);opacity:.4"></div><span style="font-size:12px"><strong>Pagado</strong> — ya se confirmó</span></div>
+    <div style="display:flex;align-items:center;gap:8px"><div style="width:10px;height:10px;border-radius:50%;background:var(--amber)"></div><span style="font-size:12px"><strong>Pendiente</strong> — acordado, sin confirmar</span></div>
+    <div style="display:flex;align-items:center;gap:8px"><div style="width:10px;height:10px;border-radius:50%;background:var(--red)"></div><span style="font-size:12px"><strong>Vencido</strong> — pasó la fecha acordada</span></div>
+  </div>
+  <div class="panel">
+    <table class="tbl">
+      <thead><tr>
+        <th>↕ TIPO</th><th>CONCEPTO</th><th>OP / EVENTO</th><th>MONTO</th>
+        <th>FECHA ACORDADA</th><th>FECHA REAL</th><th>ESTATUS</th><th>COMPROBANTE</th><th></th>
+      </tr></thead>
+      <tbody id="pagos-tbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ═══════════ VIEW: PROVEEDORES ═══════════ -->
+<div id="view-proveedores" class="view">
+  <div class="ph">
+    <div><div class="ph-eye">DIRECTORIO FISCAL</div><div class="ph-title">Proveedores</div></div>
+    <div class="ph-actions">
+      <button class="btn btn-ghost btn-sm" onclick="openM('deudas')">📋 Ver Deudas</button>
+      <button class="btn btn-primary btn-sm" onclick="openM('nuevo-proveedor')">+ Nuevo Proveedor</button>
+    </div>
+  </div>
+  <div id="deudas-alert" style="margin-bottom:14px;"></div>
+  <div class="panel">
+    <table class="tbl">
+      <thead><tr>
+        <th>PROVEEDOR</th><th>SERVICIO</th><th>RFC</th><th>BANCO / CLABE</th>
+        <th>CONDICIONES</th><th>FACTURA</th><th>DEUDA ACTIVA</th><th></th>
+      </tr></thead>
+      <tbody id="prov-tbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ═══════════ VIEW: DASHBOARD COMERCIAL ═══════════ -->
+<div id="view-comercial" class="view">
+  <div class="ph">
+    <div><div class="ph-eye">RENDIMIENTO DEL EQUIPO</div><div class="ph-title">Dashboard Comercial</div></div>
+    <div class="ph-actions">
+      <select class="fsel" id="com-periodo" onchange="renderComercial()">
+        <option value="mes">MES ACTUAL</option>
+        <option value="tri">TRIMESTRE</option>
+        <option value="anual">AÑO</option>
+      </select>
+    </div>
+  </div>
+  <div id="com-kpis" class="kpis" style="grid-template-columns:repeat(4,1fr);"></div>
+  <div class="grid2" style="margin-bottom:16px;">
+    <div class="panel">
+      <div class="panel-hdr"><div class="panel-title">RANKING DE DESEMPEÑO</div></div>
+      <div id="com-ranking" style="padding:10px 16px;"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-hdr"><div class="panel-title">OPs POR EJECUTIVO</div></div>
+      <div class="panel-body"><canvas id="chartEjecCom" height="200"></canvas></div>
+    </div>
+  </div>
+  <div class="panel">
+    <div class="panel-hdr"><div class="panel-title">DETALLE POR EJECUTIVO</div></div>
+    <div id="com-detalle"></div>
+  </div>
+</div>
+
+<!-- ═══════════ VIEW: REPORTES FINANCIEROS ═══════════ -->
+<div id="view-reportes" class="view">
+  <div class="ph">
+    <div><div class="ph-eye">SOLO NATALIA Y OSCAR</div><div class="ph-title">Reportes Financieros</div></div>
+    <div class="ph-actions">
+      <div class="vsel">
+        <button class="vsel-btn active" id="rp-mes-btn" onclick="setRpPeriodo('mes',this)">MES</button>
+        <button class="vsel-btn" id="rp-tri-btn" onclick="setRpPeriodo('tri',this)">Q</button>
+        <button class="vsel-btn" id="rp-anual-btn" onclick="setRpPeriodo('anual',this)">AÑO</button>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="exportReportePDF()">⬇ Exportar PDF</button>
+    </div>
+  </div>
+  <div id="rp-kpis" class="kpis"></div>
+  <div class="grid2" style="margin-bottom:16px;">
+    <div class="panel">
+      <div class="panel-hdr"><div class="panel-title">INGRESOS POR MES · AÑO ACTUAL</div></div>
+      <div class="panel-body"><canvas id="chartIngresos" height="200"></canvas></div>
+    </div>
+    <div class="panel">
+      <div class="panel-hdr"><div class="panel-title">INGRESOS POR EJECUTIVO</div></div>
+      <div class="panel-body" style="display:flex;flex-direction:column;align-items:center;">
+        <canvas id="chartEjec" width="160" height="160"></canvas>
+        <div style="margin-top:12px;width:100%;" id="ejec-legend"></div>
+      </div>
+    </div>
+  </div>
+  <div class="grid2" style="margin-bottom:16px;">
+    <div class="panel">
+      <div class="panel-hdr"><div class="panel-title">COBROS POR ESTATUS</div></div>
+      <div class="panel-body"><canvas id="chartCobros" height="180"></canvas></div>
+    </div>
+    <div class="panel">
+      <div class="panel-hdr"><div class="panel-title">OPs POR ESTATUS</div></div>
+      <div class="panel-body"><canvas id="chartOps" height="180"></canvas></div>
+    </div>
+  </div>
+  <div class="panel">
+    <div class="panel-hdr"><div class="panel-title">COMISIONES POR EJECUTIVO</div></div>
+    <table class="tbl">
+      <thead><tr><th>EJECUTIVO</th><th>OPs CERRADAS</th><th>UTILIDAD BASE</th><th>COMISIÓN 7.5%</th><th>ESTATUS</th></tr></thead>
+      <tbody id="rp-comisiones"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ═══════════ VIEW: CASOS ═══════════ -->
+<div id="view-casos" class="view">
+  <div class="ph">
+    <div><div class="ph-eye">SOPORTE Y SEGUIMIENTO</div><div class="ph-title">Casos</div></div>
+    <div class="ph-actions">
+      <select class="fsel" id="cas-filter-cli" onchange="renderCasos()">
+        <option value="">TODOS LOS CLIENTES</option>
+      </select>
+      <select class="fsel" id="cas-filter-status" onchange="renderCasos()">
+        <option value="">TODOS LOS ESTATUS</option>
+        <option value="Abierto">ABIERTOS</option>
+        <option value="En proceso">EN PROCESO</option>
+        <option value="Cerrado">CERRADOS</option>
+      </select>
+      <button class="btn btn-primary btn-sm" onclick="openM('nuevo-caso')">+ Nuevo Caso</button>
+    </div>
+  </div>
+  <div class="kpis" style="grid-template-columns:repeat(4,1fr)" id="casos-kpis"></div>
+  <div class="panel">
+    <table class="tbl">
+      <thead><tr>
+        <th>CASO</th><th>CLIENTE</th><th>TIPO</th><th>TÍTULO</th>
+        <th>PRIORIDAD</th><th>LEVANTÓ</th><th>FECHA</th><th>ESTATUS</th><th></th>
+      </tr></thead>
+      <tbody id="casos-tbody"></tbody>
+    </table>
+  </div>
+</div>
+
+</main>
+</div>
+
+<!-- ═══════════ SPINNER GLOBAL ═══════════ -->
+<div id="global-spinner" style="display:none;position:fixed;inset:0;z-index:500;background:rgba(15,15,15,.35);align-items:center;justify-content:center;">
+  <div style="background:var(--white);border-radius:12px;padding:24px 32px;display:flex;align-items:center;gap:14px;box-shadow:0 8px 40px rgba(0,0,0,.18);">
+    <div style="width:20px;height:20px;border:2.5px solid var(--red);border-top-color:transparent;border-radius:50%;animation:spin .7s linear infinite"></div>
+    <div style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.1em;color:var(--gray400)" id="spinner-msg">CARGANDO...</div>
+  </div>
+</div>
+<style>@keyframes spin{to{transform:rotate(360deg)}}</style>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<!-- ═══════════════════════ MODALS ═══════════════════════ -->
+
+<!-- NUEVO PROSPECTO -->
+<div class="modal-overlay" id="m-nuevo-prospecto" onclick="closeM('nuevo-prospecto')">
+<div class="modal" onclick="event.stopPropagation()" style="width:520px">
+  <div class="modal-hdr"><div><div class="modal-eye">NUEVO PROSPECTO</div><div class="modal-title">Registrar Prospecto</div></div><button class="modal-close" onclick="closeM('nuevo-prospecto')">✕</button></div>
+  <div class="modal-body">
+    <div class="fgrid"><div class="fg"><label class="fl">EMPRESA</label><input class="fi" id="np-empresa" placeholder="Nombre de la empresa"></div><div class="fg"><label class="fl">CONTACTO</label><input class="fi" id="np-contacto" placeholder="Nombre completo"></div></div>
+    <div class="fgrid"><div class="fg"><label class="fl">TELÉFONO</label><input class="fi" id="np-tel" placeholder="+52 55 0000 0000"></div><div class="fg"><label class="fl">EMAIL</label><input class="fi" id="np-email" type="email" placeholder="correo@empresa.com"></div></div>
+    <div class="fgrid"><div class="fg"><label class="fl">CARGO</label><input class="fi" id="np-cargo" placeholder="Director de Eventos"></div><div class="fg"><label class="fl">ESTIMADO MXN</label><input class="fi" id="np-estimado" type="number" placeholder="500000"></div></div>
+    <div class="fgrid"><div class="fg"><label class="fl">EJECUTIVO</label><select class="fsel-full" id="np-ejec"><option>Natalia Gama</option><option>Ximena</option><option>Alexia</option></select></div><div class="fg"><label class="fl">FUENTE</label><select class="fsel-full" id="np-fuente"><option>Referido</option><option>Campo</option><option>LinkedIn</option><option>Scouting</option><option>Evento</option></select></div></div>
+    <div class="fg"><label class="fl">TIPO DE EVENTO</label><input class="fi" id="np-evento" placeholder="Congreso anual, lanzamiento, gala..."></div>
+    <div class="fgrid"><div class="fg"><label class="fl">PRÓXIMO SEGUIMIENTO</label><input class="fi" id="np-fecha" type="date"></div><div class="fg"><label class="fl">ESTATUS</label><select class="fsel-full" id="np-status"><option>Nuevo</option><option>Contactado</option><option>En conversación</option><option>Listo p/ cotizar</option></select></div></div>
+    <div class="fg"><label class="fl">NOTAS</label><textarea class="fta" id="np-notas" rows="3" placeholder="¿De qué habló? ¿Qué evento necesita?..."></textarea></div>
+  </div>
+  <div class="modal-footer"><button class="btn btn-ghost" onclick="closeM('nuevo-prospecto')">Cancelar</button><button class="btn btn-primary" onclick="saveProspecto()">Guardar Prospecto</button></div>
+</div></div>
+
+<!-- DETALLE PROSPECTO -->
+<div class="modal-overlay" id="m-detalle-prospecto" onclick="closeM('detalle-prospecto')">
+<div class="modal" onclick="event.stopPropagation()" style="width:580px">
+  <div class="modal-hdr"><div><div class="modal-eye" id="dp-eye">PROSPECTO</div><div class="modal-title" id="dp-empresa">—</div></div><button class="modal-close" onclick="closeM('detalle-prospecto')">✕</button></div>
+  <div class="modal-body">
+    <div class="info-grid" id="dp-info"></div>
+    <div style="margin-bottom:14px"><div class="sect-label">HISTORIAL DE NOTAS</div><div id="dp-notas"></div></div>
+    <div class="fg"><label class="fl">AGREGAR NOTA</label><textarea class="fta" id="dp-nueva-nota" rows="2" placeholder="¿Qué pasó en el seguimiento?"></textarea></div>
+  </div>
+  <div class="modal-footer">
+    <button class="btn btn-ghost" onclick="closeM('detalle-prospecto')">Cerrar</button>
+    <button class="btn btn-ghost" onclick="addNotaProspecto()">Guardar nota</button>
+    <button class="btn btn-ghost" onclick="openEditarProspecto()">✏️ Editar</button>
+    <button class="btn btn-primary" onclick="convertirACliente()">Convertir a Cliente →</button>
+  </div>
+</div></div>
+
+<!-- NUEVO CLIENTE -->
+<div class="modal-overlay" id="m-nuevo-cliente" onclick="closeM('nuevo-cliente')">
+<div class="modal" onclick="event.stopPropagation()" style="width:560px">
+  <div class="modal-hdr"><div><div class="modal-eye">ALTA DE CLIENTE</div><div class="modal-title">Nuevo Cliente</div></div><button class="modal-close" onclick="closeM('nuevo-cliente')">✕</button></div>
+  <div class="modal-body">
+    <div class="fgrid"><div class="fg"><label class="fl">NOMBRE COMERCIAL</label><input class="fi" id="nc-nombre" placeholder="Banorte"></div><div class="fg"><label class="fl">RAZÓN SOCIAL</label><input class="fi" id="nc-razon" placeholder="GRUPO FIN. BANORTE SAB DE CV"></div></div>
+    <div class="fgrid"><div class="fg"><label class="fl">RFC</label><input class="fi" id="nc-rfc" placeholder="GFB930714596" style="font-family:'JetBrains Mono',monospace"></div><div class="fg"><label class="fl">GIRO</label><input class="fi" id="nc-giro" placeholder="Sector financiero"></div></div>
+    <div class="fg"><label class="fl">DIRECCIÓN FISCAL</label><input class="fi" id="nc-dir" placeholder="Calle, No., Colonia, Ciudad, CP"></div>
+    <div class="fgrid"><div class="fg"><label class="fl">NOMBRE CONTACTO</label><input class="fi" id="nc-contacto" placeholder="Nombre completo"></div><div class="fg"><label class="fl">CARGO</label><input class="fi" id="nc-cargo" placeholder="Director de Eventos"></div></div>
+    <div class="fgrid"><div class="fg"><label class="fl">TELÉFONO</label><input class="fi" id="nc-tel" placeholder="+52 55 0000 0000"></div><div class="fg"><label class="fl">EMAIL</label><input class="fi" id="nc-email" type="email" placeholder="contacto@empresa.com"></div></div>
+    <div class="fgrid"><div class="fg"><label class="fl">FORMA DE PAGO</label><select class="fsel-full" id="nc-pago"><option>30 días</option><option>60 días</option><option>90 días</option><option>Inmediato</option></select></div><div class="fg"><label class="fl">EJECUTIVO</label><select class="fsel-full" id="nc-ejec"><option>Natalia Gama</option><option>Ximena</option><option>Alexia</option></select></div></div>
+    <div style="border-top:1px solid var(--border);padding-top:14px;margin-top:4px">
+      <div class="sect-label">DOCUMENTOS REQUERIDOS</div>
+      <div id="nc-docs" style="display:flex;flex-direction:column;gap:14px;">
+
+        <!-- CSF -->
+        <div>
+          <label class="fl">CSF — CONSTANCIA DE SITUACIÓN FISCAL <span class="tag-amber tag" style="margin-left:6px">OBLIGATORIO</span></label>
+          <div class="upload-area" id="doc-csf-area" onclick="document.getElementById('doc-csf-input').click()" style="cursor:pointer">
+            📎 Clic para subir PDF o imagen — la IA leerá RFC, Razón Social y domicilio
+          </div>
+          <input type="file" id="doc-csf-input" accept=".pdf,.jpg,.jpeg,.png,.webp" style="display:none" onchange="analizarDoc('csf',this)">
+          <div id="doc-csf-status" style="font-size:11px;color:var(--gray400);margin-top:4px"></div>
+        </div>
+
+        <!-- Opinión de Cumplimiento -->
+        <div>
+          <label class="fl">OPINIÓN DE CUMPLIMIENTO POSITIVA (MES EN CURSO) <span class="tag-amber tag" style="margin-left:6px">OBLIGATORIO</span></label>
+          <div class="upload-area" id="doc-oc-area" onclick="document.getElementById('doc-oc-input').click()" style="cursor:pointer">
+            📎 Clic para subir PDF — la IA verificará que sea positiva y del mes en curso
+          </div>
+          <input type="file" id="doc-oc-input" accept=".pdf,.jpg,.jpeg,.png,.webp" style="display:none" onchange="analizarDoc('oc',this)">
+          <div id="doc-oc-status" style="font-size:11px;color:var(--gray400);margin-top:4px"></div>
+        </div>
+
+        <!-- Estado de Cuenta -->
+        <div>
+          <label class="fl">CARÁTULA DEL ÚLTIMO ESTADO DE CUENTA <span class="tag-amber tag" style="margin-left:6px">OBLIGATORIO</span></label>
+          <div class="upload-area" id="doc-ec-area" onclick="document.getElementById('doc-ec-input').click()" style="cursor:pointer">
+            📎 Clic para subir PDF, JPG o PNG — la IA leerá banco, CLABE y titular
+          </div>
+          <input type="file" id="doc-ec-input" accept=".pdf,.jpg,.jpeg,.png,.webp" style="display:none" onchange="analizarDoc('ec',this)">
+          <div id="doc-ec-status" style="font-size:11px;color:var(--gray400);margin-top:4px"></div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+  <div class="modal-footer"><button class="btn btn-ghost" onclick="closeM('nuevo-cliente')">Cancelar</button><button class="btn btn-primary" onclick="saveCliente()">Guardar en Notion</button></div>
+</div></div>
+
+<!-- DETALLE CLIENTE -->
+<div class="modal-overlay" id="m-detalle-cliente" onclick="closeM('detalle-cliente')">
+<div class="modal" onclick="event.stopPropagation()" style="width:600px">
+  <div class="modal-hdr"><div><div class="modal-eye" id="dc-eye">CLIENTE ACTIVO</div><div class="modal-title" id="dc-nombre">—</div></div><button class="modal-close" onclick="closeM('detalle-cliente')">✕</button></div>
+  <div class="modal-body">
+    <div class="info-grid" id="dc-info"></div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px" id="dc-stats"></div>
+    <div class="sect-label">CHECKLIST DE ALTA</div>
+    <div id="dc-checklist" style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:14px"></div>
+    <div class="sect-label">OPs RELACIONADAS</div>
+    <div id="dc-ops" style="max-height:160px;overflow-y:auto;"></div>
+  </div>
+  <div class="modal-footer">
+    <button class="btn btn-ghost" onclick="closeM('detalle-cliente')">Cerrar</button>
+    <button class="btn btn-primary" onclick="openNewOPForClient()">+ Nueva OP para este cliente</button>
+  </div>
+</div></div>
+
+<!-- NUEVA OP -->
+<div class="modal-overlay" id="m-nueva-op" onclick="closeM('nueva-op')">
+<div class="modal" onclick="event.stopPropagation()" style="width:520px">
+  <div class="modal-hdr"><div><div class="modal-eye">CREAR ORDEN DE PRODUCCIÓN</div><div class="modal-title">Nueva OP</div></div><button class="modal-close" onclick="closeM('nueva-op')">✕</button></div>
+  <div class="modal-body">
+    <div class="fg"><label class="fl">CLIENTE</label><select class="fsel-full" id="op-cliente" onchange="previewOPNum()"></select></div>
+    <div class="fg"><label class="fl">DESCRIPCIÓN DEL EVENTO</label><input class="fi" id="op-desc" placeholder="Congreso Nacional 2026 (sin acentos para el código)"></div>
+    <div class="fgrid"><div class="fg"><label class="fl">FECHA DEL EVENTO</label><input class="fi" id="op-fecha" type="date"></div><div class="fg"><label class="fl">EJECUTIVO</label><select class="fsel-full" id="op-ejec"><option value="Natalia Gama">Natalia Gama</option><option value="Ximena">Ximena</option><option value="Alexia">Alexia</option></select></div></div>
+    <div class="fgrid"><div class="fg"><label class="fl">TOTAL COTIZADO (MXN, sin IVA)</label><input class="fi" id="op-monto" type="number" placeholder="0.00"></div><div class="fg"><label class="fl">ESTATUS INICIAL</label><select class="fsel-full" id="op-status"><option>Cotización</option><option>En Producción</option></select></div></div>
+    <div class="fg"><label class="fl">NÚMERO OP (autogenerado)</label><input class="fi" id="op-num-prev" readonly style="background:var(--gray50);color:var(--gray400);font-family:'JetBrains Mono',monospace;font-size:12px" placeholder="Se genera al seleccionar cliente"></div>
+  </div>
+  <div class="modal-footer"><button class="btn btn-ghost" onclick="closeM('nueva-op')">Cancelar</button><button class="btn btn-primary" onclick="saveOP()">Crear OP</button></div>
+</div></div>
+
+<!-- DETALLE OP -->
+<div class="modal-overlay" id="m-detalle-op" onclick="closeM('detalle-op')">
+<div class="modal" onclick="event.stopPropagation()" style="width:600px">
+  <div class="modal-hdr"><div><div class="modal-eye" id="dop-num">OP</div><div class="modal-title" id="dop-title">—</div></div><button class="modal-close" onclick="closeM('detalle-op')">✕</button></div>
+  <div class="modal-body">
+    <div class="info-grid" id="dop-info"></div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px" id="dop-montos"></div>
+    <div class="sect-label">PLAN DE COBROS</div>
+    <div id="dop-cobros" style="margin-bottom:14px"></div>
+    <div class="sect-label">CAMBIAR ESTATUS</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap" id="dop-acciones"></div>
+  </div>
+  <div class="modal-footer">
+    <button class="btn btn-ghost" onclick="closeM('detalle-op')">Cerrar</button>
+    <button class="btn btn-ghost" onclick="openEdRForOP()">📊 Estado de Resultados</button>
+    <button class="btn btn-primary" onclick="openCotForOP()">📝 Abrir Cotizador</button>
+  </div>
+</div></div>
+
+<!-- ESTADO DE RESULTADOS -->
+<div class="modal-overlay" id="m-edr" onclick="closeM('edr')">
+<div class="modal" onclick="event.stopPropagation()" style="width:600px">
+  <div class="modal-hdr"><div><div class="modal-eye" id="edr-num">ESTADO DE RESULTADOS</div><div class="modal-title" id="edr-title">—</div></div><button class="modal-close" onclick="closeM('edr')">✕</button></div>
+  <div class="modal-body">
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:18px" id="edr-kpis"></div>
+    <div class="sect-label">DESGLOSE P&L POR PROVEEDOR</div>
+    <table class="tbl" style="margin-bottom:14px">
+      <thead><tr><th>PROVEEDOR / CONCEPTO</th><th style="text-align:right">COTIZADO</th><th style="text-align:right">PAGADO</th><th style="text-align:right">DEBEMOS</th></tr></thead>
+      <tbody id="edr-tbody"></tbody>
+    </table>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px" id="edr-bottom"></div>
+  </div>
+  <div class="modal-footer"><button class="btn btn-ghost" onclick="closeM('edr')">Cerrar</button><button class="btn btn-ghost" onclick="exportEDR()">⬇ Exportar PDF</button></div>
+</div></div>
+
+<!-- COTIZADOR COMPLETO -->
+<div class="modal-overlay" id="m-cotizador" onclick="closeM('cotizador')">
+<div class="modal" onclick="event.stopPropagation()" style="width:min(96vw,1000px);max-height:92vh">
+  <div class="modal-hdr">
+    <div><div class="modal-eye" id="cot-op-num">NUEVA COTIZACIÓN</div><div class="modal-title" id="cot-title">Cotizador</div></div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <button class="btn btn-ghost btn-sm" onclick="openM('nuevo-caso');closeM('cotizador')">🎫 Caso</button>
+      <button class="modal-close" onclick="closeM('cotizador')">✕</button>
+    </div>
+  </div>
+  <div class="modal-body" style="padding:16px 20px">
+    <div class="fgrid3" style="margin-bottom:14px">
+      <div class="fg" style="margin:0"><label class="fl">CLIENTE</label><select class="fsel-full" id="cot-cliente" onchange="cotUpdateOP()"></select></div>
+      <div class="fg" style="margin:0"><label class="fl">OP RELACIONADA</label><select class="fsel-full" id="cot-op"></select></div>
+      <div class="fg" style="margin:0"><label class="fl">EJECUTIVO</label><select class="fsel-full" id="cot-ejec"><option value="Natalia Gama">Natalia Gama</option><option value="Ximena">Ximena</option><option value="Alexia">Alexia</option></select></div>
+    </div>
+    <div class="cot-wrap">
+      <table class="cot-tbl">
+        <thead><tr>
+          <th style="min-width:200px">DESCRIPCIÓN</th>
+          <th style="width:55px;text-align:center">CANT.</th>
+          <th style="width:50px;text-align:center">DÍAS</th>
+          <th style="width:100px">COSTO UNIT.</th>
+          <th style="width:100px">PRECIO VENTA</th>
+          <th style="width:70px">% UTIL.</th>
+          <th style="width:100px;color:#FF6644">IMPORTE</th>
+          <th style="min-width:130px">PROVEEDOR</th>
+          <th style="width:30px"></th>
+        </tr></thead>
+        <tbody id="cot-tbody-inner"></tbody>
+        <tfoot id="cot-tfoot"></tfoot>
+      </table>
+    </div>
+    <button class="btn btn-ghost btn-sm" style="margin-top:10px" onclick="cotAddRow('otros')">+ Agregar concepto</button>
+    <div style="background:var(--cream);border-radius:7px;padding:9px 13px;margin-top:12px;font-size:12px;color:var(--gray600);line-height:1.8">
+      <strong>Fórmula:</strong> Precio venta = Costo × (1+%Util) · Importe = Precio venta × Cant × Días · Total con IVA = (Subtotal + Fee Agencia%) × 1.16
+    </div>
+  </div>
+  <div class="modal-footer">
+    <button class="btn btn-ghost" onclick="closeM('cotizador')">Cancelar</button>
+    <button class="btn btn-ghost" onclick="cotSaveAsDraft()">Guardar borrador</button>
+    <button class="btn btn-primary" onclick="cotSave()">Guardar Cotización</button>
+  </div>
+</div></div>
+
+<!-- VER COTIZACION -->
+<div class="modal-overlay" id="m-ver-cotizacion" onclick="closeM('ver-cotizacion')">
+<div class="modal" onclick="event.stopPropagation()" style="width:min(96vw,700px)">
+  <div class="modal-hdr"><div><div class="modal-eye" id="vc-num">COTIZACIÓN</div><div class="modal-title" id="vc-title">—</div></div><button class="modal-close" onclick="closeM('ver-cotizacion')">✕</button></div>
+  <div class="modal-body" id="vc-body"></div>
+  <div class="modal-footer">
+    <button class="btn btn-ghost" onclick="closeM('ver-cotizacion')">Cerrar</button>
+    <button class="btn btn-ghost" onclick="closeM('ver-cotizacion');openM('nuevo-caso')">🎫 Crear Caso</button>
+    <button class="btn btn-primary" onclick="crearNuevaVersionCot()">Nueva Versión</button>
+  </div>
+</div></div>
+
+<!-- NUEVO CASO -->
+<div class="modal-overlay" id="m-nuevo-caso" onclick="closeM('nuevo-caso')">
+<div class="modal" onclick="event.stopPropagation()" style="width:540px">
+  <div class="modal-hdr"><div><div class="modal-eye">ABRIR CASO</div><div class="modal-title">Nuevo Caso</div></div><button class="modal-close" onclick="closeM('nuevo-caso')">✕</button></div>
+  <div class="modal-body">
+    <div class="fg"><label class="fl">CLIENTE</label><select class="fsel-full" id="cas-cliente"></select></div>
+    <div class="fgrid">
+      <div class="fg"><label class="fl">TIPO DE CASO</label>
+        <select class="fsel-full" id="cas-tipo">
+          <option>Problema de cliente</option><option>Solicitud de modificación</option>
+          <option>Incidencia técnica / logística</option><option>Reclamo</option>
+          <option>Seguimiento de pago</option><option>Solicitud de descuento</option><option>Otro</option>
+        </select>
+      </div>
+      <div class="fg"><label class="fl">PRIORIDAD</label>
+        <select class="fsel-full" id="cas-prio">
+          <option value="Alta">Alta 🔴</option><option value="Media" selected>Media 🟡</option><option value="Baja">Baja 🟢</option>
+        </select>
+      </div>
+    </div>
+    <div class="fg"><label class="fl">TÍTULO DEL CASO</label><input class="fi" id="cas-titulo" placeholder="Ej: Cliente pide descuento del 10% en cotización V2"></div>
+    <div class="fgrid">
+      <div class="fg"><label class="fl">OP RELACIONADA</label><select class="fsel-full" id="cas-op"></select></div>
+      <div class="fg"><label class="fl">LEVANTÓ EL CASO</label>
+        <select class="fsel-full" id="cas-quien">
+          <option>Natalia Gama</option><option>Ximena</option><option>Alexia</option>
+          <option>Oscar (finanzas)</option><option>Cliente</option>
+        </select>
+      </div>
+    </div>
+    <div class="fg"><label class="fl">DESCRIPCIÓN DETALLADA</label><textarea class="fta" id="cas-desc" rows="3" placeholder="¿Qué pasó? ¿Qué solicita el cliente?"></textarea></div>
+    <div class="fg"><label class="fl">ACCIÓN REQUERIDA</label><textarea class="fta" id="cas-accion" rows="2" placeholder="¿Qué hay que hacer para cerrar este caso?"></textarea></div>
+  </div>
+  <div class="modal-footer"><button class="btn btn-ghost" onclick="closeM('nuevo-caso')">Cancelar</button><button class="btn btn-primary" onclick="saveCaso()">Abrir Caso</button></div>
+</div></div>
+
+<!-- DETALLE CASO -->
+<div class="modal-overlay" id="m-detalle-caso" onclick="closeM('detalle-caso')">
+<div class="modal" onclick="event.stopPropagation()" style="width:560px">
+  <div class="modal-hdr"><div><div class="modal-eye" id="dcas-num">CASO</div><div class="modal-title" id="dcas-titulo">—</div></div><button class="modal-close" onclick="closeM('detalle-caso')">✕</button></div>
+  <div class="modal-body">
+    <div class="info-grid" id="dcas-info"></div>
+    <div style="margin-bottom:14px"><div class="sect-label">HISTORIAL DE ACTIVIDAD</div><div id="dcas-historial"></div></div>
+    <div class="fg"><label class="fl">AGREGAR NOTA / ACTUALIZACIÓN</label><textarea class="fta" id="dcas-nota" rows="2" placeholder="¿Qué avance hay? ¿Se resolvió?"></textarea></div>
+  </div>
+  <div class="modal-footer">
+    <button class="btn btn-ghost" onclick="closeM('detalle-caso')">Cerrar</button>
+    <button class="btn btn-ghost" onclick="addNotaCaso()">Guardar nota</button>
+    <button class="btn btn-primary" id="dcas-cerrar-btn" onclick="cerrarCaso()">✓ Cerrar Caso</button>
+  </div>
+</div></div>
+
+<!-- NUEVO PAGO -->
+<div class="modal-overlay" id="m-nuevo-pago" onclick="closeM('nuevo-pago')">
+<div class="modal" onclick="event.stopPropagation()" style="width:520px">
+  <div class="modal-hdr"><div><div class="modal-eye">REGISTRAR MOVIMIENTO</div><div class="modal-title">Nuevo Pago</div></div><button class="modal-close" onclick="closeM('nuevo-pago')">✕</button></div>
+  <div class="modal-body">
+    <div class="fgrid">
+      <div class="fg"><label class="fl">TIPO</label><select class="fsel-full" id="pg-tipo"><option>Cobro a cliente</option><option>Pago a proveedor</option></select></div>
+      <div class="fg"><label class="fl">OP RELACIONADA</label><select class="fsel-full" id="pg-op"></select></div>
+    </div>
+    <div class="fg"><label class="fl">CONCEPTO</label><input class="fi" id="pg-concepto" placeholder="Anticipo 50%, Liquidación final..."></div>
+    <div class="fgrid">
+      <div class="fg"><label class="fl">MONTO (MXN)</label><input class="fi" id="pg-monto" type="number" placeholder="0.00"></div>
+      <div class="fg"><label class="fl">FECHA ACORDADA</label><input class="fi" id="pg-fecha" type="date"></div>
+    </div>
+    <div class="fgrid">
+      <div class="fg"><label class="fl">ESTATUS</label><select class="fsel-full" id="pg-status"><option>Pendiente</option><option>Pagado</option><option>Vencido</option></select></div>
+      <div class="fg"><label class="fl">FORMA DE PAGO</label><select class="fsel-full" id="pg-forma"><option>Transferencia SPEI</option><option>Cheque</option><option>Efectivo</option><option>Por definir</option></select></div>
+    </div>
+    <div class="fg"><label class="fl">REFERENCIA / NÚMERO TRANSFERENCIA</label><input class="fi" id="pg-ref" placeholder="SPEI 20260610 123456789 (si ya se realizó)"></div>
+  </div>
+  <div class="modal-footer"><button class="btn btn-ghost" onclick="closeM('nuevo-pago')">Cancelar</button><button class="btn btn-primary" onclick="savePago()">Registrar Pago</button></div>
+</div></div>
+
+<!-- DETALLE PAGO -->
+<div class="modal-overlay" id="m-detalle-pago" onclick="closeM('detalle-pago')">
+<div class="modal" onclick="event.stopPropagation()" style="width:520px">
+  <div class="modal-hdr"><div><div class="modal-eye" id="dpg-tipo">PAGO</div><div class="modal-title" id="dpg-concepto">—</div></div><button class="modal-close" onclick="closeM('detalle-pago')">✕</button></div>
+  <div class="modal-body">
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px" id="dpg-kpis"></div>
+    <div class="info-grid" id="dpg-info"></div>
+    <div id="dpg-marcar" style="margin-top:10px"></div>
+  </div>
+  <div class="modal-footer"><button class="btn btn-ghost" onclick="closeM('detalle-pago')">Cerrar</button><button class="btn btn-primary" id="dpg-btn" onclick="marcarPagado()">Confirmar Pago Recibido</button></div>
+</div></div>
+
+<!-- NUEVO PROVEEDOR -->
+<div class="modal-overlay" id="m-nuevo-proveedor" onclick="closeM('nuevo-proveedor')">
+<div class="modal" onclick="event.stopPropagation()" style="width:520px">
+  <div class="modal-hdr"><div><div class="modal-eye">ALTA DE PROVEEDOR</div><div class="modal-title">Nuevo Proveedor</div></div><button class="modal-close" onclick="closeM('nuevo-proveedor')">✕</button></div>
+  <div class="modal-body">
+    <div class="fgrid"><div class="fg"><label class="fl">NOMBRE COMERCIAL</label><input class="fi" id="prv-nombre" placeholder="SoundPro MX"></div><div class="fg"><label class="fl">RAZÓN SOCIAL</label><input class="fi" id="prv-razon" placeholder="SOUNDPRO SA DE CV"></div></div>
+    <div class="fgrid">
+      <div class="fg"><label class="fl">RFC</label><input class="fi" id="prv-rfc" placeholder="SPR120415MX3" style="font-family:'JetBrains Mono',monospace"></div>
+      <div class="fg"><label class="fl">BANCO</label><select class="fsel-full" id="prv-banco" onchange="updateClabeLabel()"><option>BBVA Bancomer</option><option>Banorte</option><option>Santander</option><option>HSBC</option><option>Citibanamex</option><option>Scotiabank</option><option>Otro</option></select></div>
+    </div>
+    <div class="fg"><label class="fl" id="prv-clabe-label">CLABE INTERBANCARIA</label><input class="fi" id="prv-clabe" placeholder="18 dígitos" style="font-family:'JetBrains Mono',monospace"></div>
+    <div class="fg"><label class="fl">PRODUCTO O SERVICIO</label><input class="fi" id="prv-servicio" placeholder="Audio, video e iluminación para eventos"></div>
+    <div class="fgrid">
+      <div class="fg"><label class="fl">CONDICIONES DE PAGO</label><select class="fsel-full" id="prv-cond"><option>Inmediato</option><option>7 días</option><option>15 días</option><option>30 días</option><option>60 días</option></select></div>
+      <div class="fg"><label class="fl">EMITE FACTURA</label><select class="fsel-full" id="prv-factura"><option value="true">Sí — emite factura</option><option value="false">No — solo recibo</option></select></div>
+    </div>
+    <div class="fgrid"><div class="fg"><label class="fl">CONTACTO</label><input class="fi" id="prv-contacto" placeholder="Nombre"></div><div class="fg"><label class="fl">TELÉFONO</label><input class="fi" id="prv-tel" placeholder="+52 55 0000 0000"></div></div>
+    <div class="fg"><label class="fl">EMAIL</label><input class="fi" id="prv-email" type="email" placeholder="contacto@proveedor.com"></div>
+    <div class="fg"><label class="fl">NOTAS INTERNAS</label><textarea class="fta" id="prv-notas" rows="2" placeholder="Ej: requiere anticipo 30%, disponible en CDMX y GDL..."></textarea></div>
+  </div>
+  <div class="modal-footer"><button class="btn btn-ghost" onclick="closeM('nuevo-proveedor')">Cancelar</button><button class="btn btn-primary" onclick="saveProveedor()">Guardar Proveedor</button></div>
+</div></div>
+
+<!-- DETALLE PROVEEDOR -->
+<div class="modal-overlay" id="m-detalle-proveedor" onclick="closeM('detalle-proveedor')">
+<div class="modal" onclick="event.stopPropagation()" style="width:540px">
+  <div class="modal-hdr"><div><div class="modal-eye" id="dprv-rfc">PROVEEDOR</div><div class="modal-title" id="dprv-nombre">—</div></div><button class="modal-close" onclick="closeM('detalle-proveedor')">✕</button></div>
+  <div class="modal-body">
+    <div class="info-grid" id="dprv-info"></div>
+    <div class="sect-label">DEUDAS ACTIVAS</div>
+    <div id="dprv-deudas"></div>
+  </div>
+  <div class="modal-footer"><button class="btn btn-ghost" onclick="closeM('detalle-proveedor')">Cerrar</button><button class="btn btn-primary" onclick="openM('deudas');closeM('detalle-proveedor')">Ver todas las deudas</button></div>
+</div></div>
+
+<!-- DEUDAS A PROVEEDORES -->
+<div class="modal-overlay" id="m-deudas" onclick="closeM('deudas')">
+<div class="modal" onclick="event.stopPropagation()" style="width:min(96vw,660px)">
+  <div class="modal-hdr"><div><div class="modal-eye">PAGOS A PROVEEDORES</div><div class="modal-title">¿Qué le debemos a quién?</div></div><button class="modal-close" onclick="closeM('deudas')">✕</button></div>
+  <div class="modal-body">
+    <div class="grid3" style="margin-bottom:18px" id="deudas-kpis"></div>
+    <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
+      <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--gray400);letter-spacing:.11em;align-self:center">VER:</div>
+      <button class="vsel-btn active" style="border-radius:20px;border:1px solid var(--border-d)" onclick="filterDeudas('todos',this)">TODOS</button>
+      <button class="vsel-btn" style="border-radius:20px;border:1px solid var(--border-d)" onclick="filterDeudas('pendiente',this)">POR PAGAR</button>
+      <button class="vsel-btn" style="border-radius:20px;border:1px solid var(--border-d)" onclick="filterDeudas('pagado',this)">YA PAGADOS</button>
+      <select class="fsel" id="deudas-prov-filter" style="margin-left:auto" onchange="renderDeudasModal()">
+        <option value="">Todos los proveedores</option>
+      </select>
+    </div>
+    <div id="deudas-cards"></div>
+  </div>
+  <div class="modal-footer" style="justify-content:space-between">
+    <button class="btn btn-ghost" onclick="closeM('deudas')">Cerrar</button>
+    <button class="btn btn-primary btn-sm" onclick="openM('nueva-deuda');closeM('deudas')">+ Registrar pago a proveedor</button>
+  </div>
+</div></div>
+
+<!-- NUEVA DEUDA -->
+<div class="modal-overlay" id="m-nueva-deuda" onclick="closeM('nueva-deuda')">
+<div class="modal" onclick="event.stopPropagation()" style="width:480px">
+  <div class="modal-hdr"><div><div class="modal-eye">REGISTRAR DEUDA</div><div class="modal-title">Nuevo Pago a Proveedor</div></div><button class="modal-close" onclick="closeM('nueva-deuda')">✕</button></div>
+  <div class="modal-body">
+    <div class="fg"><label class="fl">PROVEEDOR</label><select class="fsel-full" id="nd-prov"></select></div>
+    <div class="fg"><label class="fl">OP RELACIONADA</label><select class="fsel-full" id="nd-op"></select></div>
+    <div class="fg"><label class="fl">CONCEPTO</label><input class="fi" id="nd-concepto" placeholder="Equipo de audio para evento 14 jun"></div>
+    <div class="fgrid">
+      <div class="fg"><label class="fl">MONTO (MXN)</label><input class="fi" id="nd-monto" type="number" placeholder="0.00"></div>
+      <div class="fg"><label class="fl">FECHA ACORDADA</label><input class="fi" id="nd-fecha" type="date"></div>
+    </div>
+  </div>
+  <div class="modal-footer"><button class="btn btn-ghost" onclick="closeM('nueva-deuda')">Cancelar</button><button class="btn btn-primary" onclick="saveDeuda()">Registrar Deuda</button></div>
+</div></div>
+
+<!-- MODAL OBJETIVOS -->
+<div class="modal-overlay" id="m-objetivos" onclick="closeM('objetivos')">
+<div class="modal" onclick="event.stopPropagation()" style="width:480px">
+  <div class="modal-hdr">
+    <div><div class="modal-eye">ADMIN · DIRECCIÓN</div><div class="modal-title">Objetivos del Mes</div></div>
+    <button class="modal-close" onclick="closeM('objetivos')">✕</button>
+  </div>
+  <div class="modal-body">
+    <div id="obj-mes-label" style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--gray400);margin-bottom:14px;letter-spacing:.1em"></div>
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div class="fgrid">
+        <div class="fg"><label class="fl">OPs ACTIVAS (meta)</label><input class="fi" id="obj-opsActivas" type="number" placeholder="5"></div>
+        <div class="fg"><label class="fl">CLIENTES ACTIVOS (meta)</label><input class="fi" id="obj-cliActivos" type="number" placeholder="20"></div>
+      </div>
+      <div class="fgrid">
+        <div class="fg"><label class="fl">COTIZADO MXN (meta)</label><input class="fi" id="obj-cotizado" type="number" placeholder="1500000"></div>
+        <div class="fg"><label class="fl">COBROS MXN (meta)</label><input class="fi" id="obj-cobros" type="number" placeholder="800000"></div>
+      </div>
+      <div class="fgrid">
+        <div class="fg"><label class="fl">PIPELINE MXN (meta)</label><input class="fi" id="obj-pipeline" type="number" placeholder="3000000"></div>
+        <div class="fg"><label class="fl">COMISIONES MXN (meta)</label><input class="fi" id="obj-comisiones" type="number" placeholder="50000"></div>
+      </div>
+    </div>
+  </div>
+  <div class="modal-footer">
+    <button class="btn btn-ghost" onclick="closeM('objetivos')">Cancelar</button>
+    <button class="btn btn-primary" onclick="guardarObjetivos()">Guardar Objetivos</button>
+  </div>
+</div></div>
+
+<!-- MODAL CAMBIAR CONTRASEÑA -->
+<div class="modal-overlay" id="modal-cambiar-pass" onclick="closeM('cambiar-pass')">
+<div class="modal" onclick="event.stopPropagation()" style="width:380px">
+  <div class="modal-hdr">
+    <div><div class="modal-eye">MI CUENTA</div><div class="modal-title">Cambiar Contraseña</div></div>
+    <button class="modal-close" onclick="closeM('cambiar-pass')">✕</button>
+  </div>
+  <div class="modal-body">
+    <div class="fg"><label class="fl">CONTRASEÑA ACTUAL</label><input class="fi" id="cp-actual" type="password" placeholder="••••••••"></div>
+    <div class="fg" style="margin-top:10px"><label class="fl">CONTRASEÑA NUEVA</label><input class="fi" id="cp-nueva" type="password" placeholder="Mínimo 8 caracteres"></div>
+    <div class="fg" style="margin-top:10px"><label class="fl">CONFIRMAR NUEVA</label><input class="fi" id="cp-confirma" type="password" placeholder="Repite la contraseña nueva"></div>
+  </div>
+  <div class="modal-footer">
+    <button class="btn btn-ghost" onclick="closeM('cambiar-pass')">Cancelar</button>
+    <button class="btn btn-primary" onclick="cambiarPassword()">Guardar</button>
+  </div>
+</div></div>
+
+<!-- JS FILES — order matters -->
+<script src="/js/db.js"></script>
+<script src="/js/auth.js"></script>
+<script src="/js/app.js"></script>
+<script src="/js/views/prospectos.js"></script>
+<script src="/js/views/clientes.js"></script>
+<script src="/js/views/ops.js"></script>
+<script src="/js/views/cotizaciones.js"></script>
+<script src="/js/views/pagos.js"></script>
+<script src="/js/views/proveedores.js"></script>
+<script src="/js/views/casos.js"></script>
+<script src="/js/views/dashboard.js"></script>
+<script src="/js/views/comercial.js"></script>
+<script src="/js/views/reportes.js"></script>
+</body>
+</html>
