@@ -323,9 +323,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     return;
   }
 
-  // Sesión válida: aplicar rol y cargar datos
+  // Sesión válida: aplicar rol
   aplicarSesion(user);
   ocultarLogin();
+
+  // Si quedó pendiente cambiar la contraseña (ej. recargó la página a medio flujo), bloquear aquí
+  if (user.mustChangePassword) {
+    mostrarForzarPassScreen();
+    return;
+  }
 
   showSpinner();
   try {

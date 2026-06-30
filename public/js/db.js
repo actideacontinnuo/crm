@@ -6,11 +6,25 @@ function _authHeaders(extra = {}) {
     : { ...extra };
 }
 
+// Maneja respuestas no-OK de forma centralizada: sesión expirada y contraseña obligatoria
+async function _handleErrorResponse(r) {
+  if (r.status === 401) { cerrarSesion(); throw new Error('Sesión expirada'); }
+  if (r.status === 403) {
+    try {
+      const body = await r.clone().json();
+      if (body.error === 'PASSWORD_CHANGE_REQUIRED') {
+        if (typeof mostrarForzarPassScreen === 'function') mostrarForzarPassScreen();
+        throw new Error('Debes cambiar tu contraseña');
+      }
+    } catch (_) { /* no era JSON con ese formato, sigue al manejo genérico */ }
+  }
+  throw new Error(await r.text());
+}
+
 const API = {
   async get(path) {
     const r = await fetch('/api' + path, { headers: _authHeaders() });
-    if (r.status === 401) { cerrarSesion(); throw new Error('Sesión expirada'); }
-    if (!r.ok) throw new Error(await r.text());
+    if (!r.ok) return _handleErrorResponse(r);
     return r.json();
   },
   async post(path, body) {
@@ -19,8 +33,7 @@ const API = {
       headers: _authHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify(body),
     });
-    if (r.status === 401) { cerrarSesion(); throw new Error('Sesión expirada'); }
-    if (!r.ok) throw new Error(await r.text());
+    if (!r.ok) return _handleErrorResponse(r);
     return r.json();
   },
   async patch(path, body) {
@@ -29,8 +42,7 @@ const API = {
       headers: _authHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify(body),
     });
-    if (r.status === 401) { cerrarSesion(); throw new Error('Sesión expirada'); }
-    if (!r.ok) throw new Error(await r.text());
+    if (!r.ok) return _handleErrorResponse(r);
     return r.json();
   },
   async delete(path) {
@@ -38,8 +50,7 @@ const API = {
       method: 'DELETE',
       headers: _authHeaders(),
     });
-    if (r.status === 401) { cerrarSesion(); throw new Error('Sesión expirada'); }
-    if (!r.ok) throw new Error(await r.text());
+    if (!r.ok) return _handleErrorResponse(r);
     return r.json();
   },
 };

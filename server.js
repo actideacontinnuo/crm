@@ -5,6 +5,7 @@ const helmet    = require('helmet');
 const path      = require('path');
 const rateLimit = require('express-rate-limit');
 const { authMiddleware } = require('./middleware/auth');
+const { logAudit, clientIp } = require('./api/_audit');
 
 if (!process.env.JWT_SECRET) {
   console.warn('\n⚠️  ADVERTENCIA: JWT_SECRET no está configurada. Configúrala en .env / Railway antes de producción.\n');
@@ -51,7 +52,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 // ── Rate limit general — protege toda la API contra abuso/scraping ──
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 600, // 600 peticiones / 15 min por IP — generoso para uso normal, bloquea scripts automatizados
+  max: 600,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Demasiadas peticiones. Espera unos minutos.' },
@@ -76,8 +77,13 @@ app.use('/api/auth', require('./api/auth'));
 // ── Middleware de autenticación (todo lo demás requiere token) ──
 app.use('/api', authMiddleware);
 
+// ── Si la cuenta debe cambiar su contraseña, no puede usar el resto de la API ──
+app.use('/api', enforcePasswordChange);
+
+// ── Log de auditoría automático en toda acción que modifica datos ──
+app.use('/api', auditLogger);
+
 // ── Middleware de roles ───────────────────
-// Ejecutivos solo ven/modifican sus propios datos (filtro real en cada router + _guard.js)
 app.use('/api/prospectos',   roleFilter());
 app.use('/api/clientes',     roleFilter());
 app.use('/api/ops',          roleFilter());
@@ -89,6 +95,10 @@ app.use('/api/deudas',       adminOnly);
 
 // Proveedores: cualquiera ve/edita, pero solo Admin puede eliminar
 app.use('/api/proveedores',  deleteAdminOnly);
+
+// Auditoría y respaldos: solo admin
+app.use('/api/auditoria',    adminOnly);
+app.use('/api/backup',       adminOnly);
 
 // ── Rutas API ────────────────────────────
 app.use('/api/prospectos',   require('./api/prospectos'));
@@ -102,6 +112,8 @@ app.use('/api/casos',        require('./api/casos'));
 app.use('/api/tickets',      require('./api/tickets'));
 app.use('/api/vision',       require('./api/vision'));
 app.use('/api/objetivos',    require('./api/objetivos'));
+app.use('/api/auditoria',    require('./api/auditoria'));
+app.use('/api/backup',       require('./api/backup'));
 
 // ── SPA fallback ─────────────────────────
 app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
@@ -114,7 +126,7 @@ app.use((err, req, res, next) => {
 });
 
 // ════════════════════════════════════════
-// Helpers de roles
+// Helpers
 // ════════════════════════════════════════
 
 function adminOnly(req, res, next) {
@@ -142,8 +154,39 @@ function roleFilter() {
   };
 }
 
+// Bloquea toda la API si la cuenta tiene una contraseña pendiente de cambiar —
+// solo /api/auth/cambiar-password (manejado en su propio router) queda accesible.
+function enforcePasswordChange(req, res, next) {
+  if (req.user.mustChangePassword) {
+    return res.status(403).json({ error: 'PASSWORD_CHANGE_REQUIRED', message: 'Debes cambiar tu contraseña antes de continuar' });
+  }
+  next();
+}
+
+// Registra automáticamente cada acción que crea, edita o elimina datos
+function auditLogger(req, res, next) {
+  res.on('finish', () => {
+    if (!['POST', 'PATCH', 'DELETE'].includes(req.method)) return;
+    if (req.path.startsWith('/api/vision')) return; // ya no aporta valor de auditoría
+    const entidad = req.path.split('/')[1] || '';
+    const accion  = req.method === 'POST' ? 'crear' : req.method === 'PATCH' ? 'editar' : 'eliminar';
+    logAudit({
+      usuario: req.user?.id,
+      accion,
+      entidad,
+      detalle: `${req.method} ${req.path}`,
+      ip: clientIp(req),
+      exito: res.statusCode < 400,
+    });
+  });
+  next();
+}
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`\n  ACTIDEA CRM v1.0`);
   console.log(`  http://localhost:${PORT}\n`);
 });
+
+// ── Respaldo automático mensual de Notion (1ro de cada mes, 3:00 am) ──
+require('./jobs/backup-scheduler');

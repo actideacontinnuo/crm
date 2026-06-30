@@ -38,6 +38,57 @@
   </div>
 </div>
 
+<!-- ═══════════ PANTALLA 2FA ═══════════ -->
+<div id="twofa-screen" style="
+  position:fixed;inset:0;z-index:9999;display:none;
+  background:var(--cream);
+  align-items:center;justify-content:center;">
+  <div style="width:340px;background:var(--white);border:1px solid var(--border);border-radius:14px;padding:36px 32px;box-shadow:0 8px 32px rgba(0,0,0,.10);">
+    <div style="text-align:center;margin-bottom:24px">
+      <div style="font-size:28px;margin-bottom:8px">🔐</div>
+      <div style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;letter-spacing:.08em">VERIFICACIÓN EN DOS PASOS</div>
+      <div style="font-size:11px;color:var(--gray400);margin-top:6px">Abre tu app de autenticación e ingresa el código de 6 dígitos</div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <input class="fi" id="twofa-code" placeholder="000000" inputmode="numeric" maxlength="6" style="text-align:center;font-family:'JetBrains Mono',monospace;font-size:20px;letter-spacing:.3em" onkeydown="if(event.key==='Enter')doVerify2FA()">
+      <div id="twofa-error" style="display:none;font-size:11px;color:var(--red);font-family:'JetBrains Mono',monospace;text-align:center"></div>
+      <button class="btn btn-primary" style="width:100%" onclick="doVerify2FA()">Verificar</button>
+      <button class="btn btn-ghost" style="width:100%" onclick="cancelar2FAScreen()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ CAMBIO OBLIGATORIO DE CONTRASEÑA ═══════════ -->
+<div id="forzar-pass-screen" style="
+  position:fixed;inset:0;z-index:9999;display:none;
+  background:var(--cream);
+  align-items:center;justify-content:center;">
+  <div style="width:380px;background:var(--white);border:1px solid var(--border);border-radius:14px;padding:36px 32px;box-shadow:0 8px 32px rgba(0,0,0,.10);">
+    <div style="text-align:center;margin-bottom:24px">
+      <div style="font-size:28px;margin-bottom:8px">🔒</div>
+      <div style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;letter-spacing:.08em">DEBES CAMBIAR TU CONTRASEÑA</div>
+      <div style="font-size:11px;color:var(--gray400);margin-top:6px">Por seguridad, antes de continuar define una contraseña nueva y única</div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div>
+        <label class="fl">CONTRASEÑA ACTUAL</label>
+        <input class="fi" id="fp-actual" type="password" placeholder="••••••••">
+      </div>
+      <div>
+        <label class="fl">CONTRASEÑA NUEVA</label>
+        <input class="fi" id="fp-nueva" type="password" placeholder="Mínimo 12 caracteres">
+      </div>
+      <div>
+        <label class="fl">CONFIRMAR NUEVA</label>
+        <input class="fi" id="fp-confirma" type="password" placeholder="Repite la contraseña nueva">
+      </div>
+      <div style="font-size:10px;color:var(--gray400);line-height:1.5">Debe incluir mayúscula, minúscula, número y símbolo (12+ caracteres).</div>
+      <div id="fp-error" style="display:none;font-size:11px;color:var(--red);font-family:'JetBrains Mono',monospace;text-align:center"></div>
+      <button class="btn btn-primary" style="width:100%;margin-top:4px" onclick="doForzarCambioPassword()">Guardar y continuar</button>
+    </div>
+  </div>
+</div>
+
 <!-- TOPBAR -->
 <div class="topbar">
   <div class="t-logo">
@@ -51,7 +102,7 @@
       <div class="u-name" id="topbar-nombre">—</div>
       <div class="u-role" id="topbar-rol">—</div>
     </div>
-    <div class="u-avatar" id="topbar-avatar" style="cursor:pointer" title="Cerrar sesión" onclick="cerrarSesion()">—</div>
+    <div class="u-avatar" id="topbar-avatar" style="cursor:pointer" title="Mi cuenta" onclick="abrirMiCuenta()">—</div>
   </div>
 </div>
 <div class="layout">
@@ -86,6 +137,8 @@
     <div class="s-label">ADMINISTRACIÓN</div>
     <div class="nav-item" onclick="abrirObjetivos()"><span class="nav-icon">🎯</span>Objetivos del Mes</div>
     <div class="nav-item" onclick="abrirGestionUsuarios()"><span class="nav-icon">👤</span>Usuarios y Accesos</div>
+    <div class="nav-item" onclick="abrirAuditoria()"><span class="nav-icon">🛡️</span>Auditoría</div>
+    <div class="nav-item" onclick="abrirRespaldo()"><span class="nav-icon">💾</span>Respaldo de Datos</div>
   </div>
   <div class="s-bottom">
     <div>PLAINWORK · ACTIDEA V1.0</div>
@@ -848,21 +901,70 @@
   <div class="modal-footer"><button class="btn btn-ghost" onclick="closeM('gestion-usuarios')">Cerrar</button></div>
 </div></div>
 
-<!-- MODAL CAMBIAR CONTRASEÑA -->
-<div class="modal-overlay" id="modal-cambiar-pass" onclick="closeM('cambiar-pass')">
-<div class="modal" onclick="event.stopPropagation()" style="width:380px">
+<!-- MODAL MI CUENTA (contraseña + 2FA) -->
+<div class="modal-overlay" id="m-mi-cuenta" onclick="closeM('mi-cuenta')">
+<div class="modal" onclick="event.stopPropagation()" style="width:420px">
   <div class="modal-hdr">
-    <div><div class="modal-eye">MI CUENTA</div><div class="modal-title">Cambiar Contraseña</div></div>
-    <button class="modal-close" onclick="closeM('cambiar-pass')">✕</button>
+    <div><div class="modal-eye">MI CUENTA</div><div class="modal-title" id="mc-titulo">—</div></div>
+    <button class="modal-close" onclick="closeM('mi-cuenta')">✕</button>
   </div>
   <div class="modal-body">
+    <div class="sect-label">CONTRASEÑA</div>
     <div class="fg"><label class="fl">CONTRASEÑA ACTUAL</label><input class="fi" id="cp-actual" type="password" placeholder="••••••••"></div>
-    <div class="fg" style="margin-top:10px"><label class="fl">CONTRASEÑA NUEVA</label><input class="fi" id="cp-nueva" type="password" placeholder="Mínimo 8 caracteres"></div>
+    <div class="fg" style="margin-top:10px"><label class="fl">CONTRASEÑA NUEVA</label><input class="fi" id="cp-nueva" type="password" placeholder="Mínimo 12 caracteres"></div>
     <div class="fg" style="margin-top:10px"><label class="fl">CONFIRMAR NUEVA</label><input class="fi" id="cp-confirma" type="password" placeholder="Repite la contraseña nueva"></div>
+    <div style="font-size:10px;color:var(--gray400);margin-top:6px;line-height:1.5">Debe incluir mayúscula, minúscula, número y símbolo.</div>
+    <button class="btn btn-primary btn-sm" style="margin-top:10px" onclick="cambiarPassword()">Guardar contraseña</button>
+
+    <div style="border-top:1px solid var(--border);margin-top:18px;padding-top:14px">
+      <div class="sect-label">VERIFICACIÓN EN DOS PASOS (2FA)</div>
+      <div id="mc-2fa-status" style="font-size:12px;color:var(--gray400);margin-bottom:10px">Cargando estado…</div>
+      <div id="mc-2fa-setup" style="display:none">
+        <div style="text-align:center;margin-bottom:10px">
+          <img id="mc-2fa-qr" style="width:160px;height:160px;border:1px solid var(--border);border-radius:8px" />
+        </div>
+        <div style="font-size:10px;color:var(--gray400);text-align:center;margin-bottom:8px">Escanea con Google Authenticator, Authy o similar</div>
+        <input class="fi" id="mc-2fa-codigo" placeholder="Código de 6 dígitos" inputmode="numeric" maxlength="6" style="text-align:center;font-family:'JetBrains Mono',monospace;letter-spacing:.2em">
+        <button class="btn btn-primary btn-sm" style="width:100%;margin-top:8px" onclick="confirmar2FA()">Confirmar y activar</button>
+      </div>
+      <div id="mc-2fa-actions"></div>
+    </div>
   </div>
   <div class="modal-footer">
-    <button class="btn btn-ghost" onclick="closeM('cambiar-pass')">Cancelar</button>
-    <button class="btn btn-primary" onclick="cambiarPassword()">Guardar</button>
+    <button class="btn btn-ghost" onclick="closeM('mi-cuenta')">Cerrar</button>
+  </div>
+</div></div>
+
+<!-- MODAL AUDITORÍA -->
+<div class="modal-overlay" id="m-auditoria" onclick="closeM('auditoria')">
+<div class="modal" onclick="event.stopPropagation()" style="width:720px;max-height:80vh">
+  <div class="modal-hdr">
+    <div><div class="modal-eye">ADMIN · SEGURIDAD</div><div class="modal-title">Log de Auditoría</div></div>
+    <button class="modal-close" onclick="closeM('auditoria')">✕</button>
+  </div>
+  <div class="modal-body" style="max-height:60vh;overflow-y:auto">
+    <div id="aud-lista"></div>
+  </div>
+  <div class="modal-footer"><button class="btn btn-ghost" onclick="closeM('auditoria')">Cerrar</button></div>
+</div></div>
+
+<!-- MODAL RESPALDO -->
+<div class="modal-overlay" id="m-respaldo" onclick="closeM('respaldo')">
+<div class="modal" onclick="event.stopPropagation()" style="width:460px">
+  <div class="modal-hdr">
+    <div><div class="modal-eye">ADMIN · RESPALDOS</div><div class="modal-title">Respaldo de Datos</div></div>
+    <button class="modal-close" onclick="closeM('respaldo')">✕</button>
+  </div>
+  <div class="modal-body">
+    <p style="font-size:12.5px;color:var(--gray600);line-height:1.6">
+      Se genera un respaldo automático el día 1 de cada mes y se envía por correo (si está configurado).
+      También puedes generar uno manualmente ahora mismo.
+    </p>
+    <div id="resp-status" style="margin-top:12px;font-size:12px;color:var(--gray400)"></div>
+  </div>
+  <div class="modal-footer">
+    <button class="btn btn-ghost" onclick="closeM('respaldo')">Cerrar</button>
+    <button class="btn btn-primary" id="resp-btn" onclick="generarRespaldoManual()">Generar respaldo ahora</button>
   </div>
 </div></div>
 
