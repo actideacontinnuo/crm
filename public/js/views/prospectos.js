@@ -34,16 +34,16 @@ async function renderProspectos() {
   const tbody = document.getElementById('prosp-tbody');
   tbody.innerHTML = filtered.length
     ? filtered.map(p => `<tr onclick="openDetalleProspecto('${p.id}')">
-        <td><div style="font-weight:600">${p.empresa}</div><div style="font-size:11px;color:var(--gray400)">${p.evento}</div></td>
+        <td><div style="font-weight:600">${esc(p.empresa)}</div><div style="font-size:11px;color:var(--gray400)">${esc(p.evento)}</div></td>
         <td><div style="display:flex;align-items:center;gap:7px">
-          <div class="av">${(p.contacto||'?').split(' ').map(x=>x[0]).join('').slice(0,2)}</div>
-          <div><div style="font-size:12px">${p.contacto}</div><div style="font-size:10px;color:var(--gray400)">${p.cargo}</div></div>
+          <div class="av">${esc((p.contacto||'?').split(' ').map(x=>x[0]).join('').slice(0,2))}</div>
+          <div><div style="font-size:12px">${esc(p.contacto)}</div><div style="font-size:10px;color:var(--gray400)">${esc(p.cargo)}</div></div>
         </div></td>
         <td>${pillHTML(p.status)}</td>
-        <td><div style="font-size:12px">${p.ejec}</div></td>
+        <td><div style="font-size:12px">${esc(p.ejec)}</div></td>
         <td class="mono">${fmx(p.estimado)}</td>
-        <td class="mono" style="color:${p.seguimiento && p.seguimiento <= today ? 'var(--red)' : ''}">${p.seguimiento || '—'}</td>
-        <td><span class="tag tag-gray">${p.fuente || '—'}</span></td>
+        <td class="mono" style="color:${p.seguimiento && p.seguimiento <= today ? 'var(--red)' : ''}">${esc(p.seguimiento) || '—'}</td>
+        <td><span class="tag tag-gray">${esc(p.fuente) || '—'}</span></td>
         <td><button class="btn btn-ghost btn-xs" onclick="event.stopPropagation();openDetalleProspecto('${p.id}')">Ver</button></td>
       </tr>`).join('')
     : `<tr><td colspan="8"><div class="empty-state"><div>🔍</div><div>SIN RESULTADOS</div></div></td></tr>`;
@@ -201,14 +201,14 @@ async function openDetalleProspecto(id) {
   document.getElementById('dp-eye').textContent = p.status.toUpperCase();
   document.getElementById('dp-empresa').textContent = p.empresa;
   document.getElementById('dp-info').innerHTML = `
-    <div class="info-cell"><div class="info-cell-label">CONTACTO</div><div class="info-cell-val">${p.contacto}</div><div style="font-size:11px;color:var(--gray400)">${p.cargo}</div></div>
-    <div class="info-cell"><div class="info-cell-label">EVENTO</div><div class="info-cell-val">${p.evento}</div></div>
-    <div class="info-cell"><div class="info-cell-label">TELÉFONO</div><div class="info-cell-val" style="font-family:'JetBrains Mono',monospace;font-size:12px">${p.tel || '—'}</div></div>
-    <div class="info-cell"><div class="info-cell-label">EMAIL</div><div class="info-cell-val" style="font-size:12px">${p.email || '—'}</div></div>
+    <div class="info-cell"><div class="info-cell-label">CONTACTO</div><div class="info-cell-val">${esc(p.contacto)}</div><div style="font-size:11px;color:var(--gray400)">${esc(p.cargo)}</div></div>
+    <div class="info-cell"><div class="info-cell-label">EVENTO</div><div class="info-cell-val">${esc(p.evento)}</div></div>
+    <div class="info-cell"><div class="info-cell-label">TELÉFONO</div><div class="info-cell-val" style="font-family:'JetBrains Mono',monospace;font-size:12px">${esc(p.tel) || '—'}</div></div>
+    <div class="info-cell"><div class="info-cell-label">EMAIL</div><div class="info-cell-val" style="font-size:12px">${esc(p.email) || '—'}</div></div>
     <div class="info-cell"><div class="info-cell-label">ESTIMADO</div><div class="info-cell-val" style="color:var(--red)">${fmx(p.estimado)}</div></div>
-    <div class="info-cell"><div class="info-cell-label">EJECUTIVO</div><div class="info-cell-val">${p.ejec}</div></div>
-    <div class="info-cell"><div class="info-cell-label">FUENTE</div><div class="info-cell-val">${p.fuente || '—'}</div></div>
-    <div class="info-cell"><div class="info-cell-label">SEGUIMIENTO</div><div class="info-cell-val">${p.seguimiento || '—'}</div></div>`;
+    <div class="info-cell"><div class="info-cell-label">EJECUTIVO</div><div class="info-cell-val">${esc(p.ejec)}</div></div>
+    <div class="info-cell"><div class="info-cell-label">FUENTE</div><div class="info-cell-val">${esc(p.fuente) || '—'}</div></div>
+    <div class="info-cell"><div class="info-cell-label">SEGUIMIENTO</div><div class="info-cell-val">${esc(p.seguimiento) || '—'}</div></div>`;
 
   _renderNotasProsp(p.notas || []);
   document.getElementById('dp-nueva-nota').value = '';
@@ -222,7 +222,7 @@ async function openDetalleProspecto(id) {
 
 function _renderNotasProsp(notas) {
   document.getElementById('dp-notas').innerHTML = notas.length
-    ? notas.map(n => `<div class="seg-row"><div class="seg-dot"></div><div style="font-size:12.5px">${n}</div></div>`).join('')
+    ? notas.map(n => `<div class="seg-row"><div class="seg-dot"></div><div style="font-size:12.5px">${esc(n)}</div></div>`).join('')
     : '<div style="color:var(--gray400);font-size:12px;padding:8px 0">Sin notas registradas</div>';
 }
 
@@ -309,17 +309,17 @@ async function renderKanban() {
       <div style="padding:10px;display:flex;flex-direction:column;gap:8px;min-height:80px">
         ${cards.map(p => `
           <div onclick="openDetalleProspecto('${p.id}')" style="background:var(--cream);border:1px solid var(--border);border-left:3px solid ${col.col};border-radius:7px;padding:10px 12px;cursor:pointer;transition:box-shadow .12s" onmouseover="this.style.boxShadow='0 2px 8px rgba(0,0,0,.08)'" onmouseout="this.style.boxShadow='none'">
-            <div style="font-size:13px;font-weight:600;margin-bottom:2px">${p.empresa}</div>
-            <div style="font-size:11px;color:var(--gray400);margin-bottom:7px">${p.evento}</div>
+            <div style="font-size:13px;font-weight:600;margin-bottom:2px">${esc(p.empresa)}</div>
+            <div style="font-size:11px;color:var(--gray400);margin-bottom:7px">${esc(p.evento)}</div>
             <div style="display:flex;align-items:center;justify-content:space-between">
               <div style="display:flex;align-items:center;gap:5px">
-                <div class="av" style="width:20px;height:20px;font-size:7px">${p.ejec.split(' ').map(x=>x[0]).join('').slice(0,2)}</div>
-                <span style="font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--gray400)">${p.ejec.split(' ')[0]}</span>
+                <div class="av" style="width:20px;height:20px;font-size:7px">${esc(p.ejec.split(' ').map(x=>x[0]).join('').slice(0,2))}</div>
+                <span style="font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--gray400)">${esc(p.ejec.split(' ')[0])}</span>
               </div>
               <span style="font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;color:var(--red)">${fmx(p.estimado)}</span>
             </div>
             <div style="display:flex;justify-content:space-between;margin-top:6px;border-top:1px solid var(--border);padding-top:6px">
-              <span style="font-family:'JetBrains Mono',monospace;font-size:8px;color:var(--gray400)">📅 ${p.seguimiento || '—'}</span>
+              <span style="font-family:'JetBrains Mono',monospace;font-size:8px;color:var(--gray400)">📅 ${esc(p.seguimiento) || '—'}</span>
               <select onclick="event.stopPropagation()" onchange="moveKanbanCard('${p.id}',this.value)" style="font-family:'JetBrains Mono',monospace;font-size:8px;border:none;background:none;color:var(--gray400);cursor:pointer">
                 <option value="">Mover a...</option>
                 ${KANBAN_COLS.filter(c => c.id !== p.status).map(c => `<option value="${c.id}">${c.label}</option>`).join('')}

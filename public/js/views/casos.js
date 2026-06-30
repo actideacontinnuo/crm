@@ -25,7 +25,7 @@ async function renderCasos() {
   // Populate client filter select
   const casCliFilter = document.getElementById('cas-filter-cli');
   if (casCliFilter && casCliFilter.options.length <= 1) {
-    casCliFilter.innerHTML = '<option value="">TODOS LOS CLIENTES</option>' + clientes.map(c => `<option value="${c.id}">${c.nombre}</option>`).join('');
+    casCliFilter.innerHTML = '<option value="">TODOS LOS CLIENTES</option>' + clientes.map(c => `<option value="${c.id}">${esc(c.nombre)}</option>`).join('');
   }
 
   const cliMap = Object.fromEntries(clientes.map(c => [c.id, c]));
@@ -50,14 +50,14 @@ async function renderCasos() {
         return `<tr onclick="openDetalleCaso('${c.id}')">
           <td>
             <div style="font-size:11px;font-family:'JetBrains Mono',monospace;color:var(--red)">CASO-${c.id.slice(-4).toUpperCase()}</div>
-            <div style="font-size:13px;font-weight:600">${c.titulo}</div>
+            <div style="font-size:13px;font-weight:600">${esc(c.titulo)}</div>
           </td>
-          <td><div style="font-size:12px">${cli.nombre || '—'}</div></td>
-          <td class="mono" style="font-size:10px">${op.numero || '—'}</td>
-          <td><span class="tag tag-gray">${c.tipo || '—'}</span></td>
-          <td class="prio-${(c.prio||'').toLowerCase()}">${CASO_PRIO_ICON[c.prio] || ''} ${c.prio || '—'}</td>
+          <td><div style="font-size:12px">${esc(cli.nombre) || '—'}</div></td>
+          <td class="mono" style="font-size:10px">${esc(op.numero) || '—'}</td>
+          <td><span class="tag tag-gray">${esc(c.tipo) || '—'}</span></td>
+          <td class="prio-${(c.prio||'').toLowerCase()}">${CASO_PRIO_ICON[c.prio] || ''} ${esc(c.prio) || '—'}</td>
           <td>${pillHTML(c.status)}</td>
-          <td class="mono">${c.fecha || '—'}</td>
+          <td class="mono">${esc(c.fecha) || '—'}</td>
           <td><button class="btn btn-ghost btn-xs" onclick="event.stopPropagation();openDetalleCaso('${c.id}')">Ver</button></td>
         </tr>`;
       }).join('')
@@ -125,11 +125,11 @@ async function openDetalleCaso(id) {
   document.getElementById('dcas-titulo').textContent = c.titulo;
 
   document.getElementById('dcas-info').innerHTML = `
-    <div class="info-cell"><div class="info-cell-label">CLIENTE</div><div class="info-cell-val">${cli.nombre || '—'}</div></div>
-    <div class="info-cell"><div class="info-cell-label">OP RELACIONADA</div><div class="info-cell-val" style="font-family:'JetBrains Mono',monospace;font-size:12px">${op.numero || '—'}</div></div>
-    <div class="info-cell"><div class="info-cell-label">TIPO · PRIORIDAD</div><div class="info-cell-val">${c.tipo}</div><div style="font-size:11px;color:var(--gray400)">${CASO_PRIO_ICON[c.prio] || ''} ${c.prio}</div></div>
-    <div class="info-cell"><div class="info-cell-label">LEVANTÓ</div><div class="info-cell-val">${c.quien}</div><div style="font-size:11px;color:var(--gray400)">${c.fecha}</div></div>
-    <div class="info-cell col-span2" style="border:1px solid var(--amber-bdr);background:var(--amber-dim)"><div class="info-cell-label" style="color:var(--amber)">ACCIÓN REQUERIDA</div><div class="info-cell-val">${c.accion || '—'}</div></div>`;
+    <div class="info-cell"><div class="info-cell-label">CLIENTE</div><div class="info-cell-val">${esc(cli.nombre) || '—'}</div></div>
+    <div class="info-cell"><div class="info-cell-label">OP RELACIONADA</div><div class="info-cell-val" style="font-family:'JetBrains Mono',monospace;font-size:12px">${esc(op.numero) || '—'}</div></div>
+    <div class="info-cell"><div class="info-cell-label">TIPO · PRIORIDAD</div><div class="info-cell-val">${esc(c.tipo)}</div><div style="font-size:11px;color:var(--gray400)">${CASO_PRIO_ICON[c.prio] || ''} ${esc(c.prio)}</div></div>
+    <div class="info-cell"><div class="info-cell-label">LEVANTÓ</div><div class="info-cell-val">${esc(c.quien)}</div><div style="font-size:11px;color:var(--gray400)">${esc(c.fecha)}</div></div>
+    <div class="info-cell col-span2" style="border:1px solid var(--amber-bdr);background:var(--amber-dim)"><div class="info-cell-label" style="color:var(--amber)">ACCIÓN REQUERIDA</div><div class="info-cell-val">${esc(c.accion) || '—'}</div></div>`;
 
   _renderHistorialCaso(c.historial || []);
   document.getElementById('dcas-nota').value = '';
@@ -146,7 +146,7 @@ async function openDetalleCaso(id) {
 
 function _renderHistorialCaso(historial) {
   document.getElementById('dcas-historial').innerHTML = (historial || []).map(h =>
-    `<div class="seg-row"><div class="seg-dot"></div><div style="font-size:12.5px">${h}</div></div>`
+    `<div class="seg-row"><div class="seg-dot"></div><div style="font-size:12.5px">${esc(h)}</div></div>`
   ).join('') || '<div style="color:var(--gray400);font-size:12px;padding:8px 0">Sin historial</div>';
 }
 

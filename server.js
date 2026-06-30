@@ -1,6 +1,7 @@
 require('dotenv').config();
 const express   = require('express');
 const cors      = require('cors');
+const helmet    = require('helmet');
 const path      = require('path');
 const rateLimit = require('express-rate-limit');
 const { authMiddleware } = require('./middleware/auth');
@@ -11,11 +12,32 @@ if (!process.env.JWT_SECRET) {
 
 const app = express();
 
+// ── Confiar en el proxy de Railway — necesario para que el rate limit
+//    identifique la IP real del visitante y no la del proxy interno ──
+app.set('trust proxy', 1);
+
+// ── Cabeceras de seguridad estándar (Helmet) ──
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", 'https://cdnjs.cloudflare.com'],
+      styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
+      fontSrc: ["'self'", 'https://fonts.gstatic.com'],
+      imgSrc: ["'self'", 'data:', 'blob:'],
+      connectSrc: ["'self'"],
+      frameAncestors: ["'none'"], // nadie puede incrustar el CRM en un iframe (clickjacking)
+    },
+  },
+}));
+
+// No indexar en buscadores — es un CRM interno
+app.use((req, res, next) => { res.setHeader('X-Robots-Tag', 'noindex, nofollow'); next(); });
+
 // ── CORS — solo permite el propio dominio del CRM ──
 const allowedOrigins = (process.env.ALLOWED_ORIGIN || '').split(',').map(s => s.trim()).filter(Boolean);
 app.use(cors({
   origin(origin, callback) {
-    // Sin origin = llamadas server-to-server o herramientas como curl; se permiten
     if (!origin || allowedOrigins.length === 0 || allowedOrigins.includes(origin)) {
       return callback(null, true);
     }
@@ -26,14 +48,24 @@ app.use(cors({
 app.use(express.json({ limit: '10mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// ── Rate limit en login: máximo 10 intentos cada 15 min por IP ──
+// ── Rate limit general — protege toda la API contra abuso/scraping ──
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 600, // 600 peticiones / 15 min por IP — generoso para uso normal, bloquea scripts automatizados
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Demasiadas peticiones. Espera unos minutos.' },
+});
+app.use('/api', apiLimiter);
+
+// ── Rate limit estricto en login: máximo 10 intentos fallidos cada 15 min por IP ──
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 10,
-  skipSuccessfulRequests: true, // solo cuenta intentos fallidos
-  message: { error: 'Demasiados intentos de inicio de sesión. Espera unos minutos.' },
+  skipSuccessfulRequests: true,
   standardHeaders: true,
   legacyHeaders: false,
+  message: { error: 'Demasiados intentos de inicio de sesión. Espera unos minutos.' },
 });
 
 // ── Rutas públicas ───────────────────────
@@ -74,17 +106,22 @@ app.use('/api/objetivos',    require('./api/objetivos'));
 // ── SPA fallback ─────────────────────────
 app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 
+// ── Manejador de errores global — nunca exponer detalles internos ──
+app.use((err, req, res, next) => {
+  console.error('Error no manejado:', err);
+  if (res.headersSent) return next(err);
+  res.status(500).json({ error: 'Error interno del servidor' });
+});
+
 // ════════════════════════════════════════
 // Helpers de roles
 // ════════════════════════════════════════
 
-// Solo admin puede pasar
 function adminOnly(req, res, next) {
   if (req.user.role === 'admin') return next();
   return res.status(403).json({ error: 'Acceso restringido a Dirección' });
 }
 
-// Solo admin puede eliminar; todos los demás roles autenticados pasan de largo
 function deleteAdminOnly(req, res, next) {
   if (req.method === 'DELETE' && req.user.role !== 'admin') {
     return res.status(403).json({ error: 'Solo el Admin puede eliminar registros' });
@@ -92,7 +129,6 @@ function deleteAdminOnly(req, res, next) {
   next();
 }
 
-// Ejecutivos: en GET list, inyectar filtro por su nombre (lo aplican los routers + _guard.js)
 function roleFilter() {
   return (req, res, next) => {
     if (req.user.role === 'ejecutivo') {

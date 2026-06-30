@@ -35,8 +35,8 @@ async function renderCotizaciones() {
     return `<div style="display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--border)">
       <div class="tag ${t.status==='Pendiente'?'tag-amber':'tag-green'}" style="white-space:nowrap">TKT-${t.id.slice(-4).toUpperCase()}</div>
       <div style="flex:1;min-width:0">
-        <div style="font-size:13px;font-weight:500">${t.tipo} — ${cli.nombre || '—'}</div>
-        <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--gray400)">Levantó: ${t.quien} · ${t.fecha} · ${t.monto}</div>
+        <div style="font-size:13px;font-weight:500">${esc(t.tipo)} — ${esc(cli.nombre) || '—'}</div>
+        <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--gray400)">Levantó: ${esc(t.quien)} · ${esc(t.fecha)} · ${esc(t.monto)}</div>
       </div>
       ${pillHTML(t.status)}
       <div style="display:flex;gap:5px">
@@ -52,8 +52,8 @@ async function renderCotizaciones() {
     const op  = opMap[c.opId] || {};
     const tks = tickets.filter(t => t.cotId === c.id);
     return `<tr onclick="openVerCotizacion('${c.id}')">
-      <td class="mono" style="color:var(--red)">${c.opId && op.numero ? op.numero + '-' + c.version : 'COT-' + c.id.slice(-4)}</td>
-      <td><div style="font-weight:600">${cli.nombre || '—'} · ${op.desc || c.clienteId || '—'}</div></td>
+      <td class="mono" style="color:var(--red)">${esc(c.opId && op.numero ? op.numero + '-' + c.version : 'COT-' + c.id.slice(-4))}</td>
+      <td><div style="font-weight:600">${esc(cli.nombre) || '—'} · ${esc(op.desc || c.clienteId) || '—'}</div></td>
       <td class="mono" style="text-align:center">${c.version}</td>
       <td class="monto">${fmx(c.totalConIva)}</td>
       <td class="mono">${c.fecha || '—'}</td>
@@ -71,7 +71,7 @@ async function renderCotizaciones() {
 async function populateCotSelects() {
   const [clientes, ops] = await Promise.all([db.clientes.list(), db.ops.list()]);
   const cSel = document.getElementById('cot-cliente');
-  if (cSel) cSel.innerHTML = clientes.map(c => `<option value="${c.id}">${c.nombre}</option>`).join('');
+  if (cSel) cSel.innerHTML = clientes.map(c => `<option value="${c.id}">${esc(c.nombre)}</option>`).join('');
   await cotUpdateOP();
 }
 
@@ -81,7 +81,7 @@ async function cotUpdateOP() {
   if (!opSel) return;
   const ops = await db.ops.list();
   const filtered = cliId ? ops.filter(o => o.clienteId === cliId) : ops;
-  opSel.innerHTML = '<option value="">— Sin OP —</option>' + filtered.map(o => `<option value="${o.id}">${o.numero} — ${o.desc}</option>`).join('');
+  opSel.innerHTML = '<option value="">— Sin OP —</option>' + filtered.map(o => `<option value="${o.id}">${esc(o.numero)} — ${esc(o.desc)}</option>`).join('');
 }
 
 // ── Cotizador render ────────────────────
@@ -99,9 +99,9 @@ function renderCotizador() {
       const pv  = r.costo * (1 + r.util / 100);
       const imp = pv * r.qty * r.dias;
       secTotal += imp;
-      const provOpts = PROVS.map(p => `<option${p === r.prov ? ' selected' : ''}>${p}</option>`).join('');
+      const provOpts = PROVS.map(p => `<option${p === r.prov ? ' selected' : ''}>${esc(p)}</option>`).join('');
       tbody.innerHTML += `<tr>
-        <td><input class="cot-inp" value="${r.desc}" onchange="_cotSections['${sec.id}'][${i}].desc=this.value" style="width:200px"></td>
+        <td><input class="cot-inp" value="${esc(r.desc)}" onchange="_cotSections['${sec.id}'][${i}].desc=this.value" style="width:200px"></td>
         <td><input class="cot-inp" type="number" value="${r.qty}" onchange="_cotSections['${sec.id}'][${i}].qty=+this.value;renderCotizador()" style="width:48px;text-align:center"></td>
         <td><input class="cot-inp" type="number" value="${r.dias}" onchange="_cotSections['${sec.id}'][${i}].dias=+this.value;renderCotizador()" style="width:44px;text-align:center"></td>
         <td><input class="cot-inp" type="number" value="${r.costo}" onchange="_cotSections['${sec.id}'][${i}].costo=+this.value;renderCotizador()" style="width:90px"></td>
@@ -214,8 +214,8 @@ async function openVerCotizacion(id) {
   document.getElementById('vc-title').textContent = (cli.nombre || '—') + ' — ' + (op.desc || 'Cotización');
 
   let html = `<div class="info-grid" style="margin-bottom:14px">
-    <div class="info-cell"><div class="info-cell-label">CLIENTE</div><div class="info-cell-val">${cli.nombre || '—'}</div></div>
-    <div class="info-cell"><div class="info-cell-label">VERSIÓN / FECHA</div><div class="info-cell-val">${c.version} · ${c.fecha}</div></div>
+    <div class="info-cell"><div class="info-cell-label">CLIENTE</div><div class="info-cell-val">${esc(cli.nombre) || '—'}</div></div>
+    <div class="info-cell"><div class="info-cell-label">VERSIÓN / FECHA</div><div class="info-cell-val">${esc(c.version)} · ${esc(c.fecha)}</div></div>
   </div>`;
 
   COT_SECS.forEach(sec => {
@@ -226,7 +226,7 @@ async function openVerCotizacion(id) {
     rows.forEach(r => {
       const pv  = r.costo * (1 + r.util / 100);
       const imp = pv * r.qty * r.dias;
-      html += `<tr><td>${r.desc}</td><td class="mono" style="text-align:center">${r.qty}</td><td class="mono" style="text-align:center">${r.dias}</td><td class="mono">${fmx(pv)}</td><td class="mono" style="text-align:right;font-weight:700">${fmx(imp)}</td><td style="font-size:11px;color:var(--gray400)">${r.prov}</td></tr>`;
+      html += `<tr><td>${esc(r.desc)}</td><td class="mono" style="text-align:center">${esc(r.qty)}</td><td class="mono" style="text-align:center">${esc(r.dias)}</td><td class="mono">${fmx(pv)}</td><td class="mono" style="text-align:right;font-weight:700">${fmx(imp)}</td><td style="font-size:11px;color:var(--gray400)">${esc(r.prov)}</td></tr>`;
     });
     html += `</tbody></table>`;
   });

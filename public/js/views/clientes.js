@@ -61,7 +61,7 @@ async function analizarDoc(tipo, input) {
       _docState._ecData = { banco: d.banco, clabe: d.clabe, titular: d.titular };
     }
 
-    area.innerHTML = `✅ ${file.name}`;
+    area.innerHTML = `✅ ${esc(file.name)}`;
     area.style.borderColor = 'var(--green)';
     _docState[tipo] = true;
 
@@ -104,10 +104,10 @@ async function renderClientes() {
         const opsCount = ops.filter(o => o.clienteId === c.id).length;
         const allDocs = c.docs && c.docs.csf && c.docs.oc && c.docs.ec;
         return `<tr onclick="openDetalleCliente('${c.id}')">
-          <td class="mono" style="color:var(--red)">${c.codigo}</td>
-          <td><div style="font-weight:600">${c.nombre}</div><div style="font-size:11px;color:var(--gray400)">${c.razon || '—'}</div></td>
-          <td><div style="font-size:12px">${c.contacto}</div><div style="font-size:10px;color:var(--gray400)">${c.cargo}</div></td>
-          <td><div style="font-size:12px">${c.ejec}</div></td>
+          <td class="mono" style="color:var(--red)">${esc(c.codigo)}</td>
+          <td><div style="font-weight:600">${esc(c.nombre)}</div><div style="font-size:11px;color:var(--gray400)">${esc(c.razon) || '—'}</div></td>
+          <td><div style="font-size:12px">${esc(c.contacto)}</div><div style="font-size:10px;color:var(--gray400)">${esc(c.cargo)}</div></td>
+          <td><div style="font-size:12px">${esc(c.ejec)}</div></td>
           <td><span class="tag tag-${c.pago==='90 días'?'red':c.pago==='60 días'?'amber':'gray'}">${(c.pago||'—').toUpperCase()}</span></td>
           <td>${pillHTML(c.status)}</td>
           <td class="mono" style="color:var(--red);font-weight:700;text-align:center">${opsCount}</td>
@@ -241,10 +241,10 @@ async function openDetalleCliente(id) {
   document.getElementById('dc-nombre').textContent = c.nombre;
 
   document.getElementById('dc-info').innerHTML = `
-    <div class="info-cell"><div class="info-cell-label">RAZÓN SOCIAL</div><div class="info-cell-val">${c.razon}</div><div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--gray400)">RFC: ${c.rfc}</div></div>
-    <div class="info-cell"><div class="info-cell-label">CONTACTO PRINCIPAL</div><div class="info-cell-val">${c.contacto}</div><div style="font-size:11px;color:var(--gray400)">${c.cargo}</div></div>
-    <div class="info-cell"><div class="info-cell-label">TELÉFONO</div><div class="info-cell-val" style="font-family:'JetBrains Mono',monospace;font-size:12px">${c.tel || '—'}</div></div>
-    <div class="info-cell"><div class="info-cell-label">EMAIL</div><div class="info-cell-val" style="font-size:12px">${c.email || '—'}</div></div>`;
+    <div class="info-cell"><div class="info-cell-label">RAZÓN SOCIAL</div><div class="info-cell-val">${esc(c.razon)}</div><div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--gray400)">RFC: ${esc(c.rfc)}</div></div>
+    <div class="info-cell"><div class="info-cell-label">CONTACTO PRINCIPAL</div><div class="info-cell-val">${esc(c.contacto)}</div><div style="font-size:11px;color:var(--gray400)">${esc(c.cargo)}</div></div>
+    <div class="info-cell"><div class="info-cell-label">TELÉFONO</div><div class="info-cell-val" style="font-family:'JetBrains Mono',monospace;font-size:12px">${esc(c.tel) || '—'}</div></div>
+    <div class="info-cell"><div class="info-cell-label">EMAIL</div><div class="info-cell-val" style="font-size:12px">${esc(c.email) || '—'}</div></div>`;
 
   const clienteOps = allOps.filter(o => o.clienteId === id);
   const totalFact  = clienteOps.reduce((a, o) => a + (o.cobrado || 0), 0);
@@ -253,7 +253,7 @@ async function openDetalleCliente(id) {
     <div class="info-cell" style="text-align:center"><div class="info-cell-label">PAGO</div><div style="font-size:14px;font-weight:600;color:var(--amber)">${c.pago}</div></div>
     <div class="info-cell" style="text-align:center"><div class="info-cell-label">OPs TOTAL</div><div style="font-family:'Bebas Neue',cursive;font-size:24px;color:var(--red)">${clienteOps.length}</div></div>
     <div class="info-cell" style="text-align:center;background:var(--green-dim);border:1px solid var(--green-bdr)"><div class="info-cell-label" style="color:var(--green)">COBRADO</div><div style="font-size:14px;font-weight:700;color:var(--green)">${fmx(totalFact)}</div></div>
-    <div class="info-cell" style="text-align:center"><div class="info-cell-label">EJECUTIVO</div><div style="font-size:13px;font-weight:500">${c.ejec}</div></div>`;
+    <div class="info-cell" style="text-align:center"><div class="info-cell-label">EJECUTIVO</div><div style="font-size:13px;font-weight:500">${esc(c.ejec)}</div></div>`;
 
   const docs = [
     { key: 'csf', label: 'CSF — Constancia de Situación Fiscal' },
@@ -269,8 +269,8 @@ async function openDetalleCliente(id) {
   document.getElementById('dc-ops').innerHTML = clienteOps.length
     ? clienteOps.map(o => `
         <div class="op-card" onclick="openDetalleOP('${o.id}');closeM('detalle-cliente')">
-          <div class="op-num">${o.numero}</div>
-          <div class="op-name">${o.desc}</div>
+          <div class="op-num">${esc(o.numero)}</div>
+          <div class="op-name">${esc(o.desc)}</div>
           <div class="op-meta">
             <div class="op-meta-item">${pillHTML(o.status)}</div>
             <div class="op-meta-item">${fmx(o.cotizado)}</div>

@@ -59,6 +59,16 @@ function fmx(n) {
   return '$' + Math.round(n || 0).toLocaleString('es-MX');
 }
 
+// Escapa HTML para que texto guardado por un usuario (nombres, notas, etc.)
+// nunca se interprete como código al insertarse con innerHTML — previene XSS.
+// Escapa también comillas: el código las usa dentro de atributos (value="...", onclick="...('...')")
+// y textContent→innerHTML por sí solo NO escapa comillas, así que se hace a mano.
+const _ESC_MAP = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+function esc(str) {
+  if (str === null || str === undefined) return '';
+  return String(str).replace(/[&<>"']/g, ch => _ESC_MAP[ch]);
+}
+
 function pct(a, b) {
   return b ? Math.round((a / b) * 100) : 0;
 }
@@ -217,7 +227,7 @@ document.addEventListener('click', e => {
 async function _populateClienteSelectNuevaOP() {
   const list = await db.clientes.list();
   const s = document.getElementById('op-cliente');
-  if (s) s.innerHTML = list.map(c => `<option value="${c.id}">${c.nombre}</option>`).join('');
+  if (s) s.innerHTML = list.map(c => `<option value="${c.id}">${esc(c.nombre)}</option>`).join('');
   _previewOPNum();
 }
 
@@ -233,36 +243,36 @@ async function _previewOPNum() {
 async function _refreshPagoOPSelect() {
   const list = await db.ops.list();
   const s = document.getElementById('pg-op');
-  if (s) s.innerHTML = '<option value="">— Ninguna —</option>' + list.map(o => `<option value="${o.id}">${o.numero} — ${o.desc}</option>`).join('');
+  if (s) s.innerHTML = '<option value="">— Ninguna —</option>' + list.map(o => `<option value="${o.id}">${esc(o.numero)} — ${esc(o.desc)}</option>`).join('');
 }
 
 async function _refreshDeudaSelects() {
   const [provs, ops] = await Promise.all([db.proveedores.list(), db.ops.list()]);
   const sp = document.getElementById('nd-prov');
-  if (sp) sp.innerHTML = provs.map(p => `<option value="${p.id}">${p.nombre}</option>`).join('');
+  if (sp) sp.innerHTML = provs.map(p => `<option value="${p.id}">${esc(p.nombre)}</option>`).join('');
   const so = document.getElementById('nd-op');
-  if (so) so.innerHTML = '<option value="">— Sin OP —</option>' + ops.map(o => `<option value="${o.id}">${o.numero} — ${o.desc}</option>`).join('');
+  if (so) so.innerHTML = '<option value="">— Sin OP —</option>' + ops.map(o => `<option value="${o.id}">${esc(o.numero)} — ${esc(o.desc)}</option>`).join('');
 }
 
 async function _refreshCasoSelects() {
   const [clientes, ops] = await Promise.all([db.clientes.list(), db.ops.list()]);
   const sc = document.getElementById('cas-cliente');
-  if (sc) sc.innerHTML = clientes.map(c => `<option value="${c.id}">${c.nombre}</option>`).join('');
+  if (sc) sc.innerHTML = clientes.map(c => `<option value="${c.id}">${esc(c.nombre)}</option>`).join('');
   const so = document.getElementById('cas-op');
-  if (so) so.innerHTML = '<option value="">— Sin OP —</option>' + ops.map(o => `<option value="${o.id}">${o.numero} — ${o.desc}</option>`).join('');
+  if (so) so.innerHTML = '<option value="">— Sin OP —</option>' + ops.map(o => `<option value="${o.id}">${esc(o.numero)} — ${esc(o.desc)}</option>`).join('');
 }
 
 async function _refreshTicketCotSelect() {
   const list = await db.cotizaciones.list();
   const s = document.getElementById('tk-cot');
-  if (s) s.innerHTML = list.map(c => `<option value="${c.id}">${c.idCot} · ${c.status}</option>`).join('');
+  if (s) s.innerHTML = list.map(c => `<option value="${c.id}">${esc(c.idCot)} · ${esc(c.status)}</option>`).join('');
 }
 
 // Refresh OP select used in cotizador
 async function refreshCotOPSelect() {
   const list = await db.ops.list();
   const s = document.getElementById('cot-op');
-  if (s) s.innerHTML = '<option value="">— Sin OP —</option>' + list.map(o => `<option value="${o.id}">${o.numero} — ${o.desc}</option>`).join('');
+  if (s) s.innerHTML = '<option value="">— Sin OP —</option>' + list.map(o => `<option value="${o.id}">${esc(o.numero)} — ${esc(o.desc)}</option>`).join('');
 }
 
 // Change listener for op-cliente

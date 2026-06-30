@@ -58,19 +58,19 @@ async function renderPagos() {
             </div>
           </td>
           <td>
-            <div style="font-size:13px;font-weight:500">${p.concepto}</div>
-            <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--gray400)">${p.forma || '—'}</div>
+            <div style="font-size:13px;font-weight:500">${esc(p.concepto)}</div>
+            <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--gray400)">${esc(p.forma) || '—'}</div>
           </td>
           <td>
-            <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--red)">${op.numero || '—'}</div>
-            <div style="font-size:11px;color:var(--gray400)">${cli.nombre || '—'}</div>
+            <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--red)">${esc(op.numero) || '—'}</div>
+            <div style="font-size:11px;color:var(--gray400)">${esc(cli.nombre) || '—'}</div>
           </td>
           <td class="monto" style="color:${p.status==='Vencido'?'var(--red)':isCobro?'var(--green)':'var(--amber)'}">${fmx(p.monto)}</td>
           <td class="mono" style="color:${p.status==='Vencido'?'var(--red)':''}">
-            ${p.fechaAcordada || '—'}
+            ${esc(p.fechaAcordada) || '—'}
             ${p.status==='Vencido'?'<div style="font-family:\'JetBrains Mono\',monospace;font-size:8px;color:var(--red);font-weight:700;letter-spacing:.08em">VENCIDO</div>':''}
           </td>
-          <td class="mono" style="color:var(--gray400)">${p.fechaReal || 'Pendiente'}</td>
+          <td class="mono" style="color:var(--gray400)">${esc(p.fechaReal) || 'Pendiente'}</td>
           <td>${pillHTML(p.status)}</td>
           <td>${p.comprobante ? '<span class="tag tag-green" style="font-size:9px">PDF ✓</span>' : '<span style="color:var(--gray200);font-size:10px;font-family:\'JetBrains Mono\',monospace">Sin comprobante</span>'}</td>
           <td>
@@ -157,15 +157,15 @@ async function openDetallePago(id) {
     </div>
     <div class="info-cell" style="text-align:center">
       <div class="info-cell-label">FECHA ACORDADA</div>
-      <div style="font-size:14px;font-weight:600;color:${p.status==='Vencido'?'var(--red)':''}">${p.fechaAcordada}</div>
+      <div style="font-size:14px;font-weight:600;color:${p.status==='Vencido'?'var(--red)':''}">${esc(p.fechaAcordada)}</div>
     </div>
     <div class="info-cell" style="text-align:center">${pillHTML(p.status)}</div>`;
 
   document.getElementById('dpg-info').innerHTML = `
-    <div class="info-cell"><div class="info-cell-label">OP</div><div class="info-cell-val" style="font-family:'JetBrains Mono',monospace;font-size:12px">${op.numero || '—'}</div></div>
-    <div class="info-cell"><div class="info-cell-label">CLIENTE</div><div class="info-cell-val">${cli.nombre || '—'}</div></div>
-    <div class="info-cell"><div class="info-cell-label">FORMA DE PAGO</div><div class="info-cell-val">${p.forma || '—'}</div></div>
-    <div class="info-cell"><div class="info-cell-label">REFERENCIA</div><div class="info-cell-val" style="font-family:'JetBrains Mono',monospace;font-size:11px">${p.ref || '—'}</div></div>`;
+    <div class="info-cell"><div class="info-cell-label">OP</div><div class="info-cell-val" style="font-family:'JetBrains Mono',monospace;font-size:12px">${esc(op.numero) || '—'}</div></div>
+    <div class="info-cell"><div class="info-cell-label">CLIENTE</div><div class="info-cell-val">${esc(cli.nombre) || '—'}</div></div>
+    <div class="info-cell"><div class="info-cell-label">FORMA DE PAGO</div><div class="info-cell-val">${esc(p.forma) || '—'}</div></div>
+    <div class="info-cell"><div class="info-cell-label">REFERENCIA</div><div class="info-cell-val" style="font-family:'JetBrains Mono',monospace;font-size:11px">${esc(p.ref) || '—'}</div></div>`;
 
   const btn = document.getElementById('dpg-btn');
   if (p.status === 'Pagado') {

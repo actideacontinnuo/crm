@@ -65,11 +65,11 @@ async function renderReportes() {
       ? opsP.map(o => {
           const cli = cliMap[o.clienteId] || {};
           return `<tr>
-            <td class="mono" style="color:var(--red)">${o.numero}</td>
-            <td><div style="font-weight:600">${o.desc}</div><div style="font-size:11px;color:var(--gray400)">${cli.nombre || '—'}</div></td>
+            <td class="mono" style="color:var(--red)">${esc(o.numero)}</td>
+            <td><div style="font-weight:600">${esc(o.desc)}</div><div style="font-size:11px;color:var(--gray400)">${esc(cli.nombre) || '—'}</div></td>
             <td>${pillHTML(o.status)}</td>
-            <td class="mono">${o.fechaEvento || '—'}</td>
-            <td><div style="font-size:12px">${o.ejec || '—'}</div></td>
+            <td class="mono">${esc(o.fechaEvento) || '—'}</td>
+            <td><div style="font-size:12px">${esc(o.ejec) || '—'}</div></td>
             <td class="monto">${fmx(o.cotizado)}</td>
             <td class="monto" style="color:var(--green)">${fmx(o.cobrado)}</td>
             <td class="monto" style="color:var(--green)">${fmx(o.utilidad)}</td>

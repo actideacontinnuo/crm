@@ -168,10 +168,10 @@ async function abrirGestionUsuarios() {
     document.getElementById('gu-lista').innerHTML = usuarios.map(u => `
       <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border:1px solid var(--border);border-radius:8px">
         <div>
-          <div style="font-size:13px;font-weight:600">${u.nombre}</div>
-          <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--gray400)">@${u.id} · ${ROL_LABEL_CORTO[u.role] || u.role}</div>
+          <div style="font-size:13px;font-weight:600">${esc(u.nombre)}</div>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--gray400)">@${esc(u.id)} · ${esc(ROL_LABEL_CORTO[u.role] || u.role)}</div>
         </div>
-        <button class="btn btn-ghost btn-xs" onclick="resetearPassword('${u.id}','${u.nombre}')">🔑 Resetear contraseña</button>
+        <button class="btn btn-ghost btn-xs" onclick="resetearPassword('${esc(u.id)}','${esc(u.nombre)}')">🔑 Resetear contraseña</button>
       </div>`).join('');
   } catch (e) {
     document.getElementById('gu-lista').innerHTML = '<div style="padding:12px;color:var(--red);font-size:12px">Error al cargar usuarios</div>';
@@ -186,8 +186,8 @@ async function resetearPassword(usuarioId, nombre) {
     const el = document.getElementById('gu-resultado');
     el.style.display = 'block';
     el.innerHTML = `
-      <div style="font-size:11px;color:var(--gray400);margin-bottom:4px;font-family:'JetBrains Mono',monospace">CONTRASEÑA TEMPORAL PARA ${nombre.toUpperCase()}</div>
-      <div style="font-family:'JetBrains Mono',monospace;font-size:18px;font-weight:700;color:var(--red)">${r.passwordTemporal}</div>
+      <div style="font-size:11px;color:var(--gray400);margin-bottom:4px;font-family:'JetBrains Mono',monospace">CONTRASEÑA TEMPORAL PARA ${esc(nombre.toUpperCase())}</div>
+      <div style="font-family:'JetBrains Mono',monospace;font-size:18px;font-weight:700;color:var(--red)">${esc(r.passwordTemporal)}</div>
       <div style="font-size:11px;color:var(--gray400);margin-top:6px">Compártesela directamente — no se volverá a mostrar.</div>`;
     toast('✓ Contraseña reseteada');
   } catch (e) {

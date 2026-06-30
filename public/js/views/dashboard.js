@@ -113,12 +113,12 @@ async function renderDashboard() {
       const p   = pct(o.cobrado, o.cotizado);
       return `<div class="op-card" onclick="openDetalleOP('${o.id}')">
         <div style="display:flex;justify-content:space-between;margin-bottom:4px">
-          <div><div class="op-num">${o.numero}</div><div class="op-name">${o.desc} · ${cli.nombre || '—'}</div></div>
+          <div><div class="op-num">${esc(o.numero)}</div><div class="op-name">${esc(o.desc)} · ${esc(cli.nombre) || '—'}</div></div>
           <div style="text-align:right">${pillHTML(o.status)}<div style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;margin-top:3px">${fmx(o.cotizado)}</div></div>
         </div>
         <div class="op-meta">
-          <div class="op-meta-item">📅 ${o.fechaEvento || '—'}</div>
-          <div class="op-meta-item">👤 ${o.ejec || '—'}</div>
+          <div class="op-meta-item">📅 ${esc(o.fechaEvento) || '—'}</div>
+          <div class="op-meta-item">👤 ${esc(o.ejec) || '—'}</div>
           <div style="flex:1;margin-left:8px">
             <div style="display:flex;justify-content:space-between;margin-bottom:2px">
               <span style="font-family:'JetBrains Mono',monospace;font-size:8px;color:var(--gray400)">COBRADO</span>
@@ -144,12 +144,12 @@ async function renderDashboard() {
         return `<div class="pago-row" onclick="openDetallePago && openDetallePago('${p.id}')">
           <div class="pago-icon ${p.status==='Vencido'?'pi-venc':'pi-cobro'}">${p.status === 'Vencido' ? '⚠' : '$'}</div>
           <div style="flex:1;min-width:0">
-            <div style="font-size:12px;font-weight:500">${p.concepto}</div>
-            <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--gray400)">${op.numero || '—'} · ${cli.nombre || '—'}</div>
+            <div style="font-size:12px;font-weight:500">${esc(p.concepto)}</div>
+            <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--gray400)">${esc(op.numero) || '—'} · ${esc(cli.nombre) || '—'}</div>
           </div>
           <div style="text-align:right">
             <div style="font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;color:${p.status==='Vencido'?'var(--red)':'var(--green)'}">${fmx(p.monto)}</div>
-            <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--gray400)">${p.status === 'Vencido' ? '⚠ VENCIDO' : (p.fechaAcordada || '—')}</div>
+            <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--gray400)">${p.status === 'Vencido' ? '⚠ VENCIDO' : (esc(p.fechaAcordada) || '—')}</div>
           </div>
         </div>`;
       }).join('')
@@ -162,8 +162,8 @@ async function renderDashboard() {
         <div class="seg-row" onclick="openDetalleProspecto('${p.id}')">
           <div class="seg-dot ${p.status === 'Listo p/ cotizar' ? 'green' : ''}"></div>
           <div style="flex:1;min-width:0">
-            <div style="font-size:13px"><strong>${p.empresa}</strong> — ${p.evento || '—'}</div>
-            <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--gray400)">${p.ejec} · ${fmx(p.estimado)} · ${pillHTML(p.status)}</div>
+            <div style="font-size:13px"><strong>${esc(p.empresa)}</strong> — ${esc(p.evento) || '—'}</div>
+            <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--gray400)">${esc(p.ejec)} · ${fmx(p.estimado)} · ${pillHTML(p.status)}</div>
           </div>
         </div>`).join('')
     : `<div style="padding:12px 0;font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--gray400);letter-spacing:.1em">SIN PROSPECTOS CALIENTES</div>`;
@@ -175,8 +175,8 @@ async function renderDashboard() {
         <div class="seg-row" onclick="openDetalleProspecto('${p.id}')">
           <div class="seg-dot" style="background:var(--amber)"></div>
           <div>
-            <div style="font-size:12.5px;font-weight:600">${p.empresa}</div>
-            <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--gray400)">${p.ejec} · ${p.contacto || '—'} · ${p.tel || '—'}</div>
+            <div style="font-size:12.5px;font-weight:600">${esc(p.empresa)}</div>
+            <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--gray400)">${esc(p.ejec)} · ${esc(p.contacto) || '—'} · ${esc(p.tel) || '—'}</div>
           </div>
         </div>`).join('')
     : `<div style="padding:12px 0;font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--green);letter-spacing:.1em">✓ SIN SEGUIMIENTOS HOY</div>`;
@@ -190,8 +190,8 @@ async function renderDashboard() {
           <div class="seg-row" onclick="openDetalleCaso('${c.id}')">
             <div class="seg-dot ${c.prio==='Alta'?'red':c.prio==='Media'?'amber':''}"></div>
             <div style="flex:1;min-width:0">
-              <div style="font-size:12.5px">${c.titulo}</div>
-              <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--gray400)">${c.quien || '—'} · ${pillHTML(c.status)}</div>
+              <div style="font-size:12.5px">${esc(c.titulo)}</div>
+              <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--gray400)">${esc(c.quien) || '—'} · ${pillHTML(c.status)}</div>
             </div>
           </div>`).join('')
       : `<div style="padding:12px 0;font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--green);letter-spacing:.1em">✓ SIN CASOS ABIERTOS</div>`;

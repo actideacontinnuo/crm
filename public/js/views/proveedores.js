@@ -51,10 +51,10 @@ async function renderProveedores() {
     const totalDeuda = deudasProv.reduce((a, d) => a + (d.monto || 0), 0);
     const condTag = p.cond === 'Inmediato' ? 'gray' : p.cond === '30 días' ? 'amber' : 'red';
     return `<tr onclick="openDetalleProveedor('${p.id}')">
-      <td><div style="font-weight:600">${p.nombre}</div><div style="font-size:11px;color:var(--gray400)">${p.razon || '—'}</div></td>
-      <td><span class="tag tag-gray">${p.servicio || '—'}</span></td>
-      <td class="mono" style="font-size:10px">${p.rfc || '—'}</td>
-      <td><div style="font-size:12px">${p.banco || '—'}</div><div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--gray400)">${p.clabe || '—'}</div></td>
+      <td><div style="font-weight:600">${esc(p.nombre)}</div><div style="font-size:11px;color:var(--gray400)">${esc(p.razon) || '—'}</div></td>
+      <td><span class="tag tag-gray">${esc(p.servicio) || '—'}</span></td>
+      <td class="mono" style="font-size:10px">${esc(p.rfc) || '—'}</td>
+      <td><div style="font-size:12px">${esc(p.banco) || '—'}</div><div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--gray400)">${esc(p.clabe) || '—'}</div></td>
       <td><span class="tag tag-${condTag}">${(p.cond || '—').toUpperCase()}</span></td>
       <td>${p.emiteFactura ? '<span class="tag tag-green">SÍ ✓</span>' : '<span class="tag tag-gray">NO</span>'}</td>
       <td>${totalDeuda
@@ -122,10 +122,10 @@ async function openDetalleProveedor(id) {
   document.getElementById('dprv-nombre').textContent = p.nombre;
 
   document.getElementById('dprv-info').innerHTML = `
-    <div class="info-cell"><div class="info-cell-label">RAZÓN SOCIAL</div><div class="info-cell-val">${p.razon || '—'}</div></div>
-    <div class="info-cell"><div class="info-cell-label">BANCO / CLABE</div><div class="info-cell-val">${p.banco || '—'}</div><div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--gray400)">${p.clabe || '—'}</div></div>
-    <div class="info-cell"><div class="info-cell-label">SERVICIO</div><div class="info-cell-val">${p.servicio || '—'}</div></div>
-    <div class="info-cell"><div class="info-cell-label">CONDICIONES · FACTURA</div><div class="info-cell-val">${p.cond || '—'} · ${p.emiteFactura ? 'Sí — emite factura' : 'No — solo recibo'}</div></div>`;
+    <div class="info-cell"><div class="info-cell-label">RAZÓN SOCIAL</div><div class="info-cell-val">${esc(p.razon) || '—'}</div></div>
+    <div class="info-cell"><div class="info-cell-label">BANCO / CLABE</div><div class="info-cell-val">${esc(p.banco) || '—'}</div><div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--gray400)">${esc(p.clabe) || '—'}</div></div>
+    <div class="info-cell"><div class="info-cell-label">SERVICIO</div><div class="info-cell-val">${esc(p.servicio) || '—'}</div></div>
+    <div class="info-cell"><div class="info-cell-label">CONDICIONES · FACTURA</div><div class="info-cell-val">${esc(p.cond) || '—'} · ${p.emiteFactura ? 'Sí — emite factura' : 'No — solo recibo'}</div></div>`;
 
   const provDeudas = deudas.filter(d => d.provId === id);
   document.getElementById('dprv-deudas').innerHTML = provDeudas.length
@@ -133,8 +133,8 @@ async function openDetalleProveedor(id) {
         const op = opMap[d.opId] || {};
         return `<div style="display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--border)">
           <div>
-            <div style="font-size:12.5px;font-weight:500">${d.concepto}</div>
-            <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--gray400)">${op.numero || '—'} · Vence ${d.fechaAcordada || '—'}</div>
+            <div style="font-size:12.5px;font-weight:500">${esc(d.concepto)}</div>
+            <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--gray400)">${esc(op.numero) || '—'} · Vence ${esc(d.fechaAcordada) || '—'}</div>
           </div>
           <div style="display:flex;align-items:center;gap:8px">
             <div style="font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700">${fmx(d.monto)}</div>
@@ -178,7 +178,7 @@ async function renderDeudasModal() {
   // Populate prov filter select
   const dpf = document.getElementById('deudas-prov-filter');
   if (dpf && dpf.options.length <= 1) {
-    dpf.innerHTML = '<option value="">Todos los proveedores</option>' + provs.map(p => `<option value="${p.id}">${p.nombre}</option>`).join('');
+    dpf.innerHTML = '<option value="">Todos los proveedores</option>' + provs.map(p => `<option value="${p.id}">${esc(p.nombre)}</option>`).join('');
   }
 
   const list = deudas.filter(d =>
@@ -208,17 +208,17 @@ async function renderDeudasModal() {
     return `<div class="deuda-card" style="opacity:${isPagado ? '.6' : '1'}">
       <div class="deuda-hdr" style="background:${isPagado ? 'var(--cream)' : 'var(--white)'}">
         <div style="display:flex;align-items:center;gap:10px">
-          <div style="width:36px;height:36px;border-radius:8px;background:var(--cream);border:1px solid var(--border-d);display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;color:var(--gray600)">${pv.nombre ? pv.nombre.split(' ').map(x=>x[0]).join('').slice(0,2) : '??'}</div>
-          <div><div style="font-size:13px;font-weight:600">${pv.nombre || '—'}</div><div style="font-size:11px;color:var(--gray400)">${pv.servicio || '—'}</div></div>
+          <div style="width:36px;height:36px;border-radius:8px;background:var(--cream);border:1px solid var(--border-d);display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;color:var(--gray600)">${esc(pv.nombre ? pv.nombre.split(' ').map(x=>x[0]).join('').slice(0,2) : '??')}</div>
+          <div><div style="font-size:13px;font-weight:600">${esc(pv.nombre) || '—'}</div><div style="font-size:11px;color:var(--gray400)">${esc(pv.servicio) || '—'}</div></div>
         </div>
         <div style="text-align:right">
           <div style="font-family:'Bebas Neue',cursive;font-size:22px;${isPagado ? 'text-decoration:line-through;color:var(--gray400)' : ''}">${fmx(d.monto)}</div>
-          <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:${isPagado ? 'var(--green)' : 'var(--gray400)'}">${isPagado ? 'Pagado ✓' : 'Vence ' + (d.fechaAcordada || '—')}</div>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:${isPagado ? 'var(--green)' : 'var(--gray400)'}">${isPagado ? 'Pagado ✓' : 'Vence ' + (esc(d.fechaAcordada) || '—')}</div>
         </div>
       </div>
       ${!isPagado ? `<div class="deuda-body">
-        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px"><span class="deuda-tag">OP: ${op.numero || '—'}</span><span class="deuda-tag">${op.desc || '—'}</span></div>
-        <div style="font-size:12px;color:var(--gray600);margin-bottom:10px">${d.concepto}</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px"><span class="deuda-tag">OP: ${esc(op.numero) || '—'}</span><span class="deuda-tag">${esc(op.desc) || '—'}</span></div>
+        <div style="font-size:12px;color:var(--gray600);margin-bottom:10px">${esc(d.concepto)}</div>
         <div style="display:flex;gap:8px;justify-content:flex-end">
           <button class="btn btn-sm" style="background:var(--green);color:var(--white)" onclick="marcarDeudaPagada('${d.id}')">Marcar como pagado</button>
         </div>

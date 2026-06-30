@@ -31,13 +31,13 @@ async function renderOPs() {
         const isExec = o.status === 'Ejecutado';
         const col = EJEC_COL[o.ejec] || 'var(--red)';
         return `<tr onclick="openDetalleOP('${o.id}')">
-          <td class="mono" style="color:var(--red)">${o.numero}</td>
-          <td><div style="font-weight:600;font-size:13px">${o.desc}</div><div style="font-size:11px;color:var(--gray400)">${cli.nombre || '—'}</div></td>
+          <td class="mono" style="color:var(--red)">${esc(o.numero)}</td>
+          <td><div style="font-weight:600;font-size:13px">${esc(o.desc)}</div><div style="font-size:11px;color:var(--gray400)">${esc(cli.nombre) || '—'}</div></td>
           <td>${pillHTML(o.status)}</td>
-          <td class="mono">${o.fechaEvento || '—'}</td>
+          <td class="mono">${esc(o.fechaEvento) || '—'}</td>
           <td><div style="display:flex;align-items:center;gap:6px">
-            <div class="av" style="background:${col}18;border-color:${col}45;color:${col}">${(o.ejec||'?').slice(0,2).toUpperCase()}</div>
-            <span style="font-size:12px">${o.ejec || '—'}</span>
+            <div class="av" style="background:${col}18;border-color:${col}45;color:${col}">${esc((o.ejec||'?').slice(0,2).toUpperCase())}</div>
+            <span style="font-size:12px">${esc(o.ejec) || '—'}</span>
           </div></td>
           <td class="monto">${fmx(o.cotizado)}</td>
           <td class="monto" style="color:${o.cobrado===o.cotizado?'var(--green)':o.cobrado>0?'var(--amber)':'var(--gray400)'}">${fmx(o.cobrado)}</td>
@@ -129,8 +129,8 @@ async function openDetalleOP(id) {
   document.getElementById('dop-title').textContent = o.desc + ' — ' + (cli.nombre || '—');
 
   document.getElementById('dop-info').innerHTML = `
-    <div class="info-cell"><div class="info-cell-label">CLIENTE</div><div class="info-cell-val">${cli.nombre || '—'}</div><div style="font-size:11px;color:var(--gray400)">${cli.contacto || '—'}</div></div>
-    <div class="info-cell"><div class="info-cell-label">FECHA EVENTO</div><div class="info-cell-val">${o.fechaEvento || '—'}</div><div style="font-size:11px;color:var(--gray400)">Ejecutivo: ${o.ejec || '—'}</div></div>`;
+    <div class="info-cell"><div class="info-cell-label">CLIENTE</div><div class="info-cell-val">${esc(cli.nombre) || '—'}</div><div style="font-size:11px;color:var(--gray400)">${esc(cli.contacto) || '—'}</div></div>
+    <div class="info-cell"><div class="info-cell-label">FECHA EVENTO</div><div class="info-cell-val">${esc(o.fechaEvento) || '—'}</div><div style="font-size:11px;color:var(--gray400)">Ejecutivo: ${esc(o.ejec) || '—'}</div></div>`;
 
   document.getElementById('dop-montos').innerHTML = `
     <div class="info-cell" style="text-align:center"><div class="info-cell-label">COTIZADO</div><div style="font-family:'Bebas Neue',cursive;font-size:22px">${fmx(o.cotizado)}</div></div>
@@ -141,7 +141,7 @@ async function openDetalleOP(id) {
   document.getElementById('dop-cobros').innerHTML = pagosOP.length
     ? pagosOP.map(pg => `
         <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)">
-          <div style="font-size:12.5px">${pg.concepto}</div>
+          <div style="font-size:12.5px">${esc(pg.concepto)}</div>
           <div style="display:flex;align-items:center;gap:10px">
             <div style="font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700">${fmx(pg.monto)}</div>
             ${pillHTML(pg.status)}
@@ -206,7 +206,7 @@ async function openEDR(id) {
   const provMap = Object.fromEntries(proveedores.map(p => [p.id, p]));
 
   document.getElementById('edr-num').textContent   = o.numero + ' · ESTADO DE RESULTADOS';
-  document.getElementById('edr-title').textContent = o.desc;
+  document.getElementById('edr-title').textContent = o.desc; // textContent — seguro sin escapar
 
   const margen = o.cotizado > 0 ? Math.round((o.utilidad || 0) / o.cotizado * 100) : 0;
   document.getElementById('edr-kpis').innerHTML = `
@@ -222,7 +222,7 @@ async function openEDR(id) {
         const pagado = d.status === 'pagado' ? d.monto : 0;
         const debemos = d.status !== 'pagado' ? d.monto : 0;
         return `<tr>
-          <td>${pv.nombre || '—'}<div style="font-size:10px;color:var(--gray400)">${d.concepto}</div></td>
+          <td>${esc(pv.nombre) || '—'}<div style="font-size:10px;color:var(--gray400)">${esc(d.concepto)}</div></td>
           <td style="text-align:right" class="mono">${fmx(d.monto)}</td>
           <td style="text-align:right;color:var(--green)" class="mono">${fmx(pagado)}</td>
           <td style="text-align:right;color:${debemos ? 'var(--red)' : 'var(--gray400)'}" class="mono">${fmx(debemos)}</td>
@@ -233,7 +233,7 @@ async function openEDR(id) {
 
   const costos = opDeudas.reduce((a, d) => a + (d.monto || 0), 0);
   document.getElementById('edr-bottom').innerHTML = `
-    <div class="info-cell"><div class="info-cell-label">COMISIÓN EJECUTIVO (7.5%)</div><div style="font-family:'Bebas Neue',cursive;font-size:22px;color:var(--green)">${fmx((o.utilidad || 0) * 0.075)}</div><div style="font-size:11px;color:var(--gray400)">${o.ejec} · 7.5% de ${fmx(o.utilidad)}</div></div>
+    <div class="info-cell"><div class="info-cell-label">COMISIÓN EJECUTIVO (7.5%)</div><div style="font-family:'Bebas Neue',cursive;font-size:22px;color:var(--green)">${fmx((o.utilidad || 0) * 0.075)}</div><div style="font-size:11px;color:var(--gray400)">${esc(o.ejec)} · 7.5% de ${fmx(o.utilidad)}</div></div>
     <div class="info-cell"><div class="info-cell-label">COSTOS REGISTRADOS A PROVEEDORES</div><div style="font-family:'Bebas Neue',cursive;font-size:22px;color:var(--amber)">${fmx(costos)}</div><div style="font-size:11px;color:var(--gray400)">${opDeudas.length} proveedor(es)</div></div>`;
 
   openM('edr');
