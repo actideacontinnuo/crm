@@ -5,6 +5,7 @@ const {
   prop_title, prop_text, prop_number, prop_select, prop_date,
   read_title, read_text, read_number, read_select, read_date,
 } = require('./notion');
+const { assertOwnership, forceOwnerOnCreate } = require('./_guard');
 
 function toObj(page) {
   const p = page.properties;
@@ -38,7 +39,10 @@ function toProps(data) {
 
 router.get('/', async (req, res) => {
   try {
-    const pages = await queryDB('ops', null, [{ property: 'Fecha Evento', direction: 'descending' }]);
+    const filter = req.ejecFilter
+      ? { property: 'Ejecutivo', select: { equals: req.ejecFilter } }
+      : null;
+    const pages = await queryDB('ops', filter, [{ property: 'Fecha Evento', direction: 'descending' }]);
     res.json(pages.map(toObj));
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -46,20 +50,27 @@ router.get('/', async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const page = await notion.pages.retrieve({ page_id: req.params.id });
-    res.json(toObj(page));
+    const obj = toObj(page);
+    if (!assertOwnership(req, res, obj.ejec)) return;
+    res.json(obj);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 router.post('/', async (req, res) => {
   try {
-    const page = await createPage('ops', toProps(req.body));
+    const data = forceOwnerOnCreate(req, { ...req.body });
+    const page = await createPage('ops', toProps(data));
     res.json(toObj(page));
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 router.patch('/:id', async (req, res) => {
   try {
-    const page = await updatePage(req.params.id, toProps(req.body));
+    const existing = await notion.pages.retrieve({ page_id: req.params.id });
+    if (!assertOwnership(req, res, toObj(existing).ejec)) return;
+    const body = { ...req.body };
+    if (req.ejecFilter) delete body.ejec;
+    const page = await updatePage(req.params.id, toProps(body));
     res.json(toObj(page));
   } catch (err) { res.status(500).json({ error: err.message }); }
 });

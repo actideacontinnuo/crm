@@ -5,6 +5,7 @@ const {
   prop_title, prop_text, prop_select, prop_email, prop_phone,
   read_title, read_text, read_select, read_email, read_phone,
 } = require('./notion');
+const { assertOwnership, forceOwnerOnCreate } = require('./_guard');
 
 function toObj(page) {
   const p = page.properties;
@@ -59,26 +60,35 @@ router.get('/', async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const page = await notion.pages.retrieve({ page_id: req.params.id });
-    res.json(toObj(page));
+    const obj = toObj(page);
+    if (!assertOwnership(req, res, obj.ejec)) return;
+    res.json(obj);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 router.post('/', async (req, res) => {
   try {
-    const page = await createPage('clientes', toProps(req.body));
+    const data = forceOwnerOnCreate(req, { ...req.body });
+    const page = await createPage('clientes', toProps(data));
     res.json(toObj(page));
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 router.patch('/:id', async (req, res) => {
   try {
-    const page = await updatePage(req.params.id, toProps(req.body));
+    const existing = await notion.pages.retrieve({ page_id: req.params.id });
+    if (!assertOwnership(req, res, toObj(existing).ejec)) return;
+    const body = { ...req.body };
+    if (req.ejecFilter) delete body.ejec; // ejecutivo no puede reasignar el dueño
+    const page = await updatePage(req.params.id, toProps(body));
     res.json(toObj(page));
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 router.delete('/:id', async (req, res) => {
   try {
+    const existing = await notion.pages.retrieve({ page_id: req.params.id });
+    if (!assertOwnership(req, res, toObj(existing).ejec)) return;
     await archivePage(req.params.id);
     res.json({ ok: true });
   } catch (err) { res.status(500).json({ error: err.message }); }

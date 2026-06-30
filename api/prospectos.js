@@ -5,6 +5,7 @@ const {
   prop_title, prop_text, prop_number, prop_select, prop_date, prop_email, prop_phone,
   read_title, read_text, read_number, read_select, read_date, read_email, read_phone,
 } = require('./notion');
+const { assertOwnership, forceOwnerOnCreate } = require('./_guard');
 
 function toObj(page) {
   const p = page.properties;
@@ -61,25 +62,32 @@ router.get('/', async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const page = await notion.pages.retrieve({ page_id: req.params.id });
-    res.json(toObj(page));
+    const obj = toObj(page);
+    if (!assertOwnership(req, res, obj.ejec)) return;
+    res.json(obj);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 router.post('/', async (req, res) => {
   try {
-    const page = await createPage('prospectos', toProps(req.body));
+    const data = forceOwnerOnCreate(req, { ...req.body });
+    const page = await createPage('prospectos', toProps(data));
     res.json(toObj(page));
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 router.patch('/:id', async (req, res) => {
   try {
+    const existing = await notion.pages.retrieve({ page_id: req.params.id });
+    if (!assertOwnership(req, res, toObj(existing).ejec)) return;
+
     // These fields are immutable after creation — strip them from any update
     const body = { ...req.body };
     delete body.empresa;
     delete body.contacto;
     delete body.tel;
     delete body.email;
+    delete body.ejec; // el ejecutivo dueño tampoco se puede reasignar vía API
     const page = await updatePage(req.params.id, toProps(body));
     res.json(toObj(page));
   } catch (err) { res.status(500).json({ error: err.message }); }
@@ -87,6 +95,8 @@ router.patch('/:id', async (req, res) => {
 
 router.delete('/:id', async (req, res) => {
   try {
+    const existing = await notion.pages.retrieve({ page_id: req.params.id });
+    if (!assertOwnership(req, res, toObj(existing).ejec)) return;
     await archivePage(req.params.id);
     res.json({ ok: true });
   } catch (err) { res.status(500).json({ error: err.message }); }

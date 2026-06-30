@@ -64,6 +64,12 @@ async function doLogin() {
     document.getElementById('login-pass').value = '';
     aplicarSesion(data);
     ocultarLogin();
+
+    // Refrescar todos los datos con los permisos del usuario que acaba de entrar
+    db.invalidate('prospectos','clientes','ops','cotizaciones','pagos','proveedores','deudas','casos','tickets');
+    showSpinner();
+    try { await db.prefetch(); } finally { hideSpinner(); }
+    nav('dashboard');
   } catch (e) {
     errEl.textContent = 'Error de conexión con el servidor';
     errEl.style.display = 'block';
