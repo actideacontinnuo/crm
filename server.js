@@ -14,8 +14,14 @@ if (!process.env.JWT_SECRET) {
 const app = express();
 
 // ── Confiar en el proxy de Railway — necesario para que el rate limit
-//    identifique la IP real del visitante y no la del proxy interno ──
-app.set('trust proxy', 1);
+//    identifique la IP real del visitante y no la del proxy interno.
+//    Railway puede tener más de un salto de edge/proxy; "1" resolvía una IP
+//    inconsistente entre peticiones y el límite de login nunca se acumulaba
+//    correctamente. "true" confía en toda la cadena X-Forwarded-For y toma
+//    el IP original del cliente, que es lo que el edge de Railway entrega
+//    de forma confiable (no es un header que el cliente pueda falsificar
+//    a través del edge gestionado). ──
+app.set('trust proxy', true);
 
 // ── Cabeceras de seguridad estándar (Helmet) ──
 app.use(helmet({
