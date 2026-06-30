@@ -85,6 +85,7 @@
   <div class="s-section role-admin">
     <div class="s-label">ADMINISTRACIÓN</div>
     <div class="nav-item" onclick="abrirObjetivos()"><span class="nav-icon">🎯</span>Objetivos del Mes</div>
+    <div class="nav-item" onclick="abrirGestionUsuarios()"><span class="nav-icon">👤</span>Usuarios y Accesos</div>
   </div>
   <div class="s-bottom">
     <div>PLAINWORK · ACTIDEA V1.0</div>
@@ -831,6 +832,20 @@
     <button class="btn btn-ghost" onclick="closeM('objetivos')">Cancelar</button>
     <button class="btn btn-primary" onclick="guardarObjetivos()">Guardar Objetivos</button>
   </div>
+</div></div>
+
+<!-- MODAL GESTIÓN DE USUARIOS -->
+<div class="modal-overlay" id="m-gestion-usuarios" onclick="closeM('gestion-usuarios')">
+<div class="modal" onclick="event.stopPropagation()" style="width:520px">
+  <div class="modal-hdr">
+    <div><div class="modal-eye">ADMIN · DIRECCIÓN</div><div class="modal-title">Usuarios y Accesos</div></div>
+    <button class="modal-close" onclick="closeM('gestion-usuarios')">✕</button>
+  </div>
+  <div class="modal-body">
+    <div id="gu-lista" style="display:flex;flex-direction:column;gap:8px"></div>
+    <div id="gu-resultado" style="display:none;margin-top:14px;padding:12px;border-radius:8px;background:var(--cream);border:1px solid var(--border)"></div>
+  </div>
+  <div class="modal-footer"><button class="btn btn-ghost" onclick="closeM('gestion-usuarios')">Cerrar</button></div>
 </div></div>
 
 <!-- MODAL CAMBIAR CONTRASEÑA -->

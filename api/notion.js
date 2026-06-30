@@ -13,6 +13,8 @@ const DBS = {
   deudas:       process.env.NOTION_DB_DEUDAS,
   casos:        process.env.NOTION_DB_CASOS,
   tickets:      process.env.NOTION_DB_TICKETS,
+  usuarios:     process.env.NOTION_DB_USUARIOS,
+  objetivos:    process.env.NOTION_DB_OBJETIVOS,
 };
 
 async function queryDB(dbKey, filter = null, sorts = null) {
