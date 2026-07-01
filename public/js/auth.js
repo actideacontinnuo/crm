@@ -418,6 +418,112 @@ async function abrirAuditoria() {
 }
 
 // ══════════════════════════════════════
+// RESET PASSWORD (enlace por email)
+// ══════════════════════════════════════
+function _checkResetToken() {
+  const params = new URLSearchParams(window.location.search);
+  const token  = params.get('token');
+  if (!token) return;
+
+  // Ocultar todas las pantallas de login, mostrar la de reset
+  ['login-screen','twofa-screen','forzar-pass-screen','olvide-screen'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = 'none';
+  });
+  const screen = document.getElementById('reset-pass-screen');
+  if (screen) screen.style.display = 'flex';
+
+  // Guardar token en atributo del botón para usarlo al enviar
+  window._resetToken = token;
+
+  // Limpiar la URL para que no aparezca el token en la barra
+  window.history.replaceState({}, '', '/');
+}
+
+async function doResetPassword() {
+  const nueva    = document.getElementById('rp-nueva').value;
+  const confirma = document.getElementById('rp-confirma').value;
+  const errEl    = document.getElementById('rp-error');
+  errEl.style.display = 'none';
+
+  if (!nueva || nueva.length < 8) {
+    errEl.textContent = 'La contraseña debe tener al menos 8 caracteres';
+    errEl.style.display = 'block';
+    return;
+  }
+  if (nueva !== confirma) {
+    errEl.textContent = 'Las contraseñas no coinciden';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  try {
+    const r = await fetch('/api/auth/reset-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: window._resetToken, nueva }),
+    });
+    const data = await r.json();
+    if (!r.ok) {
+      errEl.textContent = data.error || 'Enlace inválido o expirado';
+      errEl.style.display = 'block';
+      return;
+    }
+    document.getElementById('reset-pass-form').style.display = 'none';
+    document.getElementById('reset-pass-ok').style.display   = 'block';
+  } catch (e) {
+    errEl.textContent = 'Error de conexión. Intenta de nuevo.';
+    errEl.style.display = 'block';
+  }
+}
+
+function irAlLogin() {
+  document.getElementById('reset-pass-screen').style.display = 'none';
+  mostrarLogin();
+}
+
+// ══════════════════════════════════════
+// OLVIDÉ MI CONTRASEÑA
+// ══════════════════════════════════════
+function mostrarOlvidePassword() {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('olvide-screen').style.display = 'flex';
+  document.getElementById('olvide-email').value = '';
+  document.getElementById('olvide-msg').style.display = 'none';
+}
+
+function ocultarOlvidePassword() {
+  document.getElementById('olvide-screen').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'flex';
+}
+
+async function enviarResetPassword() {
+  const email = document.getElementById('olvide-email').value.trim();
+  const errEl = document.getElementById('olvide-error');
+  if (errEl) errEl.style.display = 'none';
+
+  if (!email) {
+    if (errEl) { errEl.textContent = 'Ingresa tu correo'; errEl.style.display = 'block'; }
+    return;
+  }
+
+  try {
+    await fetch('/api/auth/olvide-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    });
+    // Mostrar pantalla de "ok" ocultar formulario
+    const formEl = document.getElementById('olvide-form');
+    const okEl   = document.getElementById('olvide-ok');
+    if (formEl) formEl.style.display = 'none';
+    if (okEl)   okEl.style.display   = 'block';
+  } catch (e) {
+    if (errEl) { errEl.textContent = 'Error de conexión. Intenta de nuevo.'; errEl.style.display = 'block'; }
+  }
+}
+
+// ══════════════════════════════════════
 // RESPALDO (solo admin)
 // ══════════════════════════════════════
 function abrirRespaldo() {

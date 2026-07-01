@@ -56,7 +56,8 @@ async function saveOP() {
   const cliId = document.getElementById('op-cliente').value;
   const desc  = document.getElementById('op-desc').value.trim();
   if (!desc)  { toast('La descripción del evento es requerida', 'red'); return; }
-  if (!cliId) { toast('Selecciona un cliente', 'red'); return; }
+  const esInterna = document.getElementById('op-interna')?.checked;
+  if (!cliId && !esInterna) { toast('Selecciona un cliente', 'red'); return; }
 
   const ops = await db.ops.list();
   const numero = document.getElementById('op-num-prev').value || ('OP-' + uid().toUpperCase());
@@ -237,6 +238,37 @@ async function openEDR(id) {
     <div class="info-cell"><div class="info-cell-label">COSTOS REGISTRADOS A PROVEEDORES</div><div style="font-family:'Bebas Neue',cursive;font-size:22px;color:var(--amber)">${fmx(costos)}</div><div style="font-size:11px;color:var(--gray400)">${opDeudas.length} proveedor(es)</div></div>`;
 
   openM('edr');
+}
+
+// ── OP Interna (gastos sin cliente) ──
+function toggleOPInterna(checked) {
+  const wrap    = document.getElementById('op-cliente-wrap');
+  const titleEl = document.getElementById('nueva-op-title');
+  const eyeEl   = document.getElementById('nueva-op-eye');
+  const cliSel  = document.getElementById('op-cliente');
+
+  if (wrap)    wrap.style.display  = checked ? 'none' : '';
+  if (titleEl) titleEl.textContent = checked ? 'Nueva OP Interna' : 'Nueva OP';
+  if (eyeEl)   eyeEl.textContent   = checked ? 'GASTO INTERNO' : 'CREAR ORDEN DE PRODUCCIÓN';
+
+  if (cliSel) {
+    if (checked) {
+      // Insertar opción especial "Interno" si no existe
+      let opt = cliSel.querySelector('option[value="__interno__"]');
+      if (!opt) {
+        opt = document.createElement('option');
+        opt.value = '__interno__';
+        opt.textContent = 'Interno / Gasto administrativo';
+        cliSel.prepend(opt);
+      }
+      cliSel.value = '__interno__';
+    } else {
+      // Quitar opción interna y limpiar selección
+      const opt = cliSel.querySelector('option[value="__interno__"]');
+      if (opt) opt.remove();
+      cliSel.value = '';
+    }
+  }
 }
 
 async function openCotForOP() {

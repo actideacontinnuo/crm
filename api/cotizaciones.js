@@ -22,27 +22,32 @@ function toObj(page) {
     version:   read_text(p['Versión']),
     fecha:     read_date(p['Fecha']),
     status:    read_select(p['Status']),
-    subtotal:  read_number(p['Subtotal']),
-    fee:       read_number(p['Fee %']),
-    iva:       read_number(p['IVA']),
-    total:     read_number(p['Total con IVA']),
-    ejec:      read_select(p['Ejecutivo']),
+    subtotal:    read_number(p['Subtotal']),
+    feePct:      read_number(p['Fee %']),
+    fee:         read_number(p['Fee %']),
+    iva:         read_number(p['IVA']),
+    totalConIva: read_number(p['Total con IVA']),
+    total:       read_number(p['Total con IVA']),
+    ejec:        read_select(p['Ejecutivo']),
     secciones,
   };
 }
 
 function toProps(data) {
   const props = {};
-  if (data.cotId     !== undefined) props['ID Cot']       = prop_title(data.cotId);
+  if (data.idCot     !== undefined) props['ID Cot']       = prop_title(data.idCot);
+  else if (data.cotId !== undefined) props['ID Cot']      = prop_title(data.cotId);
   if (data.opId      !== undefined) props['OP ID']        = prop_text(data.opId);
   if (data.clienteId !== undefined) props['Cliente ID']   = prop_text(data.clienteId);
   if (data.version   !== undefined) props['Versión']      = prop_text(data.version);
   if (data.fecha     !== undefined) props['Fecha']        = prop_date(data.fecha);
   if (data.status    !== undefined) props['Status']       = prop_select(data.status);
   if (data.subtotal  !== undefined) props['Subtotal']     = prop_number(data.subtotal);
-  if (data.fee       !== undefined) props['Fee %']        = prop_number(data.fee);
-  if (data.iva       !== undefined) props['IVA']          = prop_number(data.iva);
-  if (data.total     !== undefined) props['Total con IVA'] = prop_number(data.total);
+  if (data.feePct    !== undefined) props['Fee %']         = prop_number(data.feePct);
+  else if (data.fee  !== undefined) props['Fee %']         = prop_number(data.fee);
+  if (data.iva       !== undefined) props['IVA']           = prop_number(data.iva);
+  if (data.totalConIva !== undefined) props['Total con IVA'] = prop_number(data.totalConIva);
+  else if (data.total  !== undefined) props['Total con IVA'] = prop_number(data.total);
   if (data.ejec      !== undefined) props['Ejecutivo']    = prop_select(data.ejec);
   if (data.secciones !== undefined) {
     const json = JSON.stringify(data.secciones);

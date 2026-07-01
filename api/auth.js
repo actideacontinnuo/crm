@@ -21,6 +21,7 @@ function toUser(page) {
     pageId:    page.id,
     id:        read_title(p['Usuario']),
     nombre:    read_text(p['Nombre']),
+    email:     p['Email']?.email || null,
     role:      read_select(p['Rol']),
     ejec:      read_text(p['Ejecutivo']) || null,
     hash:      read_text(p['PasswordHash']),
@@ -38,6 +39,12 @@ async function findUserById(usuario) {
   return pages.length ? toUser(pages[0]) : null;
 }
 
+async function findUserByEmail(email) {
+  const all = await queryDB('usuarios', null);
+  const page = all.find(p => (p.properties['Email']?.email || '').toLowerCase() === email.toLowerCase());
+  return page ? toUser(page) : null;
+}
+
 function signFullToken(user) {
   return jwt.sign(
     { id: user.id, nombre: user.nombre, role: user.role, ejec: user.ejec, mustChangePassword: !!user.debeCambiarPassword },
@@ -46,16 +53,96 @@ function signFullToken(user) {
   );
 }
 
-// ── LOGIN — paso 1: usuario + contraseña ──────────────────
-router.post('/login', async (req, res) => {
-  const { usuario, password } = req.body;
-  const ip = clientIp(req);
-  if (!usuario || !password) return res.status(400).json({ error: 'Usuario y contraseña requeridos' });
+// ── RESET PASSWORD — solicitar ────────────────────────────
+router.post('/olvide-password', async (req, res) => {
+  const { email } = req.body;
+  if (!email) return res.status(400).json({ error: 'El correo es requerido' });
+  // Respuesta siempre igual para no revelar si el email existe
+  const RESPUESTA = { ok: true, message: 'Si el correo existe recibirás un enlace en unos minutos' };
+  try {
+    const user = await findUserByEmail(email.trim());
+    if (!user || !user.activo) return res.json(RESPUESTA);
 
-  const usuarioId = usuario.toLowerCase().trim();
+    const crypto = require('crypto');
+    const token  = crypto.randomBytes(32).toString('hex');
+    const expira = new Date(Date.now() + 60 * 60 * 1000); // 1 hora
+
+    await updatePage(user.pageId, {
+      'ResetToken':  prop_text(token),
+      'ResetExpira': prop_date(expira.toISOString()),
+    });
+
+    const resetUrl = `${process.env.APP_URL || 'https://actidea-os.up.railway.app'}/reset-password?token=${token}`;
+    const resendKey = process.env.RESEND_API_KEY;
+    if (resendKey) {
+      await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${resendKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          from: 'Actidea CRM <onboarding@resend.dev>',
+          to: [user.email],
+          subject: 'Restablece tu contraseña — Actidea CRM',
+          html: `<div style="font-family:sans-serif;max-width:480px;margin:0 auto">
+            <h2 style="color:#CC2200">Actidea CRM</h2>
+            <p>Hola <strong>${user.nombre}</strong>,</p>
+            <p>Recibimos una solicitud para restablecer tu contraseña. Haz clic en el botón para continuar:</p>
+            <a href="${resetUrl}" style="display:inline-block;background:#CC2200;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:bold;margin:16px 0">Restablecer contraseña</a>
+            <p style="color:#666;font-size:12px">Este enlace expira en 1 hora. Si no solicitaste este cambio, ignora este correo.</p>
+          </div>`,
+        }),
+      });
+    }
+    res.json(RESPUESTA);
+  } catch (err) {
+    console.error('Error olvide-password:', err.message);
+    res.json(RESPUESTA); // nunca revelar error al cliente
+  }
+});
+
+// ── RESET PASSWORD — confirmar ────────────────────────────
+router.post('/reset-password', async (req, res) => {
+  const { token, nueva } = req.body;
+  if (!token || !nueva) return res.status(400).json({ error: 'Token y contraseña requeridos' });
+  const validation = validatePasswordStrength(nueva);
+  if (!validation.ok) return res.status(400).json({ error: validation.error });
+  try {
+    const all  = await queryDB('usuarios', null);
+    const page = all.find(p => (p.properties['ResetToken']?.rich_text?.[0]?.text?.content || '') === token);
+    if (!page) return res.status(400).json({ error: 'Enlace inválido o ya utilizado' });
+    const user   = toUser(page);
+    const expira = user.bloqueadoHasta; // reutilizamos el lector de fecha
+    const expiryDate = page.properties['ResetExpira']?.date?.start;
+    if (!expiryDate || new Date(expiryDate) < new Date()) return res.status(400).json({ error: 'El enlace ha expirado. Solicita uno nuevo.' });
+
+    const hash = bcrypt.hashSync(nueva, 12);
+    await updatePage(page.id, {
+      'PasswordHash':        prop_text(hash),
+      'DebeCambiarPassword': prop_checkbox(false),
+      'ResetToken':          prop_text(''),
+      'ResetExpira':         { date: null },
+      'IntentosFallidos':    prop_number(0),
+      'BloqueadoHasta':      { date: null },
+    });
+    await logAudit({ usuario: user.id, accion: 'password_reset_completado', ip: 'email-link', exito: true });
+    res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ── LOGIN — paso 1: correo + contraseña ──────────────────
+router.post('/login', async (req, res) => {
+  const { usuario, email, password } = req.body;
+  const ip = clientIp(req);
+
+  // Acepta login por email (nuevo) o por usuario (retrocompatibilidad)
+  const loginInput = (email || usuario || '').toLowerCase().trim();
+  if (!loginInput || !password) return res.status(400).json({ error: 'Correo y contraseña requeridos' });
 
   try {
-    const user = await findUserById(usuarioId);
+    // Buscar por email primero, luego por usuario
+    let user = loginInput.includes('@') ? await findUserByEmail(loginInput) : await findUserById(loginInput);
+    if (!user) user = await findUserById(loginInput); // fallback por username
+
+    const usuarioId = user?.id || loginInput;
     if (!user || !user.activo) {
       await logAudit({ usuario: usuarioId, accion: 'login_fallido', detalle: 'usuario no existe o inactivo', ip, exito: false });
       return res.status(401).json({ error: 'Usuario o contraseña incorrectos' });

@@ -315,3 +315,108 @@ async function verTicket(id) {
   const cli = clientes.find(c => c.id === cot.clienteId) || {};
   alert(`TICKET ${t.id.slice(-4).toUpperCase()}\n\nCotización: ${cli.nombre || '—'}\nTipo: ${t.tipo}\nMonto: ${t.monto}\nLevantó: ${t.quien}\nFecha: ${t.fecha}\nEstatus: ${t.status}\n\nMotivo:\n${t.motivo}`);
 }
+
+// ── Guardar cotización como Borrador (sin cambiar status de OP) ──
+async function cotSaveAsDraft() {
+  const vals = renderCotizador();
+  if (!vals) return;
+
+  const cliId = document.getElementById('cot-cliente')?.value;
+  const opId  = document.getElementById('cot-op')?.value || null;
+  const ejec  = document.getElementById('cot-ejec')?.value || 'Natalia Gama';
+  if (!cliId) { toast('Selecciona un cliente', 'red'); return; }
+
+  const allCots = await db.cotizaciones.list();
+  const prevVers = allCots.filter(c => c.opId === opId && c.clienteId === cliId).length;
+  const version  = 'V' + (prevVers + 1);
+
+  const data = {
+    idCot:       (opId ? opId.slice(-6) : 'COT') + '-' + version + '-BORR',
+    opId:        opId || '',
+    clienteId:   cliId,
+    version:     version + ' (Borrador)',
+    fecha:       new Date().toISOString().split('T')[0],
+    status:      'Borrador',
+    subtotal:    Math.round(vals.grand),
+    feePct:      _cotFee,
+    iva:         Math.round(vals.iva),
+    totalConIva: Math.round(vals.total),
+    ejec,
+    secciones:   JSON.parse(JSON.stringify(_cotSections)),
+  };
+
+  showSpinner();
+  try {
+    await db.cotizaciones.create(data);
+    closeM('cotizador');
+    _cotSections = { audio:[], esceno:[], logistica:[], catering:[], otros:[] };
+    _cotFee = 15;
+    toast('✓ Borrador guardado');
+    renderCotizaciones();
+  } catch (e) {
+    toast('Error al guardar borrador: ' + e.message, 'red');
+  } finally {
+    hideSpinner();
+  }
+}
+
+// ── Exportar Estado de Resultados como PDF ──
+async function exportEDR() {
+  const opId = STATE.selOP;
+  if (!opId) return;
+
+  const ops      = await db.ops.list();
+  const clientes = await db.clientes.list();
+  const deudas   = await db.deudas.list();
+  const pagos    = await db.pagos.list();
+  const o    = ops.find(x => x.id === opId) || {};
+  const cli  = clientes.find(x => x.id === o.clienteId) || {};
+  const opDeudas = deudas.filter(d => d.opId === opId);
+  const opPagos  = pagos.filter(p => p.opId === opId);
+
+  const pagado  = opPagos.reduce((a, p) => a + (p.monto || 0), 0);
+  const costos  = opDeudas.reduce((a, d) => a + (d.monto || 0), 0);
+  const utilidad = (o.cotizado || 0) - costos;
+
+  const filas = opDeudas.map(d => `
+    <tr>
+      <td>${esc(d.proveedor || '—')}</td>
+      <td>${esc(d.concepto || '—')}</td>
+      <td style="text-align:right">$${Math.round(d.monto || 0).toLocaleString('es-MX')}</td>
+      <td style="text-align:right">${d.status === 'Pagado' ? '✓ Pagado' : (d.status || 'Pendiente')}</td>
+    </tr>`).join('');
+
+  const html = `<!DOCTYPE html><html lang="es"><head>
+    <meta charset="UTF-8">
+    <title>EDR ${esc(o.numero)} — ${esc(cli.nombre)}</title>
+    <style>
+      body { font-family: Arial, sans-serif; font-size: 12px; color: #333; margin: 32px; }
+      h1 { font-size: 20px; margin: 0 0 4px; } h2 { font-size: 13px; color: #666; margin: 0 0 24px; }
+      table { width: 100%; border-collapse: collapse; margin-top: 16px; }
+      th { background: #f4f4f0; text-align: left; padding: 8px 10px; font-size: 11px; letter-spacing: .08em; }
+      td { padding: 7px 10px; border-bottom: 1px solid #e5e5e5; }
+      .total { font-size: 15px; font-weight: 700; }
+      .green { color: #1a6b3c; } .red { color: #CC2200; }
+    </style>
+  </head><body>
+    <h1>${esc(o.numero)} · Estado de Resultados</h1>
+    <h2>${esc(cli.nombre || 'OP Interna')} — ${esc(o.desc)}</h2>
+    <table>
+      <tr><th>CONCEPTO</th><th style="text-align:right">MONTO</th></tr>
+      <tr><td>Valor cotizado (sin IVA)</td><td style="text-align:right">$${Math.round(o.cotizado||0).toLocaleString('es-MX')}</td></tr>
+      <tr><td>Cobrado al cliente</td><td style="text-align:right" class="green">$${Math.round(pagado).toLocaleString('es-MX')}</td></tr>
+      <tr><td>Costos a proveedores</td><td style="text-align:right" class="red">$${Math.round(costos).toLocaleString('es-MX')}</td></tr>
+      <tr><td class="total">Utilidad bruta</td><td style="text-align:right" class="total ${utilidad>=0?'green':'red'}">$${Math.round(utilidad).toLocaleString('es-MX')}</td></tr>
+    </table>
+    ${opDeudas.length ? `<table style="margin-top:24px">
+      <tr><th>PROVEEDOR</th><th>CONCEPTO</th><th style="text-align:right">MONTO</th><th style="text-align:right">ESTATUS</th></tr>
+      ${filas}
+    </table>` : ''}
+    <p style="margin-top:32px;font-size:10px;color:#999">Generado el ${new Date().toLocaleString('es-MX')} · Actidea Continnuo</p>
+  </body></html>`;
+
+  const win = window.open('', '_blank');
+  win.document.write(html);
+  win.document.close();
+  setTimeout(() => win.print(), 400);
+}

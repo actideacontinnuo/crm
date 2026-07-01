@@ -10,16 +10,17 @@ const { assertOwnership, forceOwnerOnCreate } = require('./_guard');
 function toObj(page) {
   const p = page.properties;
   return {
-    id:       page.id,
-    num:      read_title(p['Número OP']),
-    desc:     read_text(p['Descripción']),
-    cliente:  read_text(p['Cliente ID']),
-    ejec:     read_select(p['Ejecutivo']),
-    fecha:    read_date(p['Fecha Evento']),
-    cotizado: read_number(p['Cotizado']),
-    cobrado:  read_number(p['Cobrado']),
-    utilidad: read_number(p['Utilidad']),
-    status:   read_select(p['Status']),
+    id:         page.id,
+    num:        read_title(p['Número OP']),
+    numero:     read_title(p['Número OP']),
+    desc:       read_text(p['Descripción']),
+    clienteId:  read_text(p['Cliente ID']),
+    ejec:       read_select(p['Ejecutivo']),
+    fechaEvento: read_date(p['Fecha Evento']),
+    cotizado:   read_number(p['Cotizado']),
+    cobrado:    read_number(p['Cobrado']),
+    utilidad:   read_number(p['Utilidad']),
+    status:     read_select(p['Status']),
   };
 }
 
@@ -27,9 +28,10 @@ function toProps(data) {
   const props = {};
   if (data.num      !== undefined) props['Número OP']   = prop_title(data.num);
   if (data.desc     !== undefined) props['Descripción'] = prop_text(data.desc);
-  if (data.cliente  !== undefined) props['Cliente ID']  = prop_text(data.cliente);
+  if (data.clienteId !== undefined) props['Cliente ID']  = prop_text(data.clienteId);
   if (data.ejec     !== undefined) props['Ejecutivo']   = prop_select(data.ejec);
-  if (data.fecha    !== undefined) props['Fecha Evento'] = prop_date(data.fecha);
+  if (data.fechaEvento !== undefined) props['Fecha Evento'] = prop_date(data.fechaEvento);
+  else if (data.fecha  !== undefined) props['Fecha Evento'] = prop_date(data.fecha);
   if (data.cotizado !== undefined) props['Cotizado']    = prop_number(data.cotizado);
   if (data.cobrado  !== undefined) props['Cobrado']     = prop_number(data.cobrado);
   if (data.utilidad !== undefined) props['Utilidad']    = prop_number(data.utilidad);

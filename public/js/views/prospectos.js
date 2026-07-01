@@ -262,6 +262,38 @@ async function updateProspectoStatus() {
   }
 }
 
+// ── Calificación previa antes de convertir ──
+function abrirCalificacionProspecto() {
+  // Limpiar checkboxes
+  ['cal-contacto','cal-presupuesto','cal-evento','cal-decision','cal-docs'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.checked = false;
+  });
+  const errEl = document.getElementById('cal-error');
+  if (errEl) errEl.style.display = 'none';
+  openM('calificacion-prospecto');
+}
+
+function confirmarCalificacion() {
+  const checks = ['cal-contacto','cal-presupuesto','cal-evento','cal-decision','cal-docs'];
+  const todas = checks.every(id => {
+    const el = document.getElementById(id);
+    return el && el.checked;
+  });
+
+  const errEl = document.getElementById('cal-error');
+  if (!todas) {
+    if (errEl) {
+      errEl.textContent = 'Debes confirmar todos los criterios para convertir este prospecto en cliente.';
+      errEl.style.display = 'block';
+    }
+    return;
+  }
+
+  closeM('calificacion-prospecto');
+  setTimeout(() => convertirACliente(), 200);
+}
+
 async function convertirACliente() {
   const p = await db.prospectos.get(STATE.selProsp);
   closeM('detalle-prospecto');

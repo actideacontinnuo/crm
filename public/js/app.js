@@ -316,6 +316,12 @@ async function updateBadges() {
 // INIT
 // ══════════════════════════════════════
 document.addEventListener('DOMContentLoaded', async () => {
+  // Si la URL trae ?token=xxx es un enlace de reset de contraseña — tiene prioridad total
+  if (new URLSearchParams(window.location.search).has('token')) {
+    _checkResetToken();
+    return;
+  }
+
   // Verificar sesión primero
   const user = sesionActual();
   if (!user || !localStorage.getItem('crm_token')) {
@@ -343,3 +349,92 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
   nav('dashboard');
 });
+
+// ══════════════════════════════════════
+// AVATAR MENU
+// ══════════════════════════════════════
+function toggleAvatarMenu() {
+  const menu = document.getElementById('avatar-menu');
+  if (!menu) return;
+  const open = menu.style.display === 'block';
+  menu.style.display = open ? 'none' : 'block';
+
+  if (!open) {
+    const user = sesionActual();
+    const adminWrap = document.getElementById('avatar-menu-admin');
+    if (adminWrap) adminWrap.style.display = user?.role === 'admin' ? 'block' : 'none';
+
+    // Cerrar si se hace click fuera
+    setTimeout(() => {
+      document.addEventListener('click', _cerrarAvatarMenu, { once: true });
+    }, 0);
+  }
+}
+
+function _cerrarAvatarMenu(e) {
+  const menu   = document.getElementById('avatar-menu');
+  const avatar = document.getElementById('topbar-avatar');
+  if (!menu) return;
+  if (menu.contains(e.target) || (avatar && avatar.contains(e.target))) return;
+  menu.style.display = 'none';
+}
+
+// ══════════════════════════════════════
+// NOTIFICACIONES (campanita)
+// ══════════════════════════════════════
+const _notifs = [];
+
+function toggleNotifPanel() {
+  const panel = document.getElementById('notif-panel');
+  if (!panel) return;
+  const open = panel.style.display === 'block';
+  panel.style.display = open ? 'none' : 'block';
+
+  if (!open) {
+    _renderNotifPanel();
+    // Cerrar si se hace click fuera
+    setTimeout(() => {
+      document.addEventListener('click', _cerrarNotifPanel, { once: true });
+    }, 0);
+  }
+}
+
+function _cerrarNotifPanel(e) {
+  const panel = document.getElementById('notif-panel');
+  const bell  = document.getElementById('notif-bell');
+  if (!panel) return;
+  if (panel.contains(e.target) || (bell && bell.contains(e.target))) return;
+  panel.style.display = 'none';
+}
+
+function _renderNotifPanel() {
+  const lista = document.getElementById('notif-list');
+  if (!lista) return;
+  if (_notifs.length === 0) {
+    lista.innerHTML = '<div style="padding:20px;text-align:center;color:var(--gray400);font-size:12px">Sin notificaciones</div>';
+    return;
+  }
+  lista.innerHTML = _notifs.map((n, i) => `
+    <div style="padding:10px 12px;border-bottom:1px solid var(--border);${n.leida ? 'opacity:.6' : ''}">
+      <div style="font-size:12px;font-weight:${n.leida ? '400' : '600'}">${esc(n.texto)}</div>
+      <div style="font-size:10px;color:var(--gray400);margin-top:2px">${esc(n.fecha)}</div>
+    </div>`).join('');
+}
+
+function _pushNotif(texto) {
+  _notifs.unshift({ texto, fecha: new Date().toLocaleString('es-MX'), leida: false });
+  if (_notifs.length > 50) _notifs.pop();
+  const badge = document.getElementById('notif-badge');
+  const noLeidas = _notifs.filter(n => !n.leida).length;
+  if (badge) {
+    badge.textContent = noLeidas;
+    badge.style.display = noLeidas > 0 ? 'flex' : 'none';
+  }
+}
+
+function marcarTodasLeidas() {
+  _notifs.forEach(n => { n.leida = true; });
+  const badge = document.getElementById('notif-badge');
+  if (badge) badge.style.display = 'none';
+  _renderNotifPanel();
+}

@@ -79,6 +79,7 @@ const loginLimiter = rateLimit({
 // ── Rutas públicas ───────────────────────
 app.get('/api/health', (req, res) => res.json({ ok: true, ts: new Date().toISOString() }));
 app.use('/api/auth/login', loginLimiter);
+app.use('/api/auth/olvide-password', loginLimiter);
 app.use('/api/auth', require('./api/auth'));
 
 // ── Middleware de autenticación (todo lo demás requiere token) ──
