@@ -364,17 +364,17 @@ function toggleAvatarMenu() {
     const adminWrap = document.getElementById('avatar-menu-admin');
     if (adminWrap) adminWrap.style.display = user?.role === 'admin' ? 'block' : 'none';
 
-    // Cerrar si se hace click fuera
-    setTimeout(() => {
-      document.addEventListener('click', _cerrarAvatarMenu, { once: true });
-    }, 0);
   }
 }
+
+// Cerrar el menú de avatar con cualquier clic fuera de él (listener permanente:
+// uno de "una sola vez" se consume con clics dentro del menú y deja de funcionar)
+document.addEventListener('click', _cerrarAvatarMenu);
 
 function _cerrarAvatarMenu(e) {
   const menu   = document.getElementById('avatar-menu');
   const avatar = document.getElementById('topbar-avatar');
-  if (!menu) return;
+  if (!menu || menu.style.display !== 'block') return;
   if (menu.contains(e.target) || (avatar && avatar.contains(e.target))) return;
   menu.style.display = 'none';
 }
@@ -437,4 +437,68 @@ function marcarTodasLeidas() {
   const badge = document.getElementById('notif-badge');
   if (badge) badge.style.display = 'none';
   _renderNotifPanel();
+}
+
+// ══════════════════════════════════════
+// BÚSQUEDA GLOBAL (topbar)
+// ══════════════════════════════════════
+async function globalSearch(q) {
+  q = (q || '').trim().toLowerCase();
+  const panel = _getSearchPanel();
+  if (!q) { panel.style.display = 'none'; return; }
+
+  panel.innerHTML = '<div style="padding:14px;font-size:12px;color:var(--gray400)">Buscando…</div>';
+  panel.style.display = 'block';
+
+  try {
+    const [clientes, prospectos, ops] = await Promise.all([
+      DB.clientes.list().catch(() => []),
+      DB.prospectos.list().catch(() => []),
+      DB.ops.list().catch(() => []),
+    ]);
+
+    const hits = [];
+    clientes.forEach(c => {
+      if (((c.nombre || '') + (c.razon || '') + (c.rfc || '') + (c.codigo || '')).toLowerCase().includes(q))
+        hits.push({ tipo: 'Cliente', label: c.nombre, sub: c.rfc || c.razon || '', view: 'clientes' });
+    });
+    prospectos.forEach(p => {
+      if (((p.empresa || '') + (p.contacto || '') + (p.evento || '')).toLowerCase().includes(q))
+        hits.push({ tipo: 'Prospecto', label: p.empresa, sub: p.evento || p.contacto || '', view: 'prospectos' });
+    });
+    ops.forEach(o => {
+      if (((o.numero || '') + (o.desc || '')).toLowerCase().includes(q))
+        hits.push({ tipo: 'OP', label: o.numero || o.desc, sub: o.desc || '', view: 'ops' });
+    });
+
+    if (!hits.length) {
+      panel.innerHTML = '<div style="padding:14px;font-size:12px;color:var(--gray400)">Sin resultados para “' + esc(q) + '”</div>';
+      return;
+    }
+    panel.innerHTML = hits.slice(0, 12).map((h, i) => `
+      <div class="gs-hit" data-view="${h.view}" style="padding:10px 14px;cursor:pointer;display:flex;gap:10px;align-items:center;border-bottom:1px solid var(--black3)">
+        <span style="font-size:10px;letter-spacing:.08em;color:var(--red);min-width:70px">${h.tipo.toUpperCase()}</span>
+        <span style="font-size:13px;color:#fff;font-weight:500">${esc(h.label)}</span>
+        <span style="font-size:11px;color:var(--gray400);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(h.sub)}</span>
+      </div>`).join('');
+    panel.querySelectorAll('.gs-hit').forEach(el => {
+      el.onclick = () => { panel.style.display = 'none'; nav(el.dataset.view); };
+    });
+  } catch (err) {
+    panel.innerHTML = '<div style="padding:14px;font-size:12px;color:var(--gray400)">Error al buscar</div>';
+  }
+}
+
+function _getSearchPanel() {
+  let panel = document.getElementById('global-search-results');
+  if (!panel) {
+    panel = document.createElement('div');
+    panel.id = 'global-search-results';
+    panel.style.cssText = 'display:none;position:fixed;top:60px;left:250px;width:420px;max-height:400px;overflow-y:auto;background:var(--black2,#161616);border:1px solid var(--black3,#222);border-radius:0 0 10px 10px;z-index:999;box-shadow:0 12px 32px rgba(0,0,0,.5)';
+    document.body.appendChild(panel);
+    document.addEventListener('click', e => {
+      if (!panel.contains(e.target) && e.target.id !== 'global-search-input') panel.style.display = 'none';
+    });
+  }
+  return panel;
 }

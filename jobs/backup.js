@@ -63,7 +63,7 @@ async function sendBackupEmail(jsonData) {
     method: 'POST',
     headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      from: 'Actidea CRM <onboarding@resend.dev>',
+      from: process.env.EMAIL_FROM || 'Actidea CRM <onboarding@resend.dev>',
       to: [to],
       subject: `Respaldo mensual Actidea CRM — ${new Date().toLocaleDateString('es-MX')}`,
       html: `<p>Respaldo automático de las bases de datos de Notion del CRM Actidea.</p><p>Generado: ${jsonData.generadoEn}</p>`,

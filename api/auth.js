@@ -13,7 +13,7 @@ const { generateSecret, generateOtpUri, generateQrDataUrl, verifyToken } = requi
 const { logAudit, clientIp } = require('./_audit');
 
 const MAX_INTENTOS = 5;
-const BLOQUEO_MIN  = 30;
+const BLOQUEO_MIN  = 15;
 
 function toUser(page) {
   const p = page.properties;
@@ -79,7 +79,7 @@ router.post('/olvide-password', async (req, res) => {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${resendKey}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          from: 'Actidea CRM <onboarding@resend.dev>',
+          from: process.env.EMAIL_FROM || 'Actidea CRM <onboarding@resend.dev>',
           to: [user.email],
           subject: 'Restablece tu contraseña — Actidea CRM',
           html: `<div style="font-family:sans-serif;max-width:480px;margin:0 auto">
@@ -104,7 +104,7 @@ router.post('/reset-password', async (req, res) => {
   const { token, nueva } = req.body;
   if (!token || !nueva) return res.status(400).json({ error: 'Token y contraseña requeridos' });
   const validation = validatePasswordStrength(nueva);
-  if (!validation.ok) return res.status(400).json({ error: validation.error });
+  if (validation) return res.status(400).json({ error: validation });
   try {
     const all  = await queryDB('usuarios', null);
     const page = all.find(p => (p.properties['ResetToken']?.rich_text?.[0]?.text?.content || '') === token);
@@ -262,6 +262,68 @@ router.get('/usuarios', authMiddleware, async (req, res) => {
       id: u.id, nombre: u.nombre, role: u.role, ejec: u.ejec, activo: u.activo,
       twoFAEnabled: u.twoFAEnabled, bloqueado: !!(u.bloqueadoHasta && new Date(u.bloqueadoHasta) > new Date()),
     })));
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ── Solo Admin: dar de alta un usuario nuevo ────────────────
+const ROLES_VALIDOS = ['admin', 'administracion', 'ejecutivo'];
+
+router.post('/usuarios', authMiddleware, async (req, res) => {
+  if (req.user.role !== 'admin') return res.status(403).json({ error: 'Solo el Admin puede dar de alta usuarios' });
+  const { usuario, nombre, email, rol, ejecutivo } = req.body;
+
+  if (!usuario || !nombre || !email || !rol) {
+    return res.status(400).json({ error: 'Faltan campos: usuario, nombre, email y rol son obligatorios' });
+  }
+  if (!ROLES_VALIDOS.includes(rol)) {
+    return res.status(400).json({ error: `Rol inválido. Usa: ${ROLES_VALIDOS.join(', ')}` });
+  }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return res.status(400).json({ error: 'El correo no tiene un formato válido' });
+  }
+
+  try {
+    // No permitir usuarios ni correos duplicados
+    const existente = await findUserById(usuario.toLowerCase().trim());
+    if (existente) return res.status(409).json({ error: `El usuario "${usuario}" ya existe` });
+    const emailExistente = await findUserByEmail(email.trim());
+    if (emailExistente) return res.status(409).json({ error: `El correo ${email} ya está registrado` });
+
+    const tempPassword = generateStrongTempPassword();
+    const hash = bcrypt.hashSync(tempPassword, 12);
+
+    const { createPage } = require('./notion');
+    await createPage('usuarios', {
+      'Usuario':             prop_title(usuario.toLowerCase().trim()),
+      'Nombre':              prop_text(nombre.trim()),
+      'Email':               { email: email.trim() },
+      'Rol':                 prop_select(rol),
+      'Ejecutivo':           prop_text(rol === 'ejecutivo' ? (ejecutivo || nombre.trim()) : (ejecutivo || '')),
+      'PasswordHash':        prop_text(hash),
+      'Activo':              prop_checkbox(true),
+      'DebeCambiarPassword': prop_checkbox(true), // debe cambiarla en su primer login
+      'TwoFAEnabled':        prop_checkbox(false),
+      'IntentosFallidos':    prop_number(0),
+    });
+
+    await logAudit({ usuario: req.user.id, accion: 'usuario_creado', entidad: usuario, detalle: `rol=${rol} email=${email}`, ip: clientIp(req), exito: true });
+    res.status(201).json({ ok: true, usuario: usuario.toLowerCase().trim(), rol, passwordTemporal: tempPassword });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ── Solo Admin: activar / desactivar un usuario ─────────────
+router.post('/usuarios/:id/activar', authMiddleware, async (req, res) => {
+  if (req.user.role !== 'admin') return res.status(403).json({ error: 'Solo el Admin puede activar o desactivar usuarios' });
+  const { activo } = req.body;
+  try {
+    const user = await findUserById(req.params.id);
+    if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
+    if (user.id === req.user.id && activo === false) {
+      return res.status(400).json({ error: 'No puedes desactivar tu propia cuenta' });
+    }
+    await updatePage(user.pageId, { 'Activo': prop_checkbox(!!activo) });
+    await logAudit({ usuario: req.user.id, accion: activo ? 'usuario_activado' : 'usuario_desactivado', entidad: req.params.id, ip: clientIp(req), exito: true });
+    res.json({ ok: true, usuario: user.id, activo: !!activo });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 

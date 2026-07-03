@@ -4,157 +4,157 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Actidea CRM · Sistema Interno</title>
-<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-<link rel="stylesheet" href="/css/main.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+/* DM Sans y JetBrains locales como respaldo si Google Fonts no responde.
+   Bebas Neue se carga SOLO desde Google (el archivo local no traía los glifos reales). */
+@font-face{font-family:'DM Sans';font-style:normal;font-weight:300;src:url('/fonts/dm-sans-300.woff2') format('woff2');}
+@font-face{font-family:'DM Sans';font-style:normal;font-weight:400;src:url('/fonts/dm-sans-400.woff2') format('woff2');}
+@font-face{font-family:'DM Sans';font-style:normal;font-weight:500;src:url('/fonts/dm-sans-500.woff2') format('woff2');}
+@font-face{font-family:'DM Sans';font-style:normal;font-weight:700;src:url('/fonts/dm-sans-700.woff2') format('woff2');}
+@font-face{font-family:'JetBrains Mono';font-style:normal;font-weight:400;src:url('/fonts/jetbrains-400.woff2') format('woff2');}
+@font-face{font-family:'JetBrains Mono';font-style:normal;font-weight:500;src:url('/fonts/jetbrains-500.woff2') format('woff2');}
+@font-face{font-family:'JetBrains Mono';font-style:normal;font-weight:700;src:url('/fonts/jetbrains-700.woff2') format('woff2');}
+</style>
+<link rel="stylesheet" href="/css/main.css?v=2">
 </head>
 <body>
 
 <!-- ═══════════ LOGIN SCREEN ═══════════ -->
-<div id="login-screen" style="
-  position:fixed;inset:0;z-index:9999;
-  background:var(--cream);
-  display:flex;align-items:center;justify-content:center;">
-  <div style="width:340px;background:var(--white);border:1px solid var(--border);border-radius:14px;padding:36px 32px;box-shadow:0 8px 32px rgba(0,0,0,.10);">
-    <div style="text-align:center;margin-bottom:28px">
-      <div style="display:flex;align-items:center;justify-content:center;gap:9px;margin-bottom:10px">
-        <div style="width:10px;height:10px;background:var(--red);transform:rotate(45deg)"></div>
-        <div style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;letter-spacing:.12em">ACTIDEA CRM</div>
-      </div>
-      <div style="font-size:11px;color:var(--gray400);font-family:'JetBrains Mono',monospace;letter-spacing:.08em">INICIA SESIÓN PARA CONTINUAR</div>
+<div id="login-screen" class="login-wrap" style="display:flex;">
+  <div class="login-grid"></div>
+  <div class="login-card">
+    <div class="login-brand">
+      <img src="/assets/logo-dark.png" alt="Actidea Continnuo" style="height:66px;width:auto;display:block">
     </div>
-    <div style="display:flex;flex-direction:column;gap:14px">
-      <div>
-        <label class="fl">CORREO ELECTRÓNICO</label>
-        <input class="fi" id="login-user" type="email" placeholder="nombre@actideacontinnuo.com" autocomplete="email" onkeydown="if(event.key==='Enter')doLogin()">
-      </div>
-      <div>
-        <label class="fl">CONTRASEÑA</label>
-        <input class="fi" id="login-pass" type="password" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
-      </div>
-      <div id="login-error" style="display:none;font-size:11px;color:var(--red);font-family:'JetBrains Mono',monospace;text-align:center"></div>
-      <button class="btn btn-primary" style="width:100%;margin-top:4px" onclick="doLogin()">Entrar</button>
-      <div style="text-align:center">
-        <a onclick="mostrarOlvidePassword()" style="font-size:11px;color:var(--gray400);cursor:pointer;text-decoration:underline;font-family:'JetBrains Mono',monospace">¿Olvidaste tu contraseña?</a>
-      </div>
+    <div class="login-eye">ACCESO INTERNO</div>
+    <div class="login-h">Bienvenido de vuelta</div>
+    <div class="login-fg">
+      <label class="login-fl">USUARIO O CORREO</label>
+      <input class="login-input" id="login-user" placeholder="natalia" autocomplete="username" onkeydown="if(event.key==='Enter')doLogin()">
+    </div>
+    <div class="login-fg">
+      <label class="login-fl">CONTRASEÑA</label>
+      <input class="login-input" id="login-pass" type="password" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
+    </div>
+    <div id="login-error" style="display:none;font-size:11px;color:var(--red);font-family:'JetBrains Mono',monospace;text-align:center;margin-bottom:8px"></div>
+    <button class="login-btn" onclick="doLogin()">Entrar al sistema</button>
+    <div class="login-foot" style="margin-top:20px;justify-content:flex-end">
+      <a onclick="mostrarOlvidePassword()" class="login-hint" style="cursor:pointer;text-decoration:underline">¿Olvidaste tu contraseña?</a>
     </div>
   </div>
 </div>
 
 <!-- ═══════════ PANTALLA OLVIDÉ CONTRASEÑA ═══════════ -->
-<div id="olvide-screen" style="position:fixed;inset:0;z-index:9999;display:none;background:var(--cream);align-items:center;justify-content:center;">
-  <div style="width:340px;background:var(--white);border:1px solid var(--border);border-radius:14px;padding:36px 32px;box-shadow:0 8px 32px rgba(0,0,0,.10);">
-    <div style="text-align:center;margin-bottom:24px">
-      <div style="font-size:28px;margin-bottom:8px">📧</div>
-      <div style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;letter-spacing:.08em">RESTABLECER CONTRASEÑA</div>
-      <div style="font-size:11px;color:var(--gray400);margin-top:6px">Te enviaremos un enlace a tu correo registrado</div>
-    </div>
-    <div id="olvide-form" style="display:flex;flex-direction:column;gap:14px">
-      <div>
-        <label class="fl">CORREO ELECTRÓNICO</label>
-        <input class="fi" id="olvide-email" type="email" placeholder="nombre@actideacontinnuo.com" onkeydown="if(event.key==='Enter')enviarResetPassword()">
+<div id="olvide-screen" class="login-wrap" style="display:none;">
+  <div class="login-grid"></div>
+  <div class="login-card">
+    <div class="login-brand"><img src="/assets/logo-dark.png" alt="Actidea" style="height:50px;width:auto;display:block"></div>
+    <div class="login-eye">RECUPERAR ACCESO</div>
+    <div class="login-h" style="font-size:22px">Restablecer contraseña</div>
+    <div id="olvide-form" style="display:flex;flex-direction:column;gap:14px;margin-top:20px">
+      <div class="login-fg">
+        <label class="login-fl">CORREO ELECTRÓNICO</label>
+        <input class="login-input" id="olvide-email" type="email" placeholder="nombre@actideacontinnuo.com" onkeydown="if(event.key==='Enter')enviarResetPassword()">
       </div>
       <div id="olvide-error" style="display:none;font-size:11px;color:var(--red);font-family:'JetBrains Mono',monospace;text-align:center"></div>
-      <button class="btn btn-primary" style="width:100%" onclick="enviarResetPassword()">Enviar enlace</button>
-      <button class="btn btn-ghost" style="width:100%" onclick="ocultarOlvidePassword()">← Volver</button>
+      <button class="login-btn" onclick="enviarResetPassword()">Enviar enlace</button>
+      <button class="login-btn" style="background:rgba(255,255,255,.07);box-shadow:none" onclick="ocultarOlvidePassword()">← Volver al login</button>
     </div>
-    <div id="olvide-ok" style="display:none;text-align:center">
+    <div id="olvide-ok" style="display:none;text-align:center;margin-top:20px">
       <div style="font-size:32px;margin-bottom:12px">✅</div>
-      <div style="font-size:13px;font-weight:600;margin-bottom:8px">Enlace enviado</div>
-      <div style="font-size:11px;color:var(--gray400);margin-bottom:20px">Revisa tu correo. El enlace expira en 1 hora.</div>
-      <button class="btn btn-ghost" style="width:100%" onclick="ocultarOlvidePassword()">← Volver al login</button>
+      <div style="font-size:14px;font-weight:600;color:#fff;margin-bottom:8px">Enlace enviado</div>
+      <div style="font-size:12px;color:rgba(255,255,255,.45);margin-bottom:24px">Revisa tu correo. El enlace expira en 1 hora.</div>
+      <button class="login-btn" style="background:rgba(255,255,255,.07);box-shadow:none" onclick="ocultarOlvidePassword()">← Volver al login</button>
     </div>
   </div>
 </div>
 
 <!-- ═══════════ PANTALLA RESET PASSWORD ═══════════ -->
-<div id="reset-pass-screen" style="position:fixed;inset:0;z-index:9999;display:none;background:var(--cream);align-items:center;justify-content:center;">
-  <div style="width:340px;background:var(--white);border:1px solid var(--border);border-radius:14px;padding:36px 32px;box-shadow:0 8px 32px rgba(0,0,0,.10);">
-    <div style="text-align:center;margin-bottom:24px">
-      <div style="font-size:28px;margin-bottom:8px">🔑</div>
-      <div style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;letter-spacing:.08em">NUEVA CONTRASEÑA</div>
-      <div style="font-size:11px;color:var(--gray400);margin-top:6px">Elige una contraseña segura para tu cuenta</div>
-    </div>
-    <div id="reset-pass-form" style="display:flex;flex-direction:column;gap:14px">
-      <div>
-        <label class="fl">NUEVA CONTRASEÑA</label>
-        <input class="fi" id="rp-nueva" type="password" placeholder="Mínimo 8 caracteres">
+<div id="reset-pass-screen" class="login-wrap" style="display:none;">
+  <div class="login-grid"></div>
+  <div class="login-card">
+    <div class="login-brand"><img src="/assets/logo-dark.png" alt="Actidea" style="height:50px;width:auto;display:block"></div>
+    <div class="login-eye">SEGURIDAD</div>
+    <div class="login-h" style="font-size:22px">Nueva contraseña</div>
+    <div id="reset-pass-form" style="display:flex;flex-direction:column;gap:14px;margin-top:20px">
+      <div class="login-fg">
+        <label class="login-fl">CONTRASEÑA NUEVA</label>
+        <input class="login-input" id="rp-nueva" type="password" placeholder="Mínimo 8 caracteres">
       </div>
-      <div>
-        <label class="fl">CONFIRMAR CONTRASEÑA</label>
-        <input class="fi" id="rp-confirma" type="password" placeholder="Repite la contraseña" onkeydown="if(event.key==='Enter')doResetPassword()">
+      <div class="login-fg">
+        <label class="login-fl">CONFIRMAR CONTRASEÑA</label>
+        <input class="login-input" id="rp-confirma" type="password" placeholder="Repite la contraseña" onkeydown="if(event.key==='Enter')doResetPassword()">
       </div>
       <div id="rp-error" style="display:none;font-size:11px;color:var(--red);font-family:'JetBrains Mono',monospace;text-align:center"></div>
-      <button class="btn btn-primary" style="width:100%" onclick="doResetPassword()">Guardar contraseña</button>
+      <button class="login-btn" onclick="doResetPassword()">Guardar contraseña</button>
     </div>
-    <div id="reset-pass-ok" style="display:none;text-align:center">
+    <div id="reset-pass-ok" style="display:none;text-align:center;margin-top:20px">
       <div style="font-size:32px;margin-bottom:12px">✅</div>
-      <div style="font-size:13px;font-weight:600;margin-bottom:8px">Contraseña actualizada</div>
-      <div style="font-size:11px;color:var(--gray400);margin-bottom:20px">Ya puedes ingresar con tu nueva contraseña.</div>
-      <button class="btn btn-primary" style="width:100%" onclick="irAlLogin()">Ir al inicio de sesión</button>
+      <div style="font-size:14px;font-weight:600;color:#fff;margin-bottom:8px">Contraseña actualizada</div>
+      <div style="font-size:12px;color:rgba(255,255,255,.45);margin-bottom:24px">Ya puedes ingresar con tu nueva contraseña.</div>
+      <button class="login-btn" onclick="irAlLogin()">Ir al inicio de sesión</button>
     </div>
   </div>
 </div>
 
 <!-- ═══════════ PANTALLA 2FA ═══════════ -->
-<div id="twofa-screen" style="
-  position:fixed;inset:0;z-index:9999;display:none;
-  background:var(--cream);
-  align-items:center;justify-content:center;">
-  <div style="width:340px;background:var(--white);border:1px solid var(--border);border-radius:14px;padding:36px 32px;box-shadow:0 8px 32px rgba(0,0,0,.10);">
-    <div style="text-align:center;margin-bottom:24px">
-      <div style="font-size:28px;margin-bottom:8px">🔐</div>
-      <div style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;letter-spacing:.08em">VERIFICACIÓN EN DOS PASOS</div>
-      <div style="font-size:11px;color:var(--gray400);margin-top:6px">Abre tu app de autenticación e ingresa el código de 6 dígitos</div>
-    </div>
-    <div style="display:flex;flex-direction:column;gap:14px">
-      <input class="fi" id="twofa-code" placeholder="000000" inputmode="numeric" maxlength="6" style="text-align:center;font-family:'JetBrains Mono',monospace;font-size:20px;letter-spacing:.3em" onkeydown="if(event.key==='Enter')doVerify2FA()">
-      <div id="twofa-error" style="display:none;font-size:11px;color:var(--red);font-family:'JetBrains Mono',monospace;text-align:center"></div>
-      <button class="btn btn-primary" style="width:100%" onclick="doVerify2FA()">Verificar</button>
-      <button class="btn btn-ghost" style="width:100%" onclick="cancelar2FAScreen()">Cancelar</button>
-    </div>
+<div id="twofa-screen" class="login-wrap" style="display:none;">
+  <div class="login-grid"></div>
+  <div class="login-card" style="text-align:center">
+    <div class="login-brand" style="justify-content:center"><img src="/assets/logo-dark.png" alt="Actidea" style="height:50px;width:auto;display:block"></div>
+    <div class="login-eye">VERIFICACIÓN</div>
+    <div class="login-h" style="font-size:22px">Dos pasos</div>
+    <div style="font-size:12px;color:rgba(255,255,255,.45);margin:8px 0 20px">Ingresa el código de 6 dígitos de tu app de autenticación</div>
+    <input class="login-input" id="twofa-code" placeholder="000000" inputmode="numeric" maxlength="6" style="text-align:center;font-size:24px;letter-spacing:.4em" onkeydown="if(event.key==='Enter')doVerify2FA()">
+    <div id="twofa-error" style="display:none;font-size:11px;color:var(--red);font-family:'JetBrains Mono',monospace;margin:8px 0"></div>
+    <button class="login-btn" style="margin-top:16px" onclick="doVerify2FA()">Verificar</button>
+    <button class="login-btn" style="margin-top:8px;background:rgba(255,255,255,.07);box-shadow:none" onclick="cancelar2FAScreen()">Cancelar</button>
   </div>
 </div>
 
 <!-- ═══════════ CAMBIO OBLIGATORIO DE CONTRASEÑA ═══════════ -->
-<div id="forzar-pass-screen" style="
-  position:fixed;inset:0;z-index:9999;display:none;
-  background:var(--cream);
-  align-items:center;justify-content:center;">
-  <div style="width:380px;background:var(--white);border:1px solid var(--border);border-radius:14px;padding:36px 32px;box-shadow:0 8px 32px rgba(0,0,0,.10);">
-    <div style="text-align:center;margin-bottom:24px">
-      <div style="font-size:28px;margin-bottom:8px">🔒</div>
-      <div style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;letter-spacing:.08em">DEBES CAMBIAR TU CONTRASEÑA</div>
-      <div style="font-size:11px;color:var(--gray400);margin-top:6px">Por seguridad, antes de continuar define una contraseña nueva y única</div>
-    </div>
+<div id="forzar-pass-screen" class="login-wrap" style="display:none;">
+  <div class="login-grid"></div>
+  <div class="login-card">
+    <div class="login-brand"><img src="/assets/logo-dark.png" alt="Actidea" style="height:50px;width:auto;display:block"></div>
+    <div class="login-eye">SEGURIDAD</div>
+    <div class="login-h" style="font-size:20px">Cambia tu contraseña</div>
+    <div style="font-size:12px;color:rgba(255,255,255,.4);margin:6px 0 20px">Por seguridad, define una contraseña nueva antes de continuar.</div>
     <div style="display:flex;flex-direction:column;gap:12px">
-      <div>
-        <label class="fl">CONTRASEÑA ACTUAL</label>
-        <input class="fi" id="fp-actual" type="password" placeholder="••••••••">
+      <div class="login-fg">
+        <label class="login-fl">CONTRASEÑA ACTUAL</label>
+        <input class="login-input" id="fp-actual" type="password" placeholder="••••••••">
       </div>
-      <div>
-        <label class="fl">CONTRASEÑA NUEVA</label>
-        <input class="fi" id="fp-nueva" type="password" placeholder="Mínimo 12 caracteres">
+      <div class="login-fg">
+        <label class="login-fl">CONTRASEÑA NUEVA</label>
+        <input class="login-input" id="fp-nueva" type="password" placeholder="Mínimo 12 caracteres">
       </div>
-      <div>
-        <label class="fl">CONFIRMAR NUEVA</label>
-        <input class="fi" id="fp-confirma" type="password" placeholder="Repite la contraseña nueva">
+      <div class="login-fg">
+        <label class="login-fl">CONFIRMAR NUEVA</label>
+        <input class="login-input" id="fp-confirma" type="password" placeholder="Repite la contraseña" onkeydown="if(event.key==='Enter')doForzarCambioPassword()">
       </div>
-      <div style="font-size:10px;color:var(--gray400);line-height:1.5">Debe incluir mayúscula, minúscula, número y símbolo (12+ caracteres).</div>
+      <div style="font-size:10px;color:rgba(255,255,255,.3);line-height:1.6;font-family:'JetBrains Mono',monospace;letter-spacing:.04em">Debe incluir mayúscula, minúscula, número y símbolo (12+ chars).</div>
       <div id="fp-error" style="display:none;font-size:11px;color:var(--red);font-family:'JetBrains Mono',monospace;text-align:center"></div>
-      <button class="btn btn-primary" style="width:100%;margin-top:4px" onclick="doForzarCambioPassword()">Guardar y continuar</button>
+      <button class="login-btn" onclick="doForzarCambioPassword()">Guardar y continuar</button>
     </div>
   </div>
 </div>
 
 <!-- TOPBAR -->
 <div class="topbar">
-  <div class="t-logo">
-    <div class="t-diamond"></div>
-    <div><div class="t-name">ACTIDEA</div><div class="t-sub">EVENTOS QUE CONECTAN</div></div>
+  <div class="t-logo" onclick="nav('dashboard')" style="cursor:pointer">
+    <img src="/assets/logo-dark.png" alt="Actidea Continnuo" style="height:34px;width:auto;display:block">
   </div>
   <div class="t-sep"></div>
-  <div class="t-tag">CRM INTERNO · V1.0</div>
+  <div class="t-tag" id="topbar-breadcrumb">DASHBOARD</div>
+  <div class="t-search">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:rgba(255,255,255,.3);flex-shrink:0"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+    <input placeholder="Buscar clientes, OPs, prospectos…" id="global-search-input" onkeydown="if(event.key==='Enter')globalSearch(this.value)" style="background:none;border:none;outline:none;color:#fff;font-size:13px;width:100%;font-family:'DM Sans',sans-serif" autocomplete="off">
+  </div>
   <div class="t-right" style="gap:12px">
     <!-- Campanita de notificaciones -->
     <div style="position:relative">
@@ -1026,6 +1026,27 @@
   <div class="modal-body">
     <div id="gu-lista" style="display:flex;flex-direction:column;gap:8px"></div>
     <div id="gu-resultado" style="display:none;margin-top:14px;padding:12px;border-radius:8px;background:var(--cream);border:1px solid var(--border)"></div>
+
+    <!-- Alta de usuario nuevo -->
+    <div style="margin-top:18px;padding-top:14px;border-top:1px solid var(--border)">
+      <div style="font-size:11px;letter-spacing:.08em;color:var(--gray400);font-family:'JetBrains Mono',monospace;margin-bottom:10px">➕ DAR DE ALTA UN USUARIO NUEVO</div>
+      <div class="fgrid">
+        <div class="fg"><label class="fl">USUARIO (LOGIN)</label><input class="fi" id="nu-usuario" placeholder="ej. mlopez" autocomplete="off"></div>
+        <div class="fg"><label class="fl">NOMBRE COMPLETO</label><input class="fi" id="nu-nombre" placeholder="ej. Mariana López" autocomplete="off"></div>
+      </div>
+      <div class="fgrid">
+        <div class="fg"><label class="fl">CORREO</label><input class="fi" id="nu-email" type="email" placeholder="mlopez@actideacontinnuo.com" autocomplete="off"></div>
+        <div class="fg"><label class="fl">PERMISOS (ROL)</label>
+          <select class="fsel-full" id="nu-rol" onchange="mostrarDescripcionRol()">
+            <option value="ejecutivo">Ejecutivo</option>
+            <option value="administracion">Administración</option>
+            <option value="admin">Admin (Dirección)</option>
+          </select>
+        </div>
+      </div>
+      <div id="nu-rol-desc" style="font-size:11px;color:var(--gray400);margin:6px 0 12px;line-height:1.5"></div>
+      <button class="btn btn-red" style="width:100%" onclick="crearUsuario()">Crear usuario</button>
+    </div>
   </div>
   <div class="modal-footer"><button class="btn btn-ghost" onclick="closeM('gestion-usuarios')">Cerrar</button></div>
 </div></div>

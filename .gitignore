@@ -5,3 +5,5 @@ uploads/*
 !uploads/.gitkeep
 *.log
 data/*.json
+
+coverage/

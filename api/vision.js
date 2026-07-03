@@ -1,12 +1,11 @@
-const express = require('express');
-const router  = express.Router();
-const multer  = require('multer');
-const fs      = require('fs');
-const path    = require('path');
+const express  = require('express');
+const router   = express.Router();
+const multer   = require('multer');
 const Anthropic = require('@anthropic-ai/sdk');
 
+// Guardar en memoria (no en disco) — más seguro y más rápido
 const upload = multer({
-  dest: path.join(__dirname, '../uploads/'),
+  storage: multer.memoryStorage(),
   limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB
   fileFilter(req, file, cb) {
     const ok = ['image/jpeg','image/png','image/webp','application/pdf'].includes(file.mimetype);
@@ -64,19 +63,15 @@ router.post('/:tipo', upload.single('file'), async (req, res) => {
   if (!req.file)      return res.status(400).json({ error: 'No se recibió ningún archivo' });
 
   const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
-    fs.unlinkSync(req.file.path);
-    return res.status(503).json({ error: 'ANTHROPIC_API_KEY no configurada en .env' });
-  }
+  if (!apiKey) return res.status(503).json({ error: 'ANTHROPIC_API_KEY no configurada en .env' });
 
   try {
-    const fileBuffer = fs.readFileSync(req.file.path);
-    const base64     = fileBuffer.toString('base64');
-    const mimeType   = req.file.mimetype;
+    const base64   = req.file.buffer.toString('base64');
+    const mimeType = req.file.mimetype;
 
     const client = new Anthropic({ apiKey });
 
-    // PDF → send as document, image → send as image
+    // PDF → tipo document; imagen → tipo image
     let contentBlock;
     if (mimeType === 'application/pdf') {
       contentBlock = { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: base64 } };
@@ -91,15 +86,12 @@ router.post('/:tipo', upload.single('file'), async (req, res) => {
     });
 
     const text = message.content[0].text.trim();
-    // Extract JSON even if model adds markdown fences
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     const parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : { raw: text };
 
     res.json({ ok: true, tipo, data: parsed });
   } catch (err) {
     res.status(500).json({ error: err.message });
-  } finally {
-    if (req.file?.path && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
   }
 });
 

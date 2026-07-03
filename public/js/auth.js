@@ -341,16 +341,20 @@ async function abrirGestionUsuarios() {
   try {
     const usuarios = await API.get('/auth/usuarios');
     document.getElementById('gu-lista').innerHTML = usuarios.map(u => `
-      <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border:1px solid var(--border);border-radius:8px">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border:1px solid var(--border);border-radius:8px;${u.activo === false ? 'opacity:.55' : ''}">
         <div>
-          <div style="font-size:13px;font-weight:600">${esc(u.nombre)} ${u.twoFAEnabled ? '<span style="color:var(--green);font-size:10px">🔐 2FA</span>' : ''} ${u.bloqueado ? '<span style="color:var(--red);font-size:10px">🔒 BLOQUEADO</span>' : ''}</div>
+          <div style="font-size:13px;font-weight:600">${esc(u.nombre)} ${u.twoFAEnabled ? '<span style="color:var(--green);font-size:10px">🔐 2FA</span>' : ''} ${u.bloqueado ? '<span style="color:var(--red);font-size:10px">🔒 BLOQUEADO</span>' : ''} ${u.activo === false ? '<span style="color:var(--gray400);font-size:10px">⛔ DESACTIVADO</span>' : ''}</div>
           <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--gray400)">@${esc(u.id)} · ${esc(ROL_LABEL_CORTO[u.role] || u.role)}</div>
         </div>
         <div style="display:flex;gap:6px">
           ${u.bloqueado ? `<button class="btn btn-ghost btn-xs" onclick="desbloquearUsuario('${esc(u.id)}')">Desbloquear</button>` : ''}
           <button class="btn btn-ghost btn-xs" onclick="resetearPassword('${esc(u.id)}','${esc(u.nombre)}')">🔑 Resetear contraseña</button>
+          ${u.activo === false
+            ? `<button class="btn btn-ghost btn-xs" onclick="toggleActivoUsuario('${esc(u.id)}', true)">Reactivar</button>`
+            : `<button class="btn btn-ghost btn-xs" style="color:var(--red)" onclick="toggleActivoUsuario('${esc(u.id)}', false)">Desactivar</button>`}
         </div>
       </div>`).join('');
+    mostrarDescripcionRol();
   } catch (e) {
     document.getElementById('gu-lista').innerHTML = '<div style="padding:12px;color:var(--red);font-size:12px">Error al cargar usuarios</div>';
   }
@@ -558,5 +562,62 @@ async function generarRespaldoManual() {
     statusEl.innerHTML = `<span style="color:var(--red)">Error al generar el respaldo: ${esc(e.message)}</span>`;
   } finally {
     btn.disabled = false;
+  }
+}
+
+// ── Alta de usuario nuevo (solo admin) ─────────────────────
+const ROL_DESCRIPCIONES = {
+  ejecutivo: '👤 Ejecutivo: solo ve y edita SUS propios prospectos, clientes, OPs y cotizaciones. No ve pagos, comisiones ni reportes financieros. No puede eliminar registros.',
+  administracion: '📋 Administración: ve todos los prospectos, clientes, OPs y cotizaciones del equipo, y gestiona proveedores. No ve pagos, comisiones, auditoría ni respaldos. No puede eliminar registros.',
+  admin: '🔑 Admin (Dirección): acceso total — pagos, comisiones, reportes financieros, auditoría, respaldos, y gestión de usuarios. Puede eliminar registros.',
+};
+
+function mostrarDescripcionRol() {
+  const sel = document.getElementById('nu-rol');
+  const desc = document.getElementById('nu-rol-desc');
+  if (sel && desc) desc.textContent = ROL_DESCRIPCIONES[sel.value] || '';
+}
+
+async function crearUsuario() {
+  const usuario = (document.getElementById('nu-usuario').value || '').trim();
+  const nombre  = (document.getElementById('nu-nombre').value || '').trim();
+  const email   = (document.getElementById('nu-email').value || '').trim();
+  const rol     = document.getElementById('nu-rol').value;
+
+  if (!usuario || !nombre || !email) { toast('Completa usuario, nombre y correo', 'red'); return; }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { toast('El correo no es válido', 'red'); return; }
+
+  if (!confirm(`¿Crear al usuario "${nombre}" (@${usuario.toLowerCase()}) con rol ${ROL_LABEL_CORTO[rol] || rol}?\n\nSe generará una contraseña temporal que deberá cambiar en su primer ingreso.`)) return;
+
+  try {
+    const r = await API.post('/auth/usuarios', { usuario, nombre, email, rol });
+    const el = document.getElementById('gu-resultado');
+    el.style.display = 'block';
+    el.innerHTML = `
+      <div style="font-size:11px;color:var(--gray400);margin-bottom:4px;font-family:'JetBrains Mono',monospace">USUARIO CREADO — CONTRASEÑA TEMPORAL PARA ${esc(nombre.toUpperCase())}</div>
+      <div style="font-family:'JetBrains Mono',monospace;font-size:18px;font-weight:700;color:var(--red)">${esc(r.passwordTemporal)}</div>
+      <div style="font-size:11px;color:var(--gray400);margin-top:6px">Compártesela directamente — no se volverá a mostrar. Deberá cambiarla al ingresar por primera vez.</div>`;
+    document.getElementById('nu-usuario').value = '';
+    document.getElementById('nu-nombre').value = '';
+    document.getElementById('nu-email').value = '';
+    toast('✓ Usuario creado');
+    abrirGestionUsuarios();
+    el.style.display = 'block'; // abrirGestionUsuarios lo oculta — volver a mostrar el password
+  } catch (e) {
+    toast(e.message || 'Error al crear el usuario', 'red');
+  }
+}
+
+async function toggleActivoUsuario(usuarioId, activo) {
+  const msg = activo
+    ? `¿Reactivar el acceso de @${usuarioId}?`
+    : `¿Desactivar a @${usuarioId}?\n\nNo podrá iniciar sesión hasta que lo reactives.`;
+  if (!confirm(msg)) return;
+  try {
+    await API.post(`/auth/usuarios/${usuarioId}/activar`, { activo });
+    toast(activo ? '✓ Usuario reactivado' : '✓ Usuario desactivado');
+    abrirGestionUsuarios();
+  } catch (e) {
+    toast(e.message || 'Error al cambiar el estado', 'red');
   }
 }

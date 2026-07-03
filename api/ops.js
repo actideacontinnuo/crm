@@ -26,7 +26,8 @@ function toObj(page) {
 
 function toProps(data) {
   const props = {};
-  if (data.num      !== undefined) props['Número OP']   = prop_title(data.num);
+  if (data.num    !== undefined) props['Número OP']   = prop_title(data.num);
+  else if (data.numero !== undefined) props['Número OP'] = prop_title(data.numero);
   if (data.desc     !== undefined) props['Descripción'] = prop_text(data.desc);
   if (data.clienteId !== undefined) props['Cliente ID']  = prop_text(data.clienteId);
   if (data.ejec     !== undefined) props['Ejecutivo']   = prop_select(data.ejec);

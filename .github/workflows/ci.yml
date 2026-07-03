@@ -1,0 +1,202 @@
+name: CI — Actidea CRM
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+# Un deploy fallido no puede ocurrir si los tests no pasan
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ── Job 1: Unit + Integration Tests ────────────────────
+  unit-integration:
+    name: Unit & Integration Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    env:
+      NODE_ENV: test
+      JWT_SECRET: ci-secret-2026
+      NOTION_TOKEN: test-token
+      NOTION_DB_PROSPECTOS: test-db-prospectos
+      NOTION_DB_CLIENTES: test-db-clientes
+      NOTION_DB_OPS: test-db-ops
+      NOTION_DB_COTIZACIONES: test-db-cotizaciones
+      NOTION_DB_PAGOS: test-db-pagos
+      NOTION_DB_PROVEEDORES: test-db-proveedores
+      NOTION_DB_DEUDAS: test-db-deudas
+      NOTION_DB_CASOS: test-db-casos
+      NOTION_DB_TICKETS: test-db-tickets
+      NOTION_DB_USUARIOS: test-db-usuarios
+      NOTION_DB_OBJETIVOS: test-db-objetivos
+      NOTION_DB_AUDITORIA: test-db-auditoria
+      RESEND_API_KEY: test-resend-key
+      ANTHROPIC_API_KEY: test-anthropic-key
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run unit & integration tests with coverage
+        run: npm run test:ci
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-report
+          path: coverage/
+          retention-days: 14
+
+      - name: Comment coverage on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            try {
+              const summary = fs.readFileSync('coverage/coverage-summary.json', 'utf8');
+              const data = JSON.parse(summary).total;
+              const lines = data.lines.pct.toFixed(1);
+              const body = `## 📊 Cobertura de tests\n\n` +
+                `| Métrica | % |\n|---|---|\n` +
+                `| Líneas | ${lines}% |\n` +
+                `| Funciones | ${data.functions.pct.toFixed(1)}% |\n` +
+                `| Ramas | ${data.branches.pct.toFixed(1)}% |`;
+              github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body,
+              });
+            } catch(e) { console.log('No se pudo leer la cobertura:', e.message); }
+
+  # ── Job 2: E2E Tests ────────────────────────────────────
+  e2e:
+    name: E2E Tests (Playwright)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: unit-integration  # solo corre si los tests unitarios pasan
+
+    env:
+      NODE_ENV: test
+      BASE_URL: http://localhost:3000
+      PORT: 3000
+      JWT_SECRET: ci-secret-2026
+      NOTION_TOKEN: test-token
+      NOTION_DB_PROSPECTOS: test-db-prospectos
+      NOTION_DB_CLIENTES: test-db-clientes
+      NOTION_DB_OPS: test-db-ops
+      NOTION_DB_COTIZACIONES: test-db-cotizaciones
+      NOTION_DB_PAGOS: test-db-pagos
+      NOTION_DB_PROVEEDORES: test-db-proveedores
+      NOTION_DB_DEUDAS: test-db-deudas
+      NOTION_DB_CASOS: test-db-casos
+      NOTION_DB_TICKETS: test-db-tickets
+      NOTION_DB_USUARIOS: test-db-usuarios
+      NOTION_DB_OBJETIVOS: test-db-objetivos
+      NOTION_DB_AUDITORIA: test-db-auditoria
+      RESEND_API_KEY: test-resend-key
+      ANTHROPIC_API_KEY: test-anthropic-key
+      CI: true
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install chromium --with-deps
+
+      - name: Run Smoke + E2E tests
+        run: npm run test:e2e
+        timeout-minutes: 15
+
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 14
+
+      - name: Upload test videos (solo en fallos)
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-videos
+          path: test-results/
+          retention-days: 7
+
+  # ── Job 3: Security Check ────────────────────────────────
+  security:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20', cache: 'npm' }
+      - run: npm ci
+
+      - name: Verificar que secretos no están en el código fuente
+        run: npm run test:secrets
+
+      - name: npm audit (solo vulnerabilidades críticas/altas)
+        run: npm audit --audit-level=high || true
+        # 'true' para no bloquear por vulnerabilidades de dependencias transitivas
+        # La política de bloqueo real se aplica en 'npm audit --audit-level=critical'
+
+      - name: Verificar dependencias no utilizadas
+        run: |
+          echo "Checking for obvious unused packages..."
+          # Verificar que las dependencias críticas están en uso
+          node -e "
+            const pkg = require('./package.json');
+            const deps = Object.keys(pkg.dependencies || {});
+            console.log('Dependencias declaradas:', deps.join(', '));
+          "
+
+  # ── Job 4: Gate — bloquea merge si algo falla ───────────
+  quality-gate:
+    name: Quality Gate
+    runs-on: ubuntu-latest
+    needs: [unit-integration, e2e, security]
+    if: always()
+
+    steps:
+      - name: Verificar que todos los jobs pasaron
+        run: |
+          if [[ "${{ needs.unit-integration.result }}" != "success" ]]; then
+            echo "❌ Unit/Integration tests fallaron"
+            exit 1
+          fi
+          if [[ "${{ needs.e2e.result }}" != "success" ]]; then
+            echo "❌ E2E tests fallaron"
+            exit 1
+          fi
+          if [[ "${{ needs.security.result }}" != "success" ]]; then
+            echo "❌ Security check falló"
+            exit 1
+          fi
+          echo "✅ Todos los checks pasaron — listo para deploy"

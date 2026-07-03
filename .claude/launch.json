@@ -3,8 +3,8 @@
   "configurations": [
     {
       "name": "actidea-crm",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": ["start"],
+      "runtimeExecutable": "bash",
+      "runtimeArgs": ["-c", "cd '/Users/santiago/Desktop/Actidea Continnuo/CRM' && npm start"],
       "port": 3000
     }
   ]

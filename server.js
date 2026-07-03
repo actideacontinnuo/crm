@@ -15,13 +15,9 @@ const app = express();
 
 // ── Confiar en el proxy de Railway — necesario para que el rate limit
 //    identifique la IP real del visitante y no la del proxy interno.
-//    Railway puede tener más de un salto de edge/proxy; "1" resolvía una IP
-//    inconsistente entre peticiones y el límite de login nunca se acumulaba
-//    correctamente. "true" confía en toda la cadena X-Forwarded-For y toma
-//    el IP original del cliente, que es lo que el edge de Railway entrega
-//    de forma confiable (no es un header que el cliente pueda falsificar
-//    a través del edge gestionado). ──
-app.set('trust proxy', true);
+//    "1" confía solo en el último salto (el edge de Railway) — un cliente
+//    no puede falsificar su IP inyectando X-Forwarded-For adicionales. ──
+app.set('trust proxy', 1);
 
 // ── Cabeceras de seguridad estándar (Helmet) ──
 app.use(helmet({
@@ -78,6 +74,12 @@ const loginLimiter = rateLimit({
 
 // ── Rutas públicas ───────────────────────
 app.get('/api/health', (req, res) => res.json({ ok: true, ts: new Date().toISOString() }));
+
+// ── Interruptor de emergencia (Notion → 🔐 Panel de Seguridad) ──
+// Bloquea TODA la API (incluido login) si la casilla está marcada en Notion.
+const { killSwitchMiddleware } = require('./middleware/kill-switch');
+app.use('/api', killSwitchMiddleware);
+
 app.use('/api/auth/login', loginLimiter);
 app.use('/api/auth/olvide-password', loginLimiter);
 app.use('/api/auth', require('./api/auth'));

@@ -18,7 +18,11 @@ async function analizarDoc(tipo, input) {
   form.append('file', file);
 
   try {
-    const res  = await fetch(`/api/vision/${tipo}`, { method: 'POST', body: form });
+    const res  = await fetch(`/api/vision/${tipo}`, {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + localStorage.getItem('crm_token') },
+      body: form,
+    });
     const json = await res.json();
 
     if (!res.ok || json.error) {
@@ -52,13 +56,19 @@ async function analizarDoc(tipo, input) {
         status.textContent = d.observaciones || (!positiva ? 'La opinión no es positiva' : 'La opinión está vencida');
         return;
       }
+      // Si la OC tiene RFC y el campo está vacío, llenarlo
+      if (d.rfc) {
+        const rfcEl = document.getElementById('nc-rfc');
+        if (rfcEl && !rfcEl.value) rfcEl.value = d.rfc;
+      }
+      _docState._ocData = { sentido: d.sentido, fechaConsulta: d.fechaConsulta, nombre: d.nombre };
       status.style.color = 'var(--green)';
       status.textContent = `✅ Positiva · Fecha: ${d.fechaConsulta || '—'} · ${d.nombre || ''}`;
     } else if (tipo === 'ec') {
-      status.style.color = 'var(--green)';
-      status.textContent = `✅ Banco: ${d.banco || '—'} · CLABE: ${d.clabe || '—'} · Titular: ${d.titular || '—'}`;
-      // Store bank data for saving in Docs field
+      // Guardar datos bancarios
       _docState._ecData = { banco: d.banco, clabe: d.clabe, titular: d.titular };
+      status.style.color = 'var(--green)';
+      status.textContent = `✅ ${d.banco || '—'} · CLABE: ${d.clabe || '—'} · Titular: ${d.titular || '—'}`;
     }
 
     area.innerHTML = `✅ ${esc(file.name)}`;
@@ -178,7 +188,11 @@ async function saveCliente() {
     ejec,
     pago:     document.getElementById('nc-pago').value,
     status:   'Activo',
-    docs:     { csf: true, oc: true, ec: true },
+    docs:     {
+      csf: true,
+      oc:  _docState._ocData || true,
+      ec:  _docState._ecData || true,
+    },
   };
 
   showSpinner();

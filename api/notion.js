@@ -16,6 +16,7 @@ const DBS = {
   usuarios:     process.env.NOTION_DB_USUARIOS,
   objetivos:    process.env.NOTION_DB_OBJETIVOS,
   auditoria:    process.env.NOTION_DB_AUDITORIA,
+  seguridad:    process.env.NOTION_DB_SEGURIDAD,
 };
 
 async function queryDB(dbKey, filter = null, sorts = null) {
