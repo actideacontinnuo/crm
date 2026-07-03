@@ -1,7 +1,13 @@
 require('dotenv').config();
 const { Client } = require('@notionhq/client');
+const https = require('https');
 
-const notion = new Client({ auth: process.env.NOTION_TOKEN });
+// Railway suele salir a internet por IPv6, y la conexión con Notion (Cloudflare)
+// por IPv6 se cae a media respuesta ("Premature close"). Forzamos IPv4 y evitamos
+// reutilizar conexiones keep-alive obsoletas — funciona igual en local.
+const notionAgent = new https.Agent({ family: 4, keepAlive: false });
+
+const notion = new Client({ auth: process.env.NOTION_TOKEN, agent: notionAgent });
 
 const DBS = {
   prospectos:   process.env.NOTION_DB_PROSPECTOS,

@@ -1,4 +1,7 @@
 require('dotenv').config();
+// Forzar resolución IPv4 primero: Railway sale por IPv6 y las conexiones salientes
+// (Notion, Resend, Anthropic) por IPv6 se caen con "Premature close".
+require('dns').setDefaultResultOrder('ipv4first');
 const express   = require('express');
 const cors      = require('cors');
 const helmet    = require('helmet');
