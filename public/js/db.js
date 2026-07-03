@@ -1,6 +1,19 @@
+// Un JWT válido son 3 segmentos base64url separados por puntos (solo ASCII).
+// Un token corrupto (p. ej. con caracteres raros) rompería el header HTTP, así
+// que lo validamos y lo descartamos si no tiene forma de JWT.
+function _tokenValido(t) {
+  return typeof t === 'string' && /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(t);
+}
+
 // API fetch wrapper — incluye token JWT en cada petición
 function _authHeaders(extra = {}) {
-  const token = localStorage.getItem('crm_token');
+  let token = localStorage.getItem('crm_token');
+  if (token && !_tokenValido(token)) {
+    // Token corrupto en el navegador: se limpia y se trata como sesión cerrada
+    localStorage.removeItem('crm_token');
+    localStorage.removeItem('crm_user');
+    token = null;
+  }
   return token
     ? { 'Authorization': 'Bearer ' + token, ...extra }
     : { ...extra };

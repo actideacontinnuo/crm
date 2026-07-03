@@ -19,7 +19,13 @@ function sesionActual() {
 
 function iniciarApp() {
   const user = sesionActual();
-  const token = localStorage.getItem('crm_token');
+  let token = localStorage.getItem('crm_token');
+  // Descarta un token corrupto (caracteres no válidos rompen el header HTTP)
+  if (token && !/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(token)) {
+    localStorage.removeItem('crm_token');
+    localStorage.removeItem('crm_user');
+    token = null;
+  }
   if (!user || !token) { mostrarLogin(); return; }
   aplicarSesion(user);
 }
