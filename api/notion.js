@@ -19,16 +19,45 @@ const DBS = {
   seguridad:    process.env.NOTION_DB_SEGURIDAD,
 };
 
+// ── Reintento automático para errores de red transitorios ──
+// Notion ocasionalmente corta la conexión a media respuesta ("Premature close",
+// socket hang up, ECONNRESET, fetch failed). Reintentamos con backoff en lugar
+// de propagar el error al usuario (p. ej. bloqueando un login válido).
+const TRANSIENT = /premature close|socket hang up|ECONNRESET|ETIMEDOUT|EAI_AGAIN|ENOTFOUND|fetch failed|network/i;
+
+function _isTransient(err) {
+  const msg = String(err?.message || err || '');
+  // 5xx de Notion y rate limit (429) también son reintentables
+  if (err?.status && (err.status === 429 || err.status >= 500)) return true;
+  return TRANSIENT.test(msg);
+}
+
+async function withRetry(fn, { retries = 3, baseDelay = 400 } = {}) {
+  let lastErr;
+  for (let intento = 0; intento <= retries; intento++) {
+    try {
+      return await fn();
+    } catch (err) {
+      lastErr = err;
+      if (intento === retries || !_isTransient(err)) throw err;
+      const espera = baseDelay * Math.pow(2, intento); // 400ms, 800ms, 1600ms
+      await new Promise(r => setTimeout(r, espera));
+    }
+  }
+  throw lastErr;
+}
+
 async function queryDB(dbKey, filter = null, sorts = null) {
-  const params = { database_id: DBS[dbKey], page_size: 100 };
-  if (filter) params.filter = filter;
-  if (sorts) params.sorts = sorts;
+  const baseParams = { database_id: DBS[dbKey], page_size: 100 };
+  if (filter) baseParams.filter = filter;
+  if (sorts) baseParams.sorts = sorts;
 
   let results = [];
   let cursor;
   do {
+    const params = { ...baseParams };
     if (cursor) params.start_cursor = cursor;
-    const res = await notion.databases.query(params);
+    const res = await withRetry(() => notion.databases.query(params));
     results = results.concat(res.results);
     cursor = res.has_more ? res.next_cursor : null;
   } while (cursor);
@@ -37,22 +66,22 @@ async function queryDB(dbKey, filter = null, sorts = null) {
 }
 
 async function createPage(dbKey, properties) {
-  return notion.pages.create({
+  return withRetry(() => notion.pages.create({
     parent: { database_id: DBS[dbKey] },
     properties,
-  });
+  }));
 }
 
 async function updatePage(pageId, properties) {
-  return notion.pages.update({ page_id: pageId, properties });
+  return withRetry(() => notion.pages.update({ page_id: pageId, properties }));
 }
 
 async function getPage(pageId) {
-  return notion.pages.retrieve({ page_id: pageId });
+  return withRetry(() => notion.pages.retrieve({ page_id: pageId }));
 }
 
 async function archivePage(pageId) {
-  return notion.pages.update({ page_id: pageId, archived: true });
+  return withRetry(() => notion.pages.update({ page_id: pageId, archived: true }));
 }
 
 // ─── Property builders (write to Notion) ──────────────────
