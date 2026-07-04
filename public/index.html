@@ -219,9 +219,8 @@
     <div class="nav-item" onclick="nav('proveedores')"><span class="nav-icon">🌐</span>Proveedores</div>
   </div>
   <div class="s-section role-admin role-administracion">
-    <div class="s-label">REPORTES</div>
-    <div class="nav-item" onclick="nav('comercial')"><span class="nav-icon">📈</span>Dashboard Comercial</div>
-    <div class="nav-item role-admin" onclick="nav('reportes')"><span class="nav-icon">📊</span>Reportes Financieros</div>
+    <div class="s-label">INTELIGENCIA</div>
+    <div class="nav-item" onclick="nav('comercial')"><span class="nav-icon">📈</span>Comercial / Reportes</div>
   </div>
   <div class="s-bottom">
     <div>PLAINWORK · ACTIDEA V1.0</div>
@@ -230,44 +229,7 @@
 <main class="main" id="mainArea">
 
 <!-- ═══════════ VIEW: DASHBOARD ═══════════ -->
-<div id="view-dashboard" class="view active">
-  <div class="ph">
-    <div><div class="ph-eye" id="dash-date">RESUMEN GENERAL</div><div class="ph-title">Dashboard</div></div>
-    <div class="ph-actions">
-      <button class="btn btn-ghost btn-sm" onclick="nav('prospectos')">Ver Prospectos</button>
-      <button class="btn btn-primary btn-sm" onclick="openM('nueva-op')">+ Nueva OP</button>
-    </div>
-  </div>
-  <div class="kpis" id="dash-kpis"></div>
-  <div class="section-grid">
-    <div>
-      <div class="panel">
-        <div class="panel-hdr"><div class="panel-title">OPs EN PRODUCCIÓN</div><span class="link-red" onclick="nav('ops')">VER TODAS →</span></div>
-        <div id="dash-ops" style="padding:8px 14px;"></div>
-      </div>
-    </div>
-    <div style="display:flex;flex-direction:column;gap:14px;">
-      <div class="panel">
-        <div class="panel-hdr"><div class="panel-title">PRÓXIMOS COBROS</div><span id="dash-cobros-badge" class="tag-red tag">0 URGENTES</span></div>
-        <div id="dash-cobros" style="padding:8px 16px;"></div>
-      </div>
-      <div class="panel">
-        <div class="panel-hdr"><div class="panel-title">PROSPECTOS CALIENTES</div><span class="link-red" onclick="nav('prospectos')">VER →</span></div>
-        <div id="dash-prospectos" style="padding:8px 16px;"></div>
-      </div>
-    </div>
-  </div>
-  <div class="grid2">
-    <div class="panel">
-      <div class="panel-hdr"><div class="panel-title">SEGUIMIENTO HOY</div></div>
-      <div id="dash-seguimiento" style="padding:8px 16px;"></div>
-    </div>
-    <div class="panel">
-      <div class="panel-hdr"><div class="panel-title">CASOS ABIERTOS</div><span class="link-red" onclick="nav('casos')">VER →</span></div>
-      <div id="dash-casos-widget" style="padding:8px 16px;"></div>
-    </div>
-  </div>
-</div>
+<div id="view-dashboard" class="view active"></div>
 
 <!-- ═══════════ VIEW: PROSPECTOS ═══════════ -->
 <div id="view-prospectos" class="view">
@@ -450,33 +412,7 @@
 </div>
 
 <!-- ═══════════ VIEW: DASHBOARD COMERCIAL ═══════════ -->
-<div id="view-comercial" class="view">
-  <div class="ph">
-    <div><div class="ph-eye">RENDIMIENTO DEL EQUIPO</div><div class="ph-title">Dashboard Comercial</div></div>
-    <div class="ph-actions">
-      <select class="fsel" id="com-periodo" onchange="renderComercial()">
-        <option value="mes">MES ACTUAL</option>
-        <option value="tri">TRIMESTRE</option>
-        <option value="anual">AÑO</option>
-      </select>
-    </div>
-  </div>
-  <div id="com-kpis" class="kpis" style="grid-template-columns:repeat(4,1fr);"></div>
-  <div class="grid2" style="margin-bottom:16px;">
-    <div class="panel">
-      <div class="panel-hdr"><div class="panel-title">RANKING DE DESEMPEÑO</div></div>
-      <div id="com-ranking" style="padding:10px 16px;"></div>
-    </div>
-    <div class="panel">
-      <div class="panel-hdr"><div class="panel-title">OPs POR EJECUTIVO</div></div>
-      <div class="panel-body"><canvas id="chartEjecCom" height="200"></canvas></div>
-    </div>
-  </div>
-  <div class="panel">
-    <div class="panel-hdr"><div class="panel-title">DETALLE POR EJECUTIVO</div></div>
-    <div id="com-detalle"></div>
-  </div>
-</div>
+<div id="view-comercial" class="view"></div>
 
 <!-- ═══════════ VIEW: REPORTES FINANCIEROS ═══════════ -->
 <div id="view-reportes" class="view">

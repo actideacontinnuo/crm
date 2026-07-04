@@ -101,7 +101,7 @@ test.describe('Menú lateral', () => {
 
   const navItems = [
     'Dashboard', 'Prospectos', 'Clientes', 'OPs', 'Cotizaciones',
-    'Pagos', 'Proveedores', 'Casos', 'Dashboard Comercial',
+    'Pagos', 'Proveedores', 'Casos', 'Comercial / Reportes',
   ];
 
   for (const item of navItems) {
