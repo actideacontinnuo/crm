@@ -22,16 +22,13 @@ async function renderComercial() {
     hideSpinner();
   }
 
-  // Objetivo por ejecutivo: de Objetivos del Mes si existe; si no, el de la referencia
+  // Objetivo por ejecutivo: del módulo de Objetivos (visible para todo el equipo)
   let objetivoEjec = 2500000;
-  const user = sesionActual();
-  if (user?.role === 'admin') {
-    try {
-      const mes = new Date().toISOString().slice(0, 7);
-      const obj = await API.get('/objetivos/' + mes);
-      if (obj?.cotizado) objetivoEjec = obj.cotizado;
-    } catch {}
-  }
+  try {
+    const mes = new Date().toISOString().slice(0, 7);
+    const obj = await API.get('/objetivos/' + mes);
+    if (obj?.objetivoEjecutivo) objetivoEjec = obj.objetivoEjecutivo;
+  } catch {}
 
   const periodo = window._comPeriodo;
   const rangos  = _rangosPeriodo(periodo);

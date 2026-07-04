@@ -63,7 +63,7 @@ const CASOS = [
   ['patch',  '/api/tickets/algun-id',  { status: 'Y' }],
   ['get',    '/api/auditoria'],
   ['get',    '/api/objetivos/2026-07'],
-  ['put',    '/api/objetivos/2026-07', { cotizado: 1 }],
+  ['put',    '/api/objetivos/2026-07', { metaVentas: 1 }],
 ];
 
 describe.each(CASOS)('Notion caído → %s %s', (metodo, ruta, body) => {

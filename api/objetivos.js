@@ -3,39 +3,56 @@ const router  = express.Router();
 const { authMiddleware } = require('../middleware/auth');
 const { queryDB, createPage, updatePage, prop_title, prop_number, read_number } = require('./notion');
 
+// Objetivos mensuales de Actidea — cada campo alimenta una meta visible:
+//   metaVentas        → barra META del KPI "Ventas Ejecutadas" y línea Meta de la gráfica (Dashboard)
+//   metaProduccion    → barra META del KPI "OPs Activas" (Dashboard)
+//   metaPipeline      → barra META del KPI "Pipeline Prospectos" (Dashboard)
+//   metaClientes      → barra META del KPI "Clientes Activos" (Dashboard)
+//   objetivoEjecutivo → columna Objetivo y % de Cumplimiento (Comercial/Reportes)
 function toObj(page) {
   const p = page.properties;
   return {
-    pageId:       page.id,
-    opsActivas:   read_number(p['OpsActivas']),
-    cotizado:     read_number(p['Cotizado']),
-    cobros:       read_number(p['Cobros']),
-    pipeline:     read_number(p['Pipeline']),
-    cliActivos:   read_number(p['ClientesActivos']),
-    comisiones:   read_number(p['Comisiones']),
+    pageId:            page.id,
+    metaVentas:        read_number(p['Cotizado']),
+    metaProduccion:    read_number(p['OpsActivas']),
+    metaPipeline:      read_number(p['Pipeline']),
+    metaClientes:      read_number(p['ClientesActivos']),
+    objetivoEjecutivo: read_number(p['ObjetivoEjecutivo']),
   };
 }
 
-// GET /api/objetivos/:mes  (ej. 2026-06)
+const CAMPOS = {
+  metaVentas:        'Cotizado',
+  metaProduccion:    'OpsActivas',
+  metaPipeline:      'Pipeline',
+  metaClientes:      'ClientesActivos',
+  objetivoEjecutivo: 'ObjetivoEjecutivo',
+};
+
+function validarMes(mes) { return /^\d{4}-(0[1-9]|1[0-2])$/.test(mes); }
+
+// GET /api/objetivos/:mes — cualquier usuario autenticado puede VER las metas
+// (los ejecutivos las necesitan para sus barras de META en el dashboard)
 router.get('/:mes', authMiddleware, async (req, res) => {
-  if (req.user.role !== 'admin') return res.status(403).json({ error: 'Solo el Admin puede ver los objetivos' });
+  if (!validarMes(req.params.mes)) return res.status(400).json({ error: 'Mes inválido. Formato: YYYY-MM' });
   try {
     const pages = await queryDB('objetivos', { property: 'Mes', title: { equals: req.params.mes } });
     res.json(pages.length ? toObj(pages[0]) : {});
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// PUT /api/objetivos/:mes  — solo admin
+// PUT /api/objetivos/:mes — solo el Admin puede modificar los objetivos
 router.put('/:mes', authMiddleware, async (req, res) => {
   if (req.user.role !== 'admin') return res.status(403).json({ error: 'Solo el Admin puede modificar los objetivos' });
+  if (!validarMes(req.params.mes)) return res.status(400).json({ error: 'Mes inválido. Formato: YYYY-MM' });
   try {
     const props = {};
-    if (req.body.opsActivas !== undefined) props['OpsActivas']      = prop_number(req.body.opsActivas);
-    if (req.body.cotizado   !== undefined) props['Cotizado']        = prop_number(req.body.cotizado);
-    if (req.body.cobros     !== undefined) props['Cobros']          = prop_number(req.body.cobros);
-    if (req.body.pipeline   !== undefined) props['Pipeline']        = prop_number(req.body.pipeline);
-    if (req.body.cliActivos !== undefined) props['ClientesActivos'] = prop_number(req.body.cliActivos);
-    if (req.body.comisiones !== undefined) props['Comisiones']      = prop_number(req.body.comisiones);
+    for (const [campo, columna] of Object.entries(CAMPOS)) {
+      if (req.body[campo] === undefined) continue;
+      const n = Number(req.body[campo]);
+      if (isNaN(n) || n < 0) return res.status(400).json({ error: `El campo ${campo} debe ser un número positivo` });
+      props[columna] = prop_number(n);
+    }
 
     const pages = await queryDB('objetivos', { property: 'Mes', title: { equals: req.params.mes } });
     let page;

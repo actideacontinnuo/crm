@@ -292,42 +292,51 @@ async function cambiarPassword() {
 // ══════════════════════════════════════
 // OBJETIVOS (solo admin)
 // ══════════════════════════════════════
+const OBJ_CAMPOS = ['metaVentas', 'metaProduccion', 'metaPipeline', 'metaClientes', 'objetivoEjecutivo'];
+
 async function abrirObjetivos() {
   const hoy = new Date();
-  const mes = `${hoy.getFullYear()}-${String(hoy.getMonth()+1).padStart(2,'0')}`;
-  document.getElementById('obj-mes-label').textContent =
-    `MES: ${hoy.toLocaleDateString('es-MX',{month:'long',year:'numeric'}).toUpperCase()}`;
-
-  try {
-    const obj = await API.get(`/objetivos/${mes}`);
-    ['opsActivas','cotizado','cobros','pipeline','cliActivos','comisiones'].forEach(k => {
-      const el = document.getElementById('obj-' + k);
-      if (el) el.value = obj[k] || '';
-    });
-  } catch {}
-
+  document.getElementById('obj-mes').value = `${hoy.getFullYear()}-${String(hoy.getMonth()+1).padStart(2,'0')}`;
+  await cargarObjetivosMes();
   openM('objetivos');
 }
 
+async function cargarObjetivosMes() {
+  const mes = document.getElementById('obj-mes').value;
+  if (!mes) return;
+  OBJ_CAMPOS.forEach(k => { const el = document.getElementById('obj-' + k); if (el) el.value = ''; });
+  try {
+    const obj = await API.get(`/objetivos/${mes}`);
+    OBJ_CAMPOS.forEach(k => {
+      const el = document.getElementById('obj-' + k);
+      if (el && obj[k]) el.value = obj[k];
+    });
+  } catch {}
+}
+
 async function guardarObjetivos() {
-  const hoy = new Date();
-  const mes = `${hoy.getFullYear()}-${String(hoy.getMonth()+1).padStart(2,'0')}`;
+  const mes = document.getElementById('obj-mes').value;
+  if (!mes) { toast('Selecciona el mes', 'red'); return; }
   const body = {};
-  ['opsActivas','cotizado','cobros','pipeline','cliActivos','comisiones'].forEach(k => {
-    const v = parseFloat(document.getElementById('obj-' + k)?.value);
-    if (!isNaN(v)) body[k] = v;
-  });
+  for (const k of OBJ_CAMPOS) {
+    const raw = document.getElementById('obj-' + k)?.value;
+    if (raw === '' || raw === undefined) continue;
+    const v = parseFloat(raw);
+    if (isNaN(v) || v < 0) { toast('Revisa los valores: deben ser números positivos', 'red'); return; }
+    body[k] = v;
+  }
+  if (!Object.keys(body).length) { toast('Captura al menos un objetivo', 'red'); return; }
 
   try {
-    const token = localStorage.getItem('crm_token');
     const r = await fetch(`/api/objetivos/${mes}`, {
       method: 'PUT',
       headers: _authHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify(body),
     });
     if (!r.ok) throw new Error();
-    toast('✓ Objetivos guardados');
+    toast('✓ Objetivos guardados — el dashboard ya los refleja');
     closeM('objetivos');
+    db.invalidate('ops', 'prospectos');
     renderDashboard();
   } catch {
     toast('Error al guardar objetivos', 'red');

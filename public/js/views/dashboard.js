@@ -115,17 +115,20 @@ async function renderDashboard() {
   const vencidos      = pagos.filter(p => p.status === 'Vencido').length;
   const hoy = new Date().toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).toUpperCase();
 
-  // Metas: del módulo de Objetivos si están configuradas; si no, las de la referencia
+  // Metas: del módulo de Objetivos (visibles para todo el equipo); defaults si no hay
   let obj = {};
   const user = sesionActual();
-  if (user?.role === 'admin') {
-    try {
-      const mes = new Date().toISOString().slice(0, 7);
-      obj = await API.get('/objetivos/' + mes) || {};
-    } catch {}
-  }
+  try {
+    const mes = new Date().toISOString().slice(0, 7);
+    obj = await API.get('/objetivos/' + mes) || {};
+  } catch {}
   const factor = { mes: 1, tri: 3, anual: 12 }[window._dashPeriodo];
-  const METAS = { ventas: (obj.cotizado || 3000000) * factor, produccion: 8000000, pipeline: obj.pipeline || 18000000 };
+  const METAS = {
+    ventas:     (obj.metaVentas     || 3000000) * factor,
+    produccion: (obj.metaProduccion || 8000000),
+    pipeline:   (obj.metaPipeline   || 18000000),
+    clientes:   (obj.metaClientes   || 0),
+  };
 
   // Ventas ejecutadas del PERIODO seleccionado (mes/tri/anual) y comparativa vs periodo anterior
   const periodo = window._dashPeriodo;
@@ -175,7 +178,7 @@ async function renderDashboard() {
     <div class="kpis" style="margin-bottom:22px">
       <div class="kpi" style="--accent:var(--red);--accent-dim:var(--red-dim)"><div class="kpi-top"><div class="kpi-label">COBRANZA PENDIENTE</div><div class="kpi-ico" style="background:var(--red-dim);color:var(--red)">${icoHTML('wallet')}</div></div><div class="kpi-value kv-red">${fmxK(totalPend)}</div><div class="kpi-delta ${vencidos ? 'down' : ''}">${vencidos ? icoHTML('alert') + ' ' + vencidos + ' vencidos' : pagosPend.length + ' por cobrar'}</div></div>
       <div class="kpi" style="--accent:var(--green);--accent-dim:var(--green-dim)"><div class="kpi-top"><div class="kpi-label">UTILIDAD GENERADA</div><div class="kpi-ico" style="background:var(--green-dim);color:var(--green)">${icoHTML('trend')}</div></div><div class="kpi-value kv-green">${fmxK(utilidad)}</div><div class="kpi-delta up">margen prom. ${margen}%</div></div>
-      <div class="kpi"><div class="kpi-top"><div class="kpi-label">CLIENTES ACTIVOS</div><div class="kpi-ico" style="background:var(--gray50);color:var(--gray600)">${icoHTML('building')}</div></div><div class="kpi-value">${cliActivos}</div><div class="kpi-delta">${clientes.length} en directorio</div></div>
+      <div class="kpi"><div class="kpi-top"><div class="kpi-label">CLIENTES ACTIVOS</div><div class="kpi-ico" style="background:var(--gray50);color:var(--gray600)">${icoHTML('building')}</div></div><div class="kpi-value">${cliActivos}</div><div class="kpi-delta">${clientes.length} en directorio</div>${METAS.clientes ? `<div class="kpi-bar"><div class="kpi-bar-top"><span class="kpi-bar-meta">META ${METAS.clientes}</span><span class="kpi-bar-meta" style="color:${cliActivos >= METAS.clientes ? 'var(--green)' : 'var(--amber)'};font-weight:700">${Math.min(Math.round(cliActivos / METAS.clientes * 100), 100)}%</span></div><div class="prog"><div class="prog-fill ${cliActivos >= METAS.clientes ? 'green' : 'amber'}" style="width:${Math.min(Math.round(cliActivos / METAS.clientes * 100), 100)}%"></div></div></div>` : ''}</div>
     </div>
     <div class="dash-grid">
       <div class="col-stack">
@@ -214,7 +217,7 @@ async function renderDashboard() {
       </div>
     </div>`;
 
-  drawTrend(ejecutadas, (obj.cotizado || 3000000), periodo);
+  drawTrend(ejecutadas, (obj.metaVentas || 3000000), periodo);
 }
 
 function rankingHTML(ops) {

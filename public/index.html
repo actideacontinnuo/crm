@@ -924,25 +924,47 @@
 
 <!-- MODAL OBJETIVOS -->
 <div class="modal-overlay" id="m-objetivos" onclick="closeM('objetivos')">
-<div class="modal" onclick="event.stopPropagation()" style="width:480px">
+<div class="modal" onclick="event.stopPropagation()" style="width:520px">
   <div class="modal-hdr">
     <div><div class="modal-eye">ADMIN · DIRECCIÓN</div><div class="modal-title">Objetivos del Mes</div></div>
     <button class="modal-close" onclick="closeM('objetivos')">✕</button>
   </div>
   <div class="modal-body">
-    <div id="obj-mes-label" style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--gray400);margin-bottom:14px;letter-spacing:.1em"></div>
-    <div style="display:flex;flex-direction:column;gap:12px">
-      <div class="fgrid">
-        <div class="fg"><label class="fl">OPs ACTIVAS (meta)</label><input class="fi" id="obj-opsActivas" type="number" placeholder="5"></div>
-        <div class="fg"><label class="fl">CLIENTES ACTIVOS (meta)</label><input class="fi" id="obj-cliActivos" type="number" placeholder="20"></div>
+    <div class="fg" style="margin-bottom:16px">
+      <label class="fl">MES</label>
+      <input class="fi" id="obj-mes" type="month" onchange="cargarObjetivosMes()">
+    </div>
+
+    <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.1em;color:var(--gray400);margin-bottom:10px">RESULTADOS CLAVE · MXN DEL MES</div>
+    <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:18px">
+      <div class="fg">
+        <label class="fl">META DE VENTAS EJECUTADAS (MXN)</label>
+        <input class="fi" id="obj-metaVentas" type="number" min="0" placeholder="3000000">
+        <div style="font-size:11px;color:var(--gray400);margin-top:3px">Eventos ejecutados en el mes · alimenta el KPI "Ventas Ejecutadas" y la línea Meta de la gráfica</div>
       </div>
-      <div class="fgrid">
-        <div class="fg"><label class="fl">COTIZADO MXN (meta)</label><input class="fi" id="obj-cotizado" type="number" placeholder="1500000"></div>
-        <div class="fg"><label class="fl">COBROS MXN (meta)</label><input class="fi" id="obj-cobros" type="number" placeholder="800000"></div>
+      <div class="fg">
+        <label class="fl">META DE PRODUCCIÓN ACTIVA (MXN)</label>
+        <input class="fi" id="obj-metaProduccion" type="number" min="0" placeholder="8000000">
+        <div style="font-size:11px;color:var(--gray400);margin-top:3px">Monto cotizado de OPs en producción · alimenta el KPI "OPs Activas"</div>
       </div>
-      <div class="fgrid">
-        <div class="fg"><label class="fl">PIPELINE MXN (meta)</label><input class="fi" id="obj-pipeline" type="number" placeholder="3000000"></div>
-        <div class="fg"><label class="fl">COMISIONES MXN (meta)</label><input class="fi" id="obj-comisiones" type="number" placeholder="50000"></div>
+      <div class="fg">
+        <label class="fl">META DE PIPELINE DE PROSPECTOS (MXN)</label>
+        <input class="fi" id="obj-metaPipeline" type="number" min="0" placeholder="18000000">
+        <div style="font-size:11px;color:var(--gray400);margin-top:3px">Valor estimado de oportunidades abiertas · alimenta el KPI "Pipeline Prospectos"</div>
+      </div>
+    </div>
+
+    <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.1em;color:var(--gray400);margin-bottom:10px">KPIs DE EQUIPO</div>
+    <div class="fgrid">
+      <div class="fg">
+        <label class="fl">CLIENTES ACTIVOS (META #)</label>
+        <input class="fi" id="obj-metaClientes" type="number" min="0" placeholder="12">
+        <div style="font-size:11px;color:var(--gray400);margin-top:3px">Cartera activa objetivo</div>
+      </div>
+      <div class="fg">
+        <label class="fl">OBJETIVO POR EJECUTIVO (MXN)</label>
+        <input class="fi" id="obj-objetivoEjecutivo" type="number" min="0" placeholder="2500000">
+        <div style="font-size:11px;color:var(--gray400);margin-top:3px">Cierre individual · alimenta Comercial/Reportes</div>
       </div>
     </div>
   </div>
