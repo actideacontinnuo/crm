@@ -34,9 +34,9 @@ async function renderPagos() {
   const cobrosPagados  = pagos.filter(p => p.tipo === 'Cobro a cliente' && p.status === 'Pagado');
 
   document.getElementById('pagos-kpis').innerHTML = `
-    <div class="kpi" style="border-top:2px solid var(--green)"><div class="kpi-label">💰 POR COBRAR (CLIENTES)</div><div class="kpi-value kv-green">${fmx(totalPorCobrar)}</div><div class="kpi-delta up">${pagos.filter(p=>p.tipo==='Cobro a cliente'&&p.status!=='Pagado').length} pagos pendientes</div></div>
-    <div class="kpi" style="border-top:2px solid #1A6B3C"><div class="kpi-label">✅ YA COBRADO</div><div class="kpi-value" style="color:#1A6B3C">${fmx(totalCobrado)}</div><div class="kpi-delta">${cobrosPagados.length} cobros confirmados</div></div>
-    <div class="kpi" style="border-top:2px solid var(--amber)"><div class="kpi-label">📤 POR PAGAR (PROVEEDORES)</div><div class="kpi-value" style="color:var(--amber)">${fmx(totalPorPagar)}</div><div class="kpi-delta down">Salidas pendientes</div></div>
+    <div class="kpi" style="border-top:2px solid var(--green)"><div class="kpi-label">${icoHTML('wallet',13)} POR COBRAR (CLIENTES)</div><div class="kpi-value kv-green">${fmx(totalPorCobrar)}</div><div class="kpi-delta up">${pagos.filter(p=>p.tipo==='Cobro a cliente'&&p.status!=='Pagado').length} pagos pendientes</div></div>
+    <div class="kpi" style="border-top:2px solid #1A6B3C"><div class="kpi-label">${icoHTML('check',13)} YA COBRADO</div><div class="kpi-value" style="color:#1A6B3C">${fmx(totalCobrado)}</div><div class="kpi-delta">${cobrosPagados.length} cobros confirmados</div></div>
+    <div class="kpi" style="border-top:2px solid var(--amber)"><div class="kpi-label">${icoHTML('send',13)} POR PAGAR (PROVEEDORES)</div><div class="kpi-value" style="color:var(--amber)">${fmx(totalPorPagar)}</div><div class="kpi-delta down">Salidas pendientes</div></div>
     <div class="kpi" style="border-top:2px solid var(--red)"><div class="kpi-label">⚠ VENCIDOS</div><div class="kpi-value kv-red">${vencidos.length}</div><div class="kpi-delta down">${fmx(vencidos.reduce((a,p)=>a+(p.monto||0),0))} en riesgo</div></div>`;
 
   let list = pagos;
@@ -80,7 +80,7 @@ async function renderPagos() {
           </td>
         </tr>`;
       }).join('')
-    : `<tr><td colspan="9"><div class="empty-state"><div>💳</div><div>SIN MOVIMIENTOS EN ESTE FILTRO</div></div></td></tr>`;
+    : `<tr><td colspan="9"><div class="empty-state"><div>${icoHTML('wallet',26)}</div><div>SIN MOVIMIENTOS EN ESTE FILTRO</div></div></td></tr>`;
 }
 
 async function savePago() {

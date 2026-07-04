@@ -46,7 +46,7 @@ async function renderProspectos() {
         <td><span class="tag tag-gray">${esc(p.fuente) || '—'}</span></td>
         <td><button class="btn btn-ghost btn-xs" onclick="event.stopPropagation();openDetalleProspecto('${p.id}')">Ver</button></td>
       </tr>`).join('')
-    : `<tr><td colspan="8"><div class="empty-state"><div>🔍</div><div>SIN RESULTADOS</div></div></td></tr>`;
+    : `<tr><td colspan="8"><div class="empty-state"><div>${icoHTML('search',26)}</div><div>SIN RESULTADOS</div></div></td></tr>`;
 }
 
 const _LOCKED_FIELDS = ['np-empresa','np-contacto','np-tel','np-email'];
@@ -98,8 +98,8 @@ async function openEditarProspecto() {
     el.style.background   = 'var(--cream)';
     el.style.color        = 'var(--gray400)';
     el.style.cursor       = 'not-allowed';
-    el.title              = '🔒 Este campo no se puede modificar';
-    el.onclick            = () => toast('🔒 Este campo está bloqueado y no puede modificarse', 'red');
+    el.title              = 'Este campo no se puede modificar';
+    el.onclick            = () => toast('Este campo está bloqueado y no puede modificarse', 'red');
   });
 
   const ejec = document.getElementById('np-ejec');
@@ -351,7 +351,7 @@ async function renderKanban() {
               <span style="font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;color:var(--red)">${fmx(p.estimado)}</span>
             </div>
             <div style="display:flex;justify-content:space-between;margin-top:6px;border-top:1px solid var(--border);padding-top:6px">
-              <span style="font-family:'JetBrains Mono',monospace;font-size:8px;color:var(--gray400)">📅 ${esc(p.seguimiento) || '—'}</span>
+              <span style="font-family:'JetBrains Mono',monospace;font-size:8px;color:var(--gray400)">${icoHTML('cal',12)} ${esc(p.seguimiento) || '—'}</span>
               <select onclick="event.stopPropagation()" onchange="moveKanbanCard('${p.id}',this.value)" style="font-family:'JetBrains Mono',monospace;font-size:8px;border:none;background:none;color:var(--gray400);cursor:pointer">
                 <option value="">Mover a...</option>
                 ${KANBAN_COLS.filter(c => c.id !== p.status).map(c => `<option value="${c.id}">${c.label}</option>`).join('')}

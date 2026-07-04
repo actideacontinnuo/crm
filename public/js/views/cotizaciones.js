@@ -64,7 +64,7 @@ async function renderCotizaciones() {
         <button class="btn btn-ghost btn-xs" onclick="event.stopPropagation();openM('nuevo-caso')">Caso</button>
       </td>
     </tr>`;
-  }).join('') || `<tr><td colspan="8"><div class="empty-state"><div>📝</div><div>SIN COTIZACIONES</div></div></td></tr>`;
+  }).join('') || `<tr><td colspan="8"><div class="empty-state"><div>${icoHTML('file',26)}</div><div>SIN COTIZACIONES</div></div></td></tr>`;
 }
 
 // ── Cotizador populate selects ──────────

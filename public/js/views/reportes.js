@@ -75,7 +75,7 @@ async function renderReportes() {
             <td class="monto" style="color:var(--green)">${fmx(o.utilidad)}</td>
           </tr>`;
         }).join('')
-      : `<tr><td colspan="8"><div class="empty-state"><div>📊</div><div>SIN OPs EN ESTE PERIODO</div></div></td></tr>`;
+      : `<tr><td colspan="8"><div class="empty-state"><div>${icoHTML('chart',26)}</div><div>SIN OPs EN ESTE PERIODO</div></div></td></tr>`;
   }
 
   // Resumen por ejecutivo

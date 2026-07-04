@@ -36,7 +36,7 @@ async function renderProveedores() {
     if (deudasPend.length) {
       const total = deudasPend.reduce((a, d) => a + (d.monto || 0), 0);
       alertEl.innerHTML = `<div style="background:var(--white);border:1px solid var(--border);border-radius:10px;padding:14px 18px;display:flex;align-items:center;gap:14px;cursor:pointer;margin-bottom:16px" onclick="openM('deudas')">
-        <div style="width:40px;height:40px;border-radius:10px;background:#FFF8F0;border:1px solid #F0DFC0;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">📋</div>
+        <div style="width:40px;height:40px;border-radius:10px;background:#FFF8F0;border:1px solid #F0DFC0;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:var(--amber)">${icoHTML('doc',18)}</div>
         <div style="flex:1"><div style="font-size:13px;font-weight:600">Tienes ${deudasPend.length} pago(s) pendiente(s) a proveedores</div><div style="font-size:12px;color:var(--gray400);margin-top:2px">Total: ${fmx(total)} · Haz clic para ver el detalle</div></div>
         <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--gray400);white-space:nowrap">Ver detalle →</div>
       </div>`;
@@ -62,7 +62,7 @@ async function renderProveedores() {
         : '<span class="tag tag-green">Sin deuda ✓</span>'}</td>
       <td><button class="btn btn-ghost btn-xs" onclick="event.stopPropagation();openDetalleProveedor('${p.id}')">Ver</button></td>
     </tr>`;
-  }).join('') || `<tr><td colspan="8"><div class="empty-state"><div>🌐</div><div>SIN PROVEEDORES</div></div></td></tr>`;
+  }).join('') || `<tr><td colspan="8"><div class="empty-state"><div>${icoHTML('truck',26)}</div><div>SIN PROVEEDORES</div></div></td></tr>`;
 }
 
 async function saveProveedor() {
@@ -224,7 +224,7 @@ async function renderDeudasModal() {
         </div>
       </div>` : ''}
     </div>`;
-  }).join('') || '<div class="empty-state"><div>✅</div><div>SIN DEUDAS EN ESTE FILTRO</div></div>';
+  }).join('') || '<div class="empty-state"><div>✓</div><div>SIN DEUDAS EN ESTE FILTRO</div></div>';
 }
 
 async function marcarDeudaPagada(id) {

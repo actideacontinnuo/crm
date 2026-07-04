@@ -29,23 +29,7 @@ function avatarHTML(name, size) {
   return `<div class="av" style="width:${s}px;height:${s}px;font-size:${Math.round(s * 0.3)}px;background:${c}1a;border-color:${c}44;color:${c}">${acInitials(name)}</div>`;
 }
 
-function icoHTML(n) {
-  const I = {
-    target: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.4" fill="currentColor"/>',
-    building: '<rect x="4" y="3" width="16" height="18" rx="1.5"/><path d="M9 8h2M13 8h2M9 12h2M13 12h2M9 16h2M13 16h2"/>',
-    box: '<path d="M21 8l-9-5-9 5 9 5 9-5zM3 8v8l9 5 9-5V8M12 13v8"/>',
-    wallet: '<path d="M3 7a2 2 0 0 1 2-2h13a1 1 0 0 1 1 1v2"/><path d="M3 7v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7a1 1 0 0 0-1-1H5a2 2 0 0 1-2-2z"/><circle cx="16" cy="13" r="1.3" fill="currentColor"/>',
-    chart: '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
-    plus: '<path d="M12 5v14M5 12h14"/>',
-    download: '<path d="M12 3v12M7 11l5 5 5-5M5 21h14"/>',
-    cal: '<rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/>',
-    user: '<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/>',
-    arrowup: '<path d="M12 19V5M6 11l6-6 6 6"/>',
-    trend: '<path d="M3 17l6-6 4 4 8-8M15 7h6v6"/>',
-    alert: '<path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/>',
-  };
-  return `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="display:block">${I[n] || ''}</svg>`;
-}
+// icoHTML es global (definido en app.js)
 
 function phHTML(eye, title, sub, actions) {
   return `<div class="ph"><div><div class="ph-eye">${eye}</div><div class="ph-title">${title}</div>${sub ? `<div class="ph-sub">${sub}</div>` : ''}</div><div class="ph-actions">${actions || ''}</div></div>`;

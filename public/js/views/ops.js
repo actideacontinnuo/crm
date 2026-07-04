@@ -49,7 +49,7 @@ async function renderOPs() {
           </td>
         </tr>`;
       }).join('')
-    : `<tr><td colspan="10"><div class="empty-state"><div>📋</div><div>SIN RESULTADOS</div></div></td></tr>`;
+    : `<tr><td colspan="10"><div class="empty-state"><div>${icoHTML('box',26)}</div><div>SIN RESULTADOS</div></div></td></tr>`;
 }
 
 async function saveOP() {

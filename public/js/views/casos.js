@@ -1,7 +1,7 @@
 // ══════════════════════════════════════
 // CASOS VIEW
 // ══════════════════════════════════════
-const CASO_PRIO_ICON = { Alta: '🔴', Media: '🟡', Baja: '🟢' };
+const CASO_PRIO_ICON = { Alta: '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--red);vertical-align:1px"></span>', Media: '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--amber);vertical-align:1px"></span>', Baja: '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--green);vertical-align:1px"></span>' };
 
 async function renderCasos() {
   const cliF = document.getElementById('cas-filter-cli')?.value || '';
@@ -61,7 +61,7 @@ async function renderCasos() {
           <td><button class="btn btn-ghost btn-xs" onclick="event.stopPropagation();openDetalleCaso('${c.id}')">Ver</button></td>
         </tr>`;
       }).join('')
-    : `<tr><td colspan="8"><div class="empty-state"><div>📋</div><div>SIN CASOS REGISTRADOS</div></div></td></tr>`;
+    : `<tr><td colspan="8"><div class="empty-state"><div>${icoHTML('ticket',26)}</div><div>SIN CASOS REGISTRADOS</div></div></td></tr>`;
 }
 
 async function saveCaso() {

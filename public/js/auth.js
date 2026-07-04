@@ -349,12 +349,12 @@ async function abrirGestionUsuarios() {
     document.getElementById('gu-lista').innerHTML = usuarios.map(u => `
       <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border:1px solid var(--border);border-radius:8px;${u.activo === false ? 'opacity:.55' : ''}">
         <div>
-          <div style="font-size:13px;font-weight:600">${esc(u.nombre)} ${u.twoFAEnabled ? '<span style="color:var(--green);font-size:10px">🔐 2FA</span>' : ''} ${u.bloqueado ? '<span style="color:var(--red);font-size:10px">🔒 BLOQUEADO</span>' : ''} ${u.activo === false ? '<span style="color:var(--gray400);font-size:10px">⛔ DESACTIVADO</span>' : ''}</div>
+          <div style="font-size:13px;font-weight:600">${esc(u.nombre)} ${u.twoFAEnabled ? `<span style="color:var(--green);font-size:10px">${icoHTML('shield',10)} 2FA</span>` : ''} ${u.bloqueado ? `<span style="color:var(--red);font-size:10px">${icoHTML('lock',10)} BLOQUEADO</span>` : ''} ${u.activo === false ? '<span style="color:var(--gray400);font-size:10px">✕ DESACTIVADO</span>' : ''}</div>
           <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--gray400)">@${esc(u.id)} · ${esc(ROL_LABEL_CORTO[u.role] || u.role)}</div>
         </div>
         <div style="display:flex;gap:6px">
           ${u.bloqueado ? `<button class="btn btn-ghost btn-xs" onclick="desbloquearUsuario('${esc(u.id)}')">Desbloquear</button>` : ''}
-          <button class="btn btn-ghost btn-xs" onclick="resetearPassword('${esc(u.id)}','${esc(u.nombre)}')">🔑 Resetear contraseña</button>
+          <button class="btn btn-ghost btn-xs" onclick="resetearPassword('${esc(u.id)}','${esc(u.nombre)}')">${icoHTML('key',11)} Resetear contraseña</button>
           ${u.activo === false
             ? `<button class="btn btn-ghost btn-xs" onclick="toggleActivoUsuario('${esc(u.id)}', true)">Reactivar</button>`
             : `<button class="btn btn-ghost btn-xs" style="color:var(--red)" onclick="toggleActivoUsuario('${esc(u.id)}', false)">Desactivar</button>`}
@@ -398,10 +398,10 @@ async function desbloquearUsuario(usuarioId) {
 // AUDITORÍA (solo admin)
 // ══════════════════════════════════════
 const AUD_ACCION_LABEL = {
-  login_exitoso: '✓ Login exitoso', login_fallido: '✗ Login fallido', cuenta_bloqueada: '🔒 Cuenta bloqueada',
-  password_cambiado: '🔑 Contraseña cambiada', password_reseteado: '🔑 Contraseña reseteada (admin)',
-  '2fa_activado': '🔐 2FA activado', '2fa_desactivado': '🔓 2FA desactivado',
-  crear: '+ Creó registro', editar: '✎ Editó registro', eliminar: '🗑 Eliminó registro', backup_generado: '💾 Respaldo generado',
+  login_exitoso: '✓ Login exitoso', login_fallido: '✗ Login fallido', cuenta_bloqueada: 'Cuenta bloqueada',
+  password_cambiado: 'Contraseña cambiada', password_reseteado: 'Contraseña reseteada (admin)',
+  '2fa_activado': '2FA activado', '2fa_desactivado': '2FA desactivado',
+  crear: '+ Creó registro', editar: '✎ Editó registro', eliminar: '✕ Eliminó registro', backup_generado: 'Respaldo generado',
 };
 
 async function abrirAuditoria() {
@@ -573,9 +573,9 @@ async function generarRespaldoManual() {
 
 // ── Alta de usuario nuevo (solo admin) ─────────────────────
 const ROL_DESCRIPCIONES = {
-  ejecutivo: '👤 Ejecutivo: solo ve y edita SUS propios prospectos, clientes, OPs y cotizaciones. No ve pagos, comisiones ni reportes financieros. No puede eliminar registros.',
-  administracion: '📋 Administración: ve todos los prospectos, clientes, OPs y cotizaciones del equipo, y gestiona proveedores. No ve pagos, comisiones, auditoría ni respaldos. No puede eliminar registros.',
-  admin: '🔑 Admin (Dirección): acceso total — pagos, comisiones, reportes financieros, auditoría, respaldos, y gestión de usuarios. Puede eliminar registros.',
+  ejecutivo: 'Ejecutivo: solo ve y edita SUS propios prospectos, clientes, OPs y cotizaciones. No ve pagos, comisiones ni reportes financieros. No puede eliminar registros.',
+  administracion: 'Administración: ve todos los prospectos, clientes, OPs y cotizaciones del equipo, y gestiona proveedores. No ve pagos, comisiones, auditoría ni respaldos. No puede eliminar registros.',
+  admin: 'Admin (Dirección): acceso total — pagos, comisiones, reportes financieros, auditoría, respaldos, y gestión de usuarios. Puede eliminar registros.',
 };
 
 function mostrarDescripcionRol() {

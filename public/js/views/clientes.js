@@ -10,7 +10,7 @@ async function analizarDoc(tipo, input) {
   const area   = document.getElementById(`doc-${tipo}-area`);
   const status = document.getElementById(`doc-${tipo}-status`);
 
-  area.innerHTML   = '⏳ Analizando con IA…';
+  area.innerHTML   = icoHTML('clock',12) + ' Analizando con IA…';
   area.style.borderColor = 'var(--amber)';
   status.textContent     = '';
 
@@ -32,7 +32,7 @@ async function analizarDoc(tipo, input) {
     const d = json.data;
 
     if (!d.valido) {
-      area.innerHTML = '❌ Documento no válido';
+      area.innerHTML = icoHTML('x',12) + ' Documento no válido';
       area.style.borderColor = 'var(--red)';
       status.style.color = 'var(--red)';
       status.textContent = d.observaciones || 'No se pudo validar el documento';
@@ -76,7 +76,7 @@ async function analizarDoc(tipo, input) {
     _docState[tipo] = true;
 
   } catch (err) {
-    area.innerHTML = '❌ Error al analizar';
+    area.innerHTML = icoHTML('x',12) + ' Error al analizar';
     area.style.borderColor = 'var(--red)';
     status.style.color = 'var(--red)';
     status.textContent = err.message;
@@ -125,7 +125,7 @@ async function renderClientes() {
           <td><button class="btn btn-ghost btn-xs" onclick="event.stopPropagation();openDetalleCliente('${c.id}')">Ver</button></td>
         </tr>`;
       }).join('')
-    : `<tr><td colspan="9"><div class="empty-state"><div>🏢</div><div>SIN CLIENTES REGISTRADOS</div></div></td></tr>`;
+    : `<tr><td colspan="9"><div class="empty-state"><div>${icoHTML('building',26)}</div><div>SIN CLIENTES REGISTRADOS</div></div></td></tr>`;
 }
 
 async function saveCliente() {
@@ -167,7 +167,7 @@ async function saveCliente() {
       const body = document.querySelector('#m-nuevo-cliente .modal-body');
       if (body) body.prepend(blocker);
     }
-    blocker.innerHTML = '<strong>⛔ No se puede guardar.</strong> Completa todos los campos y confirma los 3 documentos:<br>' + missing.map(m => `· ${m}`).join('<br>');
+    blocker.innerHTML = '<strong>✕ No se puede guardar.</strong> Completa todos los campos y confirma los 3 documentos:<br>' + missing.map(m => `· ${m}`).join('<br>');
     return;
   }
 
@@ -228,7 +228,7 @@ function _resetClienteForm() {
   _docState = { csf: false, oc: false, ec: false };
   ['doc-csf','doc-oc','doc-ec'].forEach(id => {
     const el = document.getElementById(id);
-    if (el) { el.classList.remove('uploaded'); el.style.borderColor = ''; el.innerHTML = '📎 Clic para confirmar recepción del documento'; }
+    if (el) { el.classList.remove('uploaded'); el.style.borderColor = ''; el.innerHTML = ' Clic para confirmar recepción del documento'; }
   });
   ['nc-nombre','nc-razon','nc-rfc','nc-dir','nc-contacto','nc-email','nc-giro','nc-cargo','nc-tel'].forEach(id => {
     const el = document.getElementById(id);
