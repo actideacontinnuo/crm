@@ -76,7 +76,10 @@ const loginLimiter = rateLimit({
 });
 
 // ── Rutas públicas ───────────────────────
-app.get('/api/health', (req, res) => res.json({ ok: true, ts: new Date().toISOString() }));
+// Identificador de esta versión desplegada — cambia en cada deploy/reinicio.
+// El frontend lo usa para auto-recargarse cuando hay una versión nueva.
+const APP_BUILD = process.env.RAILWAY_GIT_COMMIT_SHA || String(Date.now());
+app.get('/api/health', (req, res) => res.json({ ok: true, ts: new Date().toISOString(), build: APP_BUILD }));
 
 // ── Interruptor de emergencia (Notion → 🔐 Panel de Seguridad) ──
 // Bloquea TODA la API (incluido login) si la casilla está marcada en Notion.

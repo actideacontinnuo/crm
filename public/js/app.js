@@ -369,9 +369,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     return;
   }
 
-  // Verificar sesión primero
+  // Verificar sesión primero — y descartar tokens corruptos (caracteres
+  // inválidos rompen el header HTTP con errores 'ByteString')
   const user = sesionActual();
-  if (!user || !localStorage.getItem('crm_token')) {
+  let token = localStorage.getItem('crm_token');
+  if (token && !_tokenValido(token)) {
+    localStorage.removeItem('crm_token');
+    localStorage.removeItem('crm_user');
+    token = null;
+  }
+  if (!user || !token) {
     mostrarLogin();
     return;
   }
@@ -549,3 +556,26 @@ function _getSearchPanel() {
   }
   return panel;
 }
+
+
+// ══════════════════════════════════════
+// AUTO-ACTUALIZACIÓN — si el servidor tiene una versión nueva, la pestaña
+// se recarga sola (al volver a la pestaña y cada 5 minutos). Evita que una
+// pestaña abierta se quede ejecutando código viejo después de un deploy.
+// ══════════════════════════════════════
+let _appBuild = null;
+async function _checarVersion() {
+  try {
+    const r = await fetch('/api/health', { cache: 'no-store' });
+    const j = await r.json();
+    if (!j.build) return;
+    if (_appBuild === null) { _appBuild = j.build; return; }
+    if (j.build !== _appBuild) {
+      _appBuild = j.build; // evita bucles de recarga
+      window.location.reload();
+    }
+  } catch {}
+}
+_checarVersion();
+setInterval(_checarVersion, 5 * 60 * 1000);
+window.addEventListener('focus', _checarVersion);

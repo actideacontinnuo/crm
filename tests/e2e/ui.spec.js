@@ -208,3 +208,20 @@ test.describe('Seguridad Visual', () => {
     await expect(page.locator('.sidebar:has-text("Respaldo")')).not.toBeVisible();
   });
 });
+
+test.describe('Regresión: token de sesión corrupto', () => {
+  test('un token con caracteres inválidos se descarta y muestra el login (sin errores ByteString)', async ({ page }) => {
+    await page.goto(BASE_URL);
+    await page.evaluate(() => {
+      localStorage.setItem('crm_token', 'X\u2022corrupto\u2022con\u2022vi\u00f1etas');
+      localStorage.setItem('crm_user', JSON.stringify({ id: 'natalia', role: 'admin' }));
+    });
+    const erroresJS = [];
+    page.on('pageerror', e => erroresJS.push(e.message));
+    await page.reload();
+    await expect(page.locator('#login-screen')).toBeVisible({ timeout: 8000 });
+    const token = await page.evaluate(() => localStorage.getItem('crm_token'));
+    expect(token).toBeNull();
+    expect(erroresJS.filter(m => /ByteString/i.test(m))).toHaveLength(0);
+  });
+});

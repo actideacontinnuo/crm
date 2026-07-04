@@ -76,6 +76,14 @@ async function analizarDoc(tipo, input) {
     _docState[tipo] = true;
 
   } catch (err) {
+    // Token de sesión corrupto en el navegador: limpiar y pedir login de nuevo
+    if (/ByteString/i.test(err.message || '')) {
+      localStorage.removeItem('crm_token');
+      localStorage.removeItem('crm_user');
+      alert('Tu sesión estaba dañada y fue reiniciada. Vuelve a iniciar sesión.');
+      window.location.reload();
+      return;
+    }
     area.innerHTML = icoHTML('x',12) + ' Error al analizar';
     area.style.borderColor = 'var(--red)';
     status.style.color = 'var(--red)';
