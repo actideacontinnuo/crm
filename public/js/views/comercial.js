@@ -3,6 +3,10 @@
 // (Copia de Actidea CRM offline), alimentada con datos reales de Notion.
 // ══════════════════════════════════════
 
+// Periodo de la vista comercial: mes | tri | anual
+window._comPeriodo = window._comPeriodo || 'mes';
+function setComPeriodo(p) { window._comPeriodo = p; renderComercial(); }
+
 async function renderComercial() {
   const root = document.getElementById('view-comercial');
   if (!root) return;
@@ -29,20 +33,26 @@ async function renderComercial() {
     } catch {}
   }
 
+  const periodo = window._comPeriodo;
+  const rangos  = _rangosPeriodo(periodo);
+  const factor  = { mes: 1, tri: 3, anual: 12 }[periodo];
+  objetivoEjec *= factor;
+  // OPs ejecutadas del periodo (por fecha de evento); si no tiene fecha, cuenta solo en ANUAL
+  const enPeriodo = o => periodo === 'anual' ? (!o.fechaEvento || _enRango(o.fechaEvento, rangos.actual)) : _enRango(o.fechaEvento, rangos.actual);
   const nombres = [...new Set([...ops.map(o => o.ejec), ...prospectos.map(p => p.ejec)].filter(Boolean))];
   const data = nombres.map(name => {
     const ejs     = ops.filter(o => o.ejec === name);
-    const cerrado = ejs.filter(o => o.status === 'Ejecutado').reduce((a, o) => a + (o.cotizado || 0), 0);
+    const cerrado = ejs.filter(o => o.status === 'Ejecutado' && enPeriodo(o)).reduce((a, o) => a + (o.cotizado || 0), 0);
     const activo  = ejs.filter(o => o.status === 'En Producción').reduce((a, o) => a + (o.cotizado || 0), 0);
-    const util    = ejs.filter(o => o.status === 'Ejecutado').reduce((a, o) => a + (o.utilidad || 0), 0);
+    const util    = ejs.filter(o => o.status === 'Ejecutado' && enPeriodo(o)).reduce((a, o) => a + (o.utilidad || 0), 0);
     const prosp   = prospectos.filter(p => p.ejec === name);
     const pipe    = prosp.reduce((a, p) => a + (parseFloat(p.estimado) || 0), 0);
     const cierre  = ejs.length ? Math.round(ejs.filter(o => o.status === 'Ejecutado').length / ejs.length * 100) : 0;
     return { name, short: name.split(' ')[0], color: ejecColor(name), cerrado, activo, util, pipe, objetivo: objetivoEjec, cierre, nProsp: prosp.length };
   }).sort((a, b) => (b.cerrado + b.activo) - (a.cerrado + a.activo));
 
-  root.innerHTML = phHTML('INTELIGENCIA COMERCIAL', 'Comercial / Reportes', 'Desempeño por ejecutivo · Real vs. objetivo',
-    `<div class="vsel"><button class="vsel-btn active">MES</button></div>`)
+  root.innerHTML = phHTML('INTELIGENCIA COMERCIAL', 'Comercial / Reportes', 'Desempeño por ejecutivo · Real vs. objetivo · ' + rangos.label,
+    `<div class="vsel"><button class="vsel-btn ${periodo==='mes'?'active':''}" onclick="setComPeriodo('mes')">MES</button><button class="vsel-btn ${periodo==='tri'?'active':''}" onclick="setComPeriodo('tri')">TRIMESTRE</button><button class="vsel-btn ${periodo==='anual'?'active':''}" onclick="setComPeriodo('anual')">AÑO</button></div>`)
   + (!data.length
     ? `<div class="panel"><div class="panel-body"><div class="kpi-bar-meta" style="padding:14px 0">SIN DATOS DE EJECUTIVOS TODAVÍA — CREA OPs Y PROSPECTOS PARA VER EL REPORTE</div></div></div>`
     : `<div class="grid2" style="margin-bottom:20px">

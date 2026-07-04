@@ -20,7 +20,7 @@ async function analizarDoc(tipo, input) {
   try {
     const res  = await fetch(`/api/vision/${tipo}`, {
       method: 'POST',
-      headers: { 'Authorization': 'Bearer ' + localStorage.getItem('crm_token') },
+      headers: _authHeaders(), // valida y descarta tokens corruptos
       body: form,
     });
     const json = await res.json();

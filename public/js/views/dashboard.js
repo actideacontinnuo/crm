@@ -37,6 +37,36 @@ function phHTML(eye, title, sub, actions) {
 
 if (!window._acCharts) window._acCharts = {};
 
+// ── Periodo del dashboard: mes | tri | anual ──
+window._dashPeriodo = window._dashPeriodo || 'mes';
+function setDashPeriodo(p) { window._dashPeriodo = p; renderDashboard(); }
+
+// Rango [desde, hasta) del periodo actual y del anterior, como strings YYYY-MM-DD
+function _rangosPeriodo(periodo) {
+  const hoy = new Date(); const y = hoy.getFullYear(); const m = hoy.getMonth();
+  const iso = d => d.toISOString().slice(0, 10);
+  if (periodo === 'anual') return {
+    actual: [iso(new Date(y, 0, 1)), iso(new Date(y + 1, 0, 1))],
+    previo: [iso(new Date(y - 1, 0, 1)), iso(new Date(y, 0, 1))],
+    label: String(y),
+  };
+  if (periodo === 'tri') {
+    const q = Math.floor(m / 3);
+    return {
+      actual: [iso(new Date(y, q * 3, 1)), iso(new Date(y, q * 3 + 3, 1))],
+      previo: [iso(new Date(y, q * 3 - 3, 1)), iso(new Date(y, q * 3, 1))],
+      label: 'Q' + (q + 1) + ' ' + y,
+    };
+  }
+  return {
+    actual: [iso(new Date(y, m, 1)), iso(new Date(y, m + 1, 1))],
+    previo: [iso(new Date(y, m - 1, 1)), iso(new Date(y, m, 1))],
+    label: hoy.toLocaleDateString('es-MX', { month: 'long', year: 'numeric' }).toUpperCase(),
+  };
+}
+function _enRango(fecha, rango) { return !!fecha && fecha >= rango[0] && fecha < rango[1]; }
+
+
 // Exportar OPs del dashboard a CSV (equivalente real del botón Exportar de la referencia)
 function exportarDashboardCSV() {
   db.ops.list().then(ops => {
@@ -94,19 +124,22 @@ async function renderDashboard() {
       obj = await API.get('/objetivos/' + mes) || {};
     } catch {}
   }
-  const METAS = { ventas: obj.cotizado || 3000000, produccion: 8000000, pipeline: obj.pipeline || 18000000 };
+  const factor = { mes: 1, tri: 3, anual: 12 }[window._dashPeriodo];
+  const METAS = { ventas: (obj.cotizado || 3000000) * factor, produccion: 8000000, pipeline: obj.pipeline || 18000000 };
 
-  // Delta real vs mes anterior (ventas ejecutadas por fecha de evento)
-  const mesDe = f => (f || '').slice(0, 7);
-  const ahora = new Date();
-  const mesActual   = ahora.toISOString().slice(0, 7);
-  const mesAnterior = new Date(ahora.getFullYear(), ahora.getMonth() - 1, 15).toISOString().slice(0, 7);
-  const vMes  = ejecutadas.filter(o => mesDe(o.fechaEvento) === mesActual).reduce((a, o) => a + (o.cotizado || 0), 0);
-  const vPrev = ejecutadas.filter(o => mesDe(o.fechaEvento) === mesAnterior).reduce((a, o) => a + (o.cotizado || 0), 0);
-  const delta = vPrev ? Math.round((vMes - vPrev) / vPrev * 100) : null;
+  // Ventas ejecutadas del PERIODO seleccionado (mes/tri/anual) y comparativa vs periodo anterior
+  const periodo = window._dashPeriodo;
+  const rangos  = _rangosPeriodo(periodo);
+  // Sin fecha de evento: cuentan en la vista ANUAL (para no perder ventas), no en mes/tri
+  const _cuenta = o => periodo === 'anual' ? (!o.fechaEvento || _enRango(o.fechaEvento, rangos.actual)) : _enRango(o.fechaEvento, rangos.actual);
+  const ejecPeriodo = ejecutadas.filter(_cuenta);
+  const ventasPeriodo = ejecPeriodo.reduce((a, o) => a + (o.cotizado || 0), 0);
+  const ventasPrevio  = ejecutadas.filter(o => _enRango(o.fechaEvento, rangos.previo)).reduce((a, o) => a + (o.cotizado || 0), 0);
+  const sinFecha = ejecutadas.filter(o => !o.fechaEvento).length;
+  const delta = ventasPrevio ? Math.round((ventasPeriodo - ventasPrevio) / ventasPrevio * 100) : null;
   const deltaHTML = delta === null
-    ? `<div class="kpi-delta up">${ejecutadas.length} OPs ejecutadas</div>`
-    : `<div class="kpi-delta ${delta >= 0 ? 'up' : 'down'}">${icoHTML('arrowup')} ${delta >= 0 ? '+' : ''}${delta}% vs mes anterior</div>`;
+    ? `<div class="kpi-delta up">${ejecPeriodo.length} OPs en el periodo${sinFecha ? ' · ' + sinFecha + ' sin fecha' : ''}</div>`
+    : `<div class="kpi-delta ${delta >= 0 ? 'up' : 'down'}">${icoHTML('arrowup')} ${delta >= 0 ? '+' : ''}${delta}% vs periodo anterior</div>`;
 
   const kpiBar = (a, b, col) => {
     const p = Math.min(Math.round(a / b * 100), 100);
@@ -132,10 +165,10 @@ async function renderDashboard() {
     ? actividad.map(a => `<div class="feed-row"><div class="feed-dot ${a.ico}"></div><div style="flex:1"><div style="font-size:12.5px"><strong>${esc(a.who)}</strong> ${esc(a.act)} <span style="color:var(--gray600)">${esc(a.obj)}</span></div><div class="kpi-bar-meta" style="margin-top:2px">${esc(a.time)}</div></div></div>`).join('')
     : `<div class="kpi-bar-meta" style="padding:8px 0">SIN ACTIVIDAD RECIENTE</div>`;
 
-  root.innerHTML = phHTML('PANORAMA · ' + hoy, 'Dashboard', 'Resumen ejecutivo del mes en curso',
+  root.innerHTML = phHTML('PANORAMA · ' + rangos.label, 'Dashboard', 'Resumen ejecutivo del periodo seleccionado',
     `<button class="btn btn-ghost btn-sm" onclick="exportarDashboardCSV()">${icoHTML('download')} Exportar</button><button class="btn btn-primary btn-sm" onclick="openM('nueva-op')">${icoHTML('plus')} Nueva OP</button>`)
   + `<div class="kpis">
-      <div class="kpi" style="--accent:var(--red);--accent-dim:var(--red-dim)"><div class="kpi-top"><div class="kpi-label">VENTAS EJECUTADAS</div><div class="kpi-ico">${icoHTML('chart')}</div></div><div class="kpi-value kv-red">${fmxK(ejecutado)}</div>${deltaHTML}${kpiBar(ejecutado, METAS.ventas, 'red')}</div>
+      <div class="kpi" style="--accent:var(--red);--accent-dim:var(--red-dim)"><div class="kpi-top"><div class="kpi-label">VENTAS EJECUTADAS</div><div class="kpi-ico">${icoHTML('chart')}</div></div><div class="kpi-value kv-red">${fmxK(ventasPeriodo)}</div>${deltaHTML}${kpiBar(ventasPeriodo, METAS.ventas, 'red')}</div>
       <div class="kpi" style="--accent:var(--amber);--accent-dim:var(--amber-dim)"><div class="kpi-top"><div class="kpi-label">OPs ACTIVAS</div><div class="kpi-ico">${icoHTML('box')}</div></div><div class="kpi-value kv-amber">${opsActivas.length}</div><div class="kpi-delta">${fmxK(totalCotizado)} en producción</div>${kpiBar(totalCotizado, METAS.produccion, 'amber')}</div>
       <div class="kpi" style="--accent:var(--green);--accent-dim:var(--green-dim)"><div class="kpi-top"><div class="kpi-label">PIPELINE PROSPECTOS</div><div class="kpi-ico">${icoHTML('target')}</div></div><div class="kpi-value kv-green">${fmxK(pipeline)}</div><div class="kpi-delta up">${prospectos.length} oportunidades</div>${kpiBar(pipeline, METAS.pipeline, 'green')}</div>
     </div>
@@ -147,7 +180,7 @@ async function renderDashboard() {
     <div class="dash-grid">
       <div class="col-stack">
         <div class="panel">
-          <div class="panel-hdr"><div class="panel-title"><span class="dot"></span>TENDENCIA DE VENTAS · ${ahora.getFullYear()}</div><div class="vsel"><button class="vsel-btn active">MENSUAL</button></div></div>
+          <div class="panel-hdr"><div class="panel-title"><span class="dot"></span>TENDENCIA DE VENTAS · ${new Date().getFullYear()}</div><div class="vsel"><button class="vsel-btn ${periodo==='mes'?'active':''}" onclick="setDashPeriodo('mes')">MENSUAL</button><button class="vsel-btn ${periodo==='tri'?'active':''}" onclick="setDashPeriodo('tri')">TRIMESTRAL</button><button class="vsel-btn ${periodo==='anual'?'active':''}" onclick="setDashPeriodo('anual')">ANUAL</button></div></div>
           <div class="panel-body"><div class="chart-box"><canvas id="ch-trend"></canvas></div></div>
         </div>
         <div class="panel">
@@ -174,14 +207,14 @@ async function renderDashboard() {
             }).join('') : `<div class="kpi-bar-meta" style="padding:8px 0">✓ SIN COBROS PENDIENTES</div>`
           }</div>
         </div>
-        <div class="panel">
-          <div class="panel-hdr"><div class="panel-title"><span class="dot"></span>ACTIVIDAD RECIENTE</div></div>
+        ${user?.role === 'admin' ? `<div class="panel">
+          <div class="panel-hdr"><div class="panel-title"><span class="dot"></span>ACTIVIDAD RECIENTE</div><span class="kpi-bar-meta">SOLO DIRECCIÓN</span></div>
           <div class="panel-body">${actividadHTML}</div>
-        </div>
+        </div>` : ''}
       </div>
     </div>`;
 
-  drawTrend(ejecutadas, METAS.ventas);
+  drawTrend(ejecutadas, (obj.cotizado || 3000000), periodo);
 }
 
 function rankingHTML(ops) {
@@ -196,17 +229,33 @@ function rankingHTML(ops) {
   return data.map((d, i) => `<div class="rank-row"><div class="rank-pos ${i === 0 ? 'top' : ''}">${i + 1}</div>${avatarHTML(d.name, 34)}<div style="flex:1"><div style="display:flex;justify-content:space-between;margin-bottom:5px"><span style="font-size:13px;font-weight:600">${esc(d.short)}</span><span class="mono" style="font-size:12px;font-weight:700;color:${d.color}">${fmxK(d.total)}</span></div><div class="prog"><div class="prog-fill" style="width:${Math.round(d.total / max * 100)}%;background:linear-gradient(90deg,${d.color},${d.color}cc)"></div></div></div></div>`).join('');
 }
 
-function drawTrend(ejecutadas, metaMensual) {
+function drawTrend(ejecutadas, metaMensual, periodo) {
   const ctx = document.getElementById('ch-trend');
   if (!ctx || !window.Chart) return;
   if (window._acCharts.trend) window._acCharts.trend.destroy();
-  const labels = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'];
   const anio = new Date().getFullYear();
-  const ventas = labels.map((_, i) => {
-    const mes = `${anio}-${String(i + 1).padStart(2, '0')}`;
-    return ejecutadas.filter(o => (o.fechaEvento || '').slice(0, 7) === mes).reduce((a, o) => a + (o.cotizado || 0), 0) / 1e6;
-  });
-  const meta = labels.map(() => metaMensual / 1e6);
+  const suma = (desde, hasta) => ejecutadas
+    .filter(o => o.fechaEvento && o.fechaEvento >= desde && o.fechaEvento < hasta)
+    .reduce((a, o) => a + (o.cotizado || 0), 0) / 1e6;
+  let labels, ventas, metaVal;
+  if (periodo === 'anual') {
+    labels = [anio - 2, anio - 1, anio].map(String);
+    ventas = labels.map(y => suma(`${y}-01-01`, `${+y + 1}-01-01`));
+    metaVal = metaMensual * 12 / 1e6;
+  } else if (periodo === 'tri') {
+    labels = ['Q1', 'Q2', 'Q3', 'Q4'];
+    ventas = [0, 3, 6, 9].map(m0 => suma(
+      `${anio}-${String(m0 + 1).padStart(2, '0')}-01`,
+      m0 + 4 > 12 ? `${anio + 1}-01-01` : `${anio}-${String(m0 + 4).padStart(2, '0')}-01`));
+    metaVal = metaMensual * 3 / 1e6;
+  } else {
+    labels = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'];
+    ventas = labels.map((_, i) => suma(
+      `${anio}-${String(i + 1).padStart(2, '0')}-01`,
+      i + 2 > 12 ? `${anio + 1}-01-01` : `${anio}-${String(i + 2).padStart(2, '0')}-01`));
+    metaVal = metaMensual / 1e6;
+  }
+  const meta = labels.map(() => metaVal);
   const g = ctx.getContext('2d');
   const grad = g.createLinearGradient(0, 0, 0, 230);
   grad.addColorStop(0, 'rgba(204,34,0,.22)'); grad.addColorStop(1, 'rgba(204,34,0,0)');

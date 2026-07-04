@@ -148,7 +148,7 @@ async function doForzarCambioPassword() {
   try {
     const r = await fetch('/api/auth/cambiar-password', {
       method: 'POST',
-      headers: { 'Authorization': 'Bearer ' + localStorage.getItem('crm_token'), 'Content-Type': 'application/json' },
+      headers: _authHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({ passwordActual: actual, passwordNuevo: nueva }),
     });
     const data = await r.json();
@@ -322,7 +322,7 @@ async function guardarObjetivos() {
     const token = localStorage.getItem('crm_token');
     const r = await fetch(`/api/objetivos/${mes}`, {
       method: 'PUT',
-      headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+      headers: _authHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify(body),
     });
     if (!r.ok) throw new Error();
