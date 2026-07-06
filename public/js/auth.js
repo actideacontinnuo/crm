@@ -334,10 +334,11 @@ async function guardarObjetivos() {
       body: JSON.stringify(body),
     });
     if (!r.ok) throw new Error();
-    toast('✓ Objetivos guardados — el dashboard ya los refleja');
+    const j = await r.json();
+    toast('✓ Objetivos guardados — sincronizados en toda la plataforma');
     closeM('objetivos');
-    db.invalidate('ops', 'prospectos');
-    renderDashboard();
+    // El store propaga el cambio a Dashboard, Comercial y otras pestañas
+    ObjetivosStore.set(mes, j.objetivos);
   } catch {
     toast('Error al guardar objetivos', 'red');
   }

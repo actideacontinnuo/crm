@@ -402,6 +402,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     hideSpinner();
   }
   nav('dashboard');
+  generarNotificaciones();
 });
 
 // ══════════════════════════════════════
@@ -579,3 +580,89 @@ async function _checarVersion() {
 _checarVersion();
 setInterval(_checarVersion, 5 * 60 * 1000);
 window.addEventListener('focus', _checarVersion);
+
+// ══════════════════════════════════════
+// OBJETIVOS — FUENTE ÚNICA SINCRONIZADA
+// Un solo lugar guarda los objetivos del mes. Cualquier cambio (guardar en el
+// modal, otra pestaña, otro usuario) se propaga automáticamente a todas las
+// vistas que los usan (Dashboard, Comercial/Reportes) sin recargar.
+// ══════════════════════════════════════
+const ObjetivosStore = {
+  _cache: {},
+  _subs: [],
+  mesActual() { return new Date().toISOString().slice(0, 7); },
+  subscribe(fn) { this._subs.push(fn); },
+  _emit(mes) { this._subs.forEach(fn => { try { fn(mes, this._cache[mes]); } catch {} }); },
+
+  // Lee (con caché). Las vistas siempre pasan por aquí — nunca por la API directo.
+  async load(mes) {
+    if (this._cache[mes]) return this._cache[mes];
+    try { this._cache[mes] = await API.get('/objetivos/' + mes) || {}; }
+    catch { this._cache[mes] = this._cache[mes] || {}; }
+    return this._cache[mes];
+  },
+
+  // Escribe en el store y avisa a todos (vistas de esta pestaña + otras pestañas)
+  set(mes, data, opts = {}) {
+    const habia = mes in this._cache;
+    const antes = JSON.stringify(this._cache[mes] || null);
+    this._cache[mes] = data || {};
+    if (!habia || antes === JSON.stringify(this._cache[mes])) return; // sin cambio real
+    this._emit(mes);
+    if (opts.broadcast !== false) {
+      try { localStorage.setItem('crm_obj_sync', JSON.stringify({ mes, data: this._cache[mes], t: Date.now() })); } catch {}
+    }
+  },
+
+  // Re-consulta el servidor (cambios hechos por OTROS usuarios)
+  async refresh(mes) {
+    mes = mes || this.mesActual();
+    try {
+      const nuevo = await API.get('/objetivos/' + mes) || {};
+      this.set(mes, nuevo, { broadcast: false });
+    } catch {}
+  },
+};
+
+// Sincronización entre pestañas del mismo navegador (instantánea)
+window.addEventListener('storage', e => {
+  if (e.key === 'crm_obj_sync' && e.newValue) {
+    try { const { mes, data } = JSON.parse(e.newValue); ObjetivosStore.set(mes, data, { broadcast: false }); } catch {}
+  }
+});
+
+// Sincronización con otros usuarios: al volver a la pestaña y cada 60 segundos
+setInterval(() => { if (sesionActual()) ObjetivosStore.refresh(); }, 60 * 1000);
+window.addEventListener('focus', () => { if (sesionActual()) ObjetivosStore.refresh(); });
+
+// Cuando los objetivos cambian: re-render automático de la vista activa + aviso
+ObjetivosStore.subscribe(() => {
+  _pushNotif('Los objetivos del mes fueron actualizados');
+  const vista = document.querySelector('.view.active')?.id;
+  if (vista === 'view-dashboard' && typeof renderDashboard === 'function') renderDashboard();
+  if (vista === 'view-comercial' && typeof renderComercial === 'function') renderComercial();
+});
+
+// ══════════════════════════════════════
+// NOTIFICACIONES — generadas desde los datos reales
+// Cobros vencidos, seguimientos de HOY y eventos en los próximos 7 días.
+// Se revisan al iniciar sesión y cada 5 minutos (sin duplicar avisos).
+// ══════════════════════════════════════
+const _notifClaves = new Set();
+async function generarNotificaciones() {
+  if (!sesionActual()) return;
+  const add = (clave, texto) => { if (_notifClaves.has(clave)) return; _notifClaves.add(clave); _pushNotif(texto); };
+  try {
+    const [prospectos, ops] = await Promise.all([db.prospectos.list(), db.ops.list()]);
+    const pagos = await db.pagos.list().catch(() => []); // ejecutivos no ven pagos
+    const hoy = new Date().toISOString().slice(0, 10);
+    const en7 = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10);
+    pagos.filter(p => p.status === 'Vencido')
+      .forEach(p => add('pago-' + p.id, 'Cobro vencido: ' + p.concepto + ' (' + fmx(p.monto) + ')'));
+    prospectos.filter(p => p.seguimiento === hoy)
+      .forEach(p => add('seg-' + p.id + '-' + hoy, 'Seguimiento HOY: ' + p.empresa + ' · ' + (p.ejec || '')));
+    ops.filter(o => o.status === 'En Producción' && o.fechaEvento && o.fechaEvento >= hoy && o.fechaEvento <= en7)
+      .forEach(o => add('op-' + o.id, 'Evento próximo: ' + o.numero + ' · ' + o.desc + ' (' + o.fechaEvento + ')'));
+  } catch {}
+}
+setInterval(generarNotificaciones, 5 * 60 * 1000);

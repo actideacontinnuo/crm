@@ -25,8 +25,7 @@ async function renderComercial() {
   // Objetivo por ejecutivo: del módulo de Objetivos (visible para todo el equipo)
   let objetivoEjec = 2500000;
   try {
-    const mes = new Date().toISOString().slice(0, 7);
-    const obj = await API.get('/objetivos/' + mes);
+    const obj = await ObjetivosStore.load(ObjetivosStore.mesActual());
     if (obj?.objetivoEjecutivo) objetivoEjec = obj.objetivoEjecutivo;
   } catch {}
 

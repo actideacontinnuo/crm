@@ -118,10 +118,7 @@ async function renderDashboard() {
   // Metas: del módulo de Objetivos (visibles para todo el equipo); defaults si no hay
   let obj = {};
   const user = sesionActual();
-  try {
-    const mes = new Date().toISOString().slice(0, 7);
-    obj = await API.get('/objetivos/' + mes) || {};
-  } catch {}
+  try { obj = await ObjetivosStore.load(ObjetivosStore.mesActual()); } catch {}
   const factor = { mes: 1, tri: 3, anual: 12 }[window._dashPeriodo];
   const METAS = {
     ventas:     (obj.metaVentas     || 3000000) * factor,
