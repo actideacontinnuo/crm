@@ -140,6 +140,47 @@ describe('POST /api/auth/usuarios/:id/activar', () => {
   });
 });
 
+describe('set-password (asignar contraseña directa)', () => {
+  test('admin asigna una contraseña elegida y el usuario entra con ella', async () => {
+    mockNotion.addEjecUser(); // alexia
+    const res = await request(app).post('/api/auth/usuarios/alexia/set-password')
+      .set('Authorization', `Bearer ${adminToken()}`)
+      .send({ password: 'ClaveElegida2026!', forzarCambio: false });
+    expect(res.status).toBe(200);
+    const login = await request(app).post('/api/auth/login')
+      .send({ usuario: 'alexia', password: 'ClaveElegida2026!' });
+    expect(login.status).toBe(200);
+    expect(login.body.mustChangePassword).toBe(false);
+  });
+
+  test('forzarCambio por defecto (true) marca cambio obligatorio', async () => {
+    mockNotion.addEjecUser();
+    await request(app).post('/api/auth/usuarios/alexia/set-password')
+      .set('Authorization', `Bearer ${adminToken()}`).send({ password: 'OtraClave2026!' });
+    const login = await request(app).post('/api/auth/login')
+      .send({ usuario: 'alexia', password: 'OtraClave2026!' });
+    expect(login.body.mustChangePassword).toBe(true);
+  });
+
+  test('contraseña débil → 400', async () => {
+    const res = await request(app).post('/api/auth/usuarios/natalia/set-password')
+      .set('Authorization', `Bearer ${adminToken()}`).send({ password: '123' });
+    expect(res.status).toBe(400);
+  });
+
+  test('no-admin no puede asignar contraseñas (403)', async () => {
+    const res = await request(app).post('/api/auth/usuarios/natalia/set-password')
+      .set('Authorization', `Bearer ${ejecToken()}`).send({ password: 'ClaveValida2026!' });
+    expect(res.status).toBe(403);
+  });
+
+  test('usuario inexistente → 404', async () => {
+    const res = await request(app).post('/api/auth/usuarios/fantasma/set-password')
+      .set('Authorization', `Bearer ${adminToken()}`).send({ password: 'ClaveValida2026!' });
+    expect(res.status).toBe(404);
+  });
+});
+
 describe('resetear-password y desbloquear', () => {
   test('resetear password de usuario inexistente → 404', async () => {
     const res = await request(app).post('/api/auth/usuarios/fantasma/resetear-password')

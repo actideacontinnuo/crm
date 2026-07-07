@@ -414,7 +414,8 @@ async function abrirGestionUsuarios() {
         </div>
         <div style="display:flex;gap:6px">
           ${u.bloqueado ? `<button class="btn btn-ghost btn-xs" onclick="desbloquearUsuario('${esc(u.id)}')">Desbloquear</button>` : ''}
-          <button class="btn btn-ghost btn-xs" onclick="resetearPassword('${esc(u.id)}','${esc(u.nombre)}')">${icoHTML('key',11)} Resetear contraseña</button>
+          <button class="btn btn-primary btn-xs" onclick="abrirAsignarPassword('${esc(u.id)}','${esc(u.nombre)}')">${icoHTML('key',11)} Asignar contraseña</button>
+          <button class="btn btn-ghost btn-xs" onclick="resetearPassword('${esc(u.id)}','${esc(u.nombre)}')" title="Genera una temporal al azar">Temporal</button>
           ${u.activo === false
             ? `<button class="btn btn-ghost btn-xs" onclick="toggleActivoUsuario('${esc(u.id)}', true)">Reactivar</button>`
             : `<button class="btn btn-ghost btn-xs" style="color:var(--red)" onclick="toggleActivoUsuario('${esc(u.id)}', false)">Desactivar</button>`}
@@ -423,6 +424,50 @@ async function abrirGestionUsuarios() {
     mostrarDescripcionRol();
   } catch (e) {
     document.getElementById('gu-lista').innerHTML = '<div style="padding:12px;color:var(--red);font-size:12px">Error al cargar usuarios</div>';
+  }
+}
+
+
+// ── Asignar contraseña directamente (la forma más fácil: Natalia la escribe) ──
+function _sugerirPassword() {
+  const pal = ['Sol','Luna','Mar','Rio','Cielo','Roca','Luz','Nube','Brisa','Monte'];
+  const a = pal[Math.floor(Math.random()*pal.length)];
+  const b = pal[Math.floor(Math.random()*pal.length)];
+  const n = Math.floor(1000 + Math.random()*9000);
+  const sim = '!@#$%&'[Math.floor(Math.random()*6)];
+  const pw = `${a}${b}${n}${sim}`; // ej: SolMar4821! — cumple la política
+  const inp = document.getElementById('ap-pass'); if (inp) { inp.value = pw; inp.type = 'text'; }
+}
+
+function abrirAsignarPassword(usuarioId, nombre) {
+  const el = document.getElementById('gu-resultado');
+  el.style.display = 'block';
+  el.innerHTML = `
+    <div style="font-size:11px;color:var(--gray400);margin-bottom:8px;font-family:'JetBrains Mono',monospace">NUEVA CONTRASEÑA PARA ${esc(nombre.toUpperCase())}</div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <input class="fi" id="ap-pass" type="text" placeholder="mínimo 12 caracteres" style="flex:1;min-width:180px">
+      <button class="btn btn-ghost btn-xs" onclick="_sugerirPassword()">Sugerir una</button>
+      <button class="btn btn-primary btn-xs" onclick="guardarAsignarPassword('${esc(usuarioId)}','${esc(nombre).replace(/'/g,"")}')">Guardar</button>
+    </div>
+    <label style="display:flex;align-items:center;gap:7px;margin-top:10px;font-size:12px;cursor:pointer">
+      <input type="checkbox" id="ap-forzar" checked> Pedirle que la cambie en su primer ingreso
+    </label>
+    <div style="font-size:11px;color:var(--gray400);margin-top:6px">Debe tener mayúscula, minúscula, número y símbolo. Escríbela o usa "Sugerir una", y compártela con la persona.</div>`;
+}
+
+async function guardarAsignarPassword(usuarioId, nombre) {
+  const password = document.getElementById('ap-pass')?.value || '';
+  const forzarCambio = !!document.getElementById('ap-forzar')?.checked;
+  try {
+    await API.post(`/auth/usuarios/${usuarioId}/set-password`, { password, forzarCambio });
+    const el = document.getElementById('gu-resultado');
+    el.innerHTML = `
+      <div style="font-size:11px;color:var(--gray400);margin-bottom:4px;font-family:'JetBrains Mono',monospace">CONTRASEÑA ASIGNADA A ${esc(nombre.toUpperCase())}</div>
+      <div style="font-family:'JetBrains Mono',monospace;font-size:18px;font-weight:700;color:var(--green)">${esc(password)}</div>
+      <div style="font-size:11px;color:var(--gray400);margin-top:6px">Ya puede entrar con esta contraseña. Compártela directamente con la persona.</div>`;
+    toast('✓ Contraseña asignada');
+  } catch (e) {
+    toast(e.message || 'Error al asignar contraseña', 'red');
   }
 }
 

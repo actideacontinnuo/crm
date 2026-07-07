@@ -347,6 +347,28 @@ router.post('/usuarios/:id/resetear-password', authMiddleware, async (req, res) 
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// ── Solo Admin: asignar directamente una contraseña que él elige ──
+// La forma más simple: Natalia escribe la contraseña y se la da a la persona.
+// Sin correos ni códigos temporales. Opcionalmente puede NO forzar el cambio.
+router.post('/usuarios/:id/set-password', authMiddleware, async (req, res) => {
+  if (req.user.role !== 'admin') return res.status(403).json({ error: 'Solo el Admin puede asignar contraseñas' });
+  const { password, forzarCambio } = req.body;
+  const errorPolitica = validatePasswordStrength(password);
+  if (errorPolitica) return res.status(400).json({ error: errorPolitica });
+  try {
+    const user = await findUserById(req.params.id);
+    if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
+    await updatePage(user.pageId, {
+      'PasswordHash': prop_text(bcrypt.hashSync(password, 12)),
+      'DebeCambiarPassword': prop_checkbox(forzarCambio !== false), // por defecto pide cambiarla; si mandan false, no
+      'IntentosFallidos': prop_number(0),
+      'BloqueadoHasta': { date: null },
+    });
+    await logAudit({ usuario: req.user.id, accion: 'password_asignado', entidad: req.params.id, ip: clientIp(req), exito: true });
+    res.json({ ok: true, usuario: user.id });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 router.post('/usuarios/:id/desbloquear', authMiddleware, async (req, res) => {
   if (req.user.role !== 'admin') return res.status(403).json({ error: 'Solo el Admin puede desbloquear cuentas' });
   try {
