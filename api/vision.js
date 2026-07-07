@@ -62,13 +62,15 @@ router.post('/:tipo', upload.single('file'), async (req, res) => {
   if (!PROMPTS[tipo]) return res.status(400).json({ error: 'Tipo inválido. Usa: csf, oc, ec' });
   if (!req.file)      return res.status(400).json({ error: 'No se recibió ningún archivo' });
 
-  const apiKey = (process.env.ANTHROPIC_API_KEY || '').trim();
-  if (!apiKey) return res.status(503).json({ error: 'ANTHROPIC_API_KEY no configurada en .env' });
-  // Una llave pegada con caracteres invisibles/dañados (p. ej. una viñeta •) rompe
-  // la cabecera HTTP hacia Anthropic con un error críptico. La detectamos antes.
-  if (/[^\x00-\xFF]/.test(apiKey)) {
-    return res.status(503).json({ error: 'La llave de la IA (ANTHROPIC_API_KEY) tiene caracteres inválidos. Vuelve a pegarla en Railway (Variables) sin espacios ni saltos de línea.' });
-  }
+  // Limpia la llave de forma robusta: al pegarla en Railway suelen colarse comillas
+  // envolventes, espacios/saltos, o caracteres invisibles (viñetas •) que rompen la
+  // cabecera HTTP. Una llave de Anthropic solo contiene [A-Za-z0-9_-], así que
+  // descartamos todo lo demás y nos quedamos con la llave válida.
+  let apiKey = (process.env.ANTHROPIC_API_KEY || '')
+    .trim()
+    .replace(/^["']+|["']+$/g, '')      // comillas envolventes
+    .replace(/[^A-Za-z0-9_-]/g, '');    // cualquier carácter no válido en la llave
+  if (!apiKey) return res.status(503).json({ error: 'ANTHROPIC_API_KEY no configurada en el servidor' });
 
   try {
     const base64   = req.file.buffer.toString('base64');
