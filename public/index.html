@@ -924,48 +924,47 @@
 
 <!-- MODAL OBJETIVOS -->
 <div class="modal-overlay" id="m-objetivos" onclick="closeM('objetivos')">
-<div class="modal" onclick="event.stopPropagation()" style="width:520px">
+<div class="modal" onclick="event.stopPropagation()" style="width:560px;max-height:90vh;overflow-y:auto">
   <div class="modal-hdr">
     <div><div class="modal-eye">ADMIN · DIRECCIÓN</div><div class="modal-title">Objetivos del Mes</div></div>
     <button class="modal-close" onclick="closeM('objetivos')">✕</button>
   </div>
   <div class="modal-body">
-    <div class="fg" style="margin-bottom:16px">
+    <div class="fg" style="margin-bottom:18px">
       <label class="fl">MES</label>
       <input class="fi" id="obj-mes" type="month" onchange="cargarObjetivosMes()">
     </div>
 
-    <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.1em;color:var(--gray400);margin-bottom:10px">RESULTADOS CLAVE · MXN DEL MES</div>
-    <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:18px">
-      <div class="fg">
-        <label class="fl">META DE VENTAS EJECUTADAS (MXN)</label>
-        <input class="fi" id="obj-metaVentas" type="number" min="0" placeholder="3000000">
-        <div style="font-size:11px;color:var(--gray400);margin-top:3px">Eventos ejecutados en el mes · alimenta el KPI "Ventas Ejecutadas" y la línea Meta de la gráfica</div>
-      </div>
-      <div class="fg">
-        <label class="fl">META DE PRODUCCIÓN ACTIVA (MXN)</label>
-        <input class="fi" id="obj-metaProduccion" type="number" min="0" placeholder="8000000">
-        <div style="font-size:11px;color:var(--gray400);margin-top:3px">Monto cotizado de OPs en producción · alimenta el KPI "OPs Activas"</div>
-      </div>
-      <div class="fg">
-        <label class="fl">META DE PIPELINE DE PROSPECTOS (MXN)</label>
-        <input class="fi" id="obj-metaPipeline" type="number" min="0" placeholder="18000000">
-        <div style="font-size:11px;color:var(--gray400);margin-top:3px">Valor estimado de oportunidades abiertas · alimenta el KPI "Pipeline Prospectos"</div>
+    <!-- CAPA 1 · EMPRESA -->
+    <div style="border-left:3px solid var(--red);padding-left:14px;margin-bottom:20px">
+      <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.1em;color:var(--red);font-weight:700;margin-bottom:3px">CAPA 1 · OBJETIVOS DE LA EMPRESA</div>
+      <div style="font-size:11px;color:var(--gray400);margin-bottom:12px">Qué quiere lograr Actidea este mes · alimenta los KPIs del Dashboard</div>
+      <div style="display:flex;flex-direction:column;gap:11px">
+        <div class="fg"><label class="fl">META DE VENTAS EJECUTADAS (MXN)</label><input class="fi" id="obj-metaVentas" type="number" min="0" placeholder="3000000"></div>
+        <div class="fg"><label class="fl">META DE PRODUCCIÓN ACTIVA (MXN)</label><input class="fi" id="obj-metaProduccion" type="number" min="0" placeholder="8000000"></div>
+        <div class="fgrid">
+          <div class="fg"><label class="fl">PIPELINE PROSPECTOS (MXN)</label><input class="fi" id="obj-metaPipeline" type="number" min="0" placeholder="18000000"></div>
+          <div class="fg"><label class="fl">CLIENTES ACTIVOS (#)</label><input class="fi" id="obj-metaClientes" type="number" min="0" placeholder="12"></div>
+        </div>
       </div>
     </div>
 
-    <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.1em;color:var(--gray400);margin-bottom:10px">KPIs DE EQUIPO</div>
-    <div class="fgrid">
-      <div class="fg">
-        <label class="fl">CLIENTES ACTIVOS (META #)</label>
-        <input class="fi" id="obj-metaClientes" type="number" min="0" placeholder="12">
-        <div style="font-size:11px;color:var(--gray400);margin-top:3px">Cartera activa objetivo</div>
+    <!-- CAPA 2 · DIRECCIÓN -->
+    <div style="border-left:3px solid var(--amber);padding-left:14px;margin-bottom:20px">
+      <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.1em;color:var(--amber);font-weight:700;margin-bottom:3px">CAPA 2 · DIRECCIÓN GENERAL · NATALIA</div>
+      <div style="font-size:11px;color:var(--gray400);margin-bottom:12px">Que el negocio funcione: rentabilidad y cobranza sana</div>
+      <div class="fgrid">
+        <div class="fg"><label class="fl">META DE UTILIDAD (MXN)</label><input class="fi" id="obj-metaUtilidad" type="number" min="0" placeholder="900000"></div>
+        <div class="fg"><label class="fl">META DE COBRANZA DEL MES (MXN)</label><input class="fi" id="obj-metaCobranza" type="number" min="0" placeholder="2500000"></div>
       </div>
-      <div class="fg">
-        <label class="fl">OBJETIVO POR EJECUTIVO (MXN)</label>
-        <input class="fi" id="obj-objetivoEjecutivo" type="number" min="0" placeholder="2500000">
-        <div style="font-size:11px;color:var(--gray400);margin-top:3px">Cierre individual · alimenta Comercial/Reportes</div>
-      </div>
+    </div>
+
+    <!-- CAPA 3 · INDIVIDUALES -->
+    <div style="border-left:3px solid var(--green);padding-left:14px">
+      <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.1em;color:var(--green);font-weight:700;margin-bottom:3px">CAPA 3 · OBJETIVOS INDIVIDUALES</div>
+      <div style="font-size:11px;color:var(--gray400);margin-bottom:12px">Cierre de cada ejecutiva · contribuye directo a la meta de ventas de la empresa</div>
+      <div id="obj-individuales" style="display:flex;flex-direction:column;gap:10px"></div>
+      <div id="obj-coherencia" style="font-family:'JetBrains Mono',monospace;font-size:10px;margin-top:10px;padding:9px 11px;border-radius:8px;background:var(--cream)"></div>
     </div>
   </div>
   <div class="modal-footer">

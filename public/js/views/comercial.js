@@ -22,17 +22,19 @@ async function renderComercial() {
     hideSpinner();
   }
 
-  // Objetivo por ejecutivo: del módulo de Objetivos (visible para todo el equipo)
-  let objetivoEjec = 2500000;
+  // Objetivos: capa 3 individual por ejecutiva; capa 1 meta de ventas empresa
+  let objetivoDefault = 2500000, objIndiv = {}, metaEmpresa = 0;
   try {
     const obj = await ObjetivosStore.load(ObjetivosStore.mesActual());
-    if (obj?.objetivoEjecutivo) objetivoEjec = obj.objetivoEjecutivo;
+    if (obj?.objetivoEjecutivo) objetivoDefault = obj.objetivoEjecutivo;
+    objIndiv = obj?.objetivosIndividuales || {};
+    metaEmpresa = obj?.metaVentas || 0;
   } catch {}
 
   const periodo = window._comPeriodo;
   const rangos  = _rangosPeriodo(periodo);
   const factor  = { mes: 1, tri: 3, anual: 12 }[periodo];
-  objetivoEjec *= factor;
+  const objetivoDe = name => (objIndiv[name] || objetivoDefault) * factor;
   // OPs ejecutadas del periodo (por fecha de evento); si no tiene fecha, cuenta solo en ANUAL
   const enPeriodo = o => periodo === 'anual' ? (!o.fechaEvento || _enRango(o.fechaEvento, rangos.actual)) : _enRango(o.fechaEvento, rangos.actual);
   const nombres = [...new Set([...ops.map(o => o.ejec), ...prospectos.map(p => p.ejec)].filter(Boolean))];
@@ -44,14 +46,22 @@ async function renderComercial() {
     const prosp   = prospectos.filter(p => p.ejec === name);
     const pipe    = prosp.reduce((a, p) => a + (parseFloat(p.estimado) || 0), 0);
     const cierre  = ejs.length ? Math.round(ejs.filter(o => o.status === 'Ejecutado').length / ejs.length * 100) : 0;
-    return { name, short: name.split(' ')[0], color: ejecColor(name), cerrado, activo, util, pipe, objetivo: objetivoEjec, cierre, nProsp: prosp.length };
+    return { name, short: name.split(' ')[0], color: ejecColor(name), cerrado, activo, util, pipe, objetivo: objetivoDe(name), cierre, nProsp: prosp.length };
   }).sort((a, b) => (b.cerrado + b.activo) - (a.cerrado + a.activo));
 
   root.innerHTML = phHTML('INTELIGENCIA COMERCIAL', 'Comercial / Reportes', 'Desempeño por ejecutivo · Real vs. objetivo · ' + rangos.label,
     `<div class="vsel"><button class="vsel-btn ${periodo==='mes'?'active':''}" onclick="setComPeriodo('mes')">MES</button><button class="vsel-btn ${periodo==='tri'?'active':''}" onclick="setComPeriodo('tri')">TRIMESTRE</button><button class="vsel-btn ${periodo==='anual'?'active':''}" onclick="setComPeriodo('anual')">AÑO</button></div>`)
   + (!data.length
     ? `<div class="panel"><div class="panel-body"><div class="kpi-bar-meta" style="padding:14px 0">SIN DATOS DE EJECUTIVOS TODAVÍA — CREA OPs Y PROSPECTOS PARA VER EL REPORTE</div></div></div>`
-    : `<div class="grid2" style="margin-bottom:20px">
+    : `${metaEmpresa ? (() => {
+        const sumaObj = data.reduce((a, d) => a + d.objetivo, 0);
+        const sumaReal = data.reduce((a, d) => a + d.cerrado, 0);
+        const metaP = metaEmpresa * factor;
+        const pctObj = Math.round(sumaObj / metaP * 100);
+        const pctReal = Math.round(sumaReal / metaP * 100);
+        const colObj = pctObj >= 100 ? 'var(--green)' : pctObj >= 80 ? 'var(--amber)' : 'var(--red)';
+        return `<div class="panel" style="margin-bottom:16px"><div class="panel-hdr"><div class="panel-title"><span class="dot"></span>CONTRIBUCIÓN A LA META DE LA EMPRESA</div><span class="kpi-bar-meta">META VENTAS ${fmxK(metaP)}</span></div><div class="panel-body"><div style="display:flex;gap:24px;flex-wrap:wrap"><div style="flex:1;min-width:220px"><div class="kpi-bar-meta">SUMA DE OBJETIVOS INDIVIDUALES</div><div class="mono" style="font-size:20px;font-weight:700;color:${colObj}">${fmxK(sumaObj)} · ${pctObj}%</div><div class="prog" style="margin-top:6px"><div class="prog-fill" style="width:${Math.min(pctObj,100)}%;background:${colObj}"></div></div><div class="kpi-bar-meta" style="margin-top:4px">${pctObj >= 100 ? 'los objetivos cubren la meta ✓' : 'los objetivos NO cubren la meta de la empresa'}</div></div><div style="flex:1;min-width:220px"><div class="kpi-bar-meta">CERRADO REAL DEL EQUIPO</div><div class="mono" style="font-size:20px;font-weight:700;color:var(--green)">${fmxK(sumaReal)} · ${pctReal}%</div><div class="prog" style="margin-top:6px"><div class="prog-fill green" style="width:${Math.min(pctReal,100)}%"></div></div><div class="kpi-bar-meta" style="margin-top:4px">avance real hacia la meta</div></div></div></div></div>`;
+      })() : ''}<div class="grid2" style="margin-bottom:20px">
       <div class="panel"><div class="panel-hdr"><div class="panel-title"><span class="dot"></span>VENTAS POR EJECUTIVO</div></div><div class="panel-body"><div class="chart-box"><canvas id="ch-com"></canvas></div></div></div>
       <div class="panel"><div class="panel-hdr"><div class="panel-title"><span class="dot"></span>CUMPLIMIENTO DE OBJETIVO</div></div><div class="panel-body">${data.map(d => {
         const p = Math.min(Math.round(d.cerrado / d.objetivo * 100), 130);

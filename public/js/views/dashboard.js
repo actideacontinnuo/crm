@@ -125,7 +125,12 @@ async function renderDashboard() {
     produccion: (obj.metaProduccion || 8000000),
     pipeline:   (obj.metaPipeline   || 18000000),
     clientes:   (obj.metaClientes   || 0),
+    utilidad:   (obj.metaUtilidad   || 0) * factor,   // Capa 2 · Dirección
+    cobranza:   (obj.metaCobranza   || 0) * factor,   // Capa 2 · Dirección
   };
+  // Cobrado del mes (para la meta de cobranza de Dirección)
+  const cobradoMes = pagos.filter(p => p.tipo === 'Cobro a cliente' && p.status === 'Pagado')
+    .reduce((a, p) => a + (p.monto || 0), 0);
 
   // Ventas ejecutadas del PERIODO seleccionado (mes/tri/anual) y comparativa vs periodo anterior
   const periodo = window._dashPeriodo;
@@ -173,8 +178,8 @@ async function renderDashboard() {
       <div class="kpi" style="--accent:var(--green);--accent-dim:var(--green-dim)"><div class="kpi-top"><div class="kpi-label">PIPELINE PROSPECTOS</div><div class="kpi-ico">${icoHTML('target')}</div></div><div class="kpi-value kv-green">${fmxK(pipeline)}</div><div class="kpi-delta up">${prospectos.length} oportunidades</div>${kpiBar(pipeline, METAS.pipeline, 'green')}</div>
     </div>
     <div class="kpis" style="margin-bottom:22px">
-      <div class="kpi" style="--accent:var(--red);--accent-dim:var(--red-dim)"><div class="kpi-top"><div class="kpi-label">COBRANZA PENDIENTE</div><div class="kpi-ico" style="background:var(--red-dim);color:var(--red)">${icoHTML('wallet')}</div></div><div class="kpi-value kv-red">${fmxK(totalPend)}</div><div class="kpi-delta ${vencidos ? 'down' : ''}">${vencidos ? icoHTML('alert') + ' ' + vencidos + ' vencidos' : pagosPend.length + ' por cobrar'}</div></div>
-      <div class="kpi" style="--accent:var(--green);--accent-dim:var(--green-dim)"><div class="kpi-top"><div class="kpi-label">UTILIDAD GENERADA</div><div class="kpi-ico" style="background:var(--green-dim);color:var(--green)">${icoHTML('trend')}</div></div><div class="kpi-value kv-green">${fmxK(utilidad)}</div><div class="kpi-delta up">margen prom. ${margen}%</div></div>
+      <div class="kpi" style="--accent:var(--red);--accent-dim:var(--red-dim)"><div class="kpi-top"><div class="kpi-label">COBRANZA PENDIENTE</div><div class="kpi-ico" style="background:var(--red-dim);color:var(--red)">${icoHTML('wallet')}</div></div><div class="kpi-value kv-red">${fmxK(totalPend)}</div><div class="kpi-delta ${vencidos ? 'down' : ''}">${vencidos ? icoHTML('alert') + ' ' + vencidos + ' vencidos' : pagosPend.length + ' por cobrar'}</div>${METAS.cobranza ? kpiBar(cobradoMes, METAS.cobranza, cobradoMes >= METAS.cobranza ? 'green' : 'amber') : ''}</div>
+      <div class="kpi" style="--accent:var(--green);--accent-dim:var(--green-dim)"><div class="kpi-top"><div class="kpi-label">UTILIDAD GENERADA</div><div class="kpi-ico" style="background:var(--green-dim);color:var(--green)">${icoHTML('trend')}</div></div><div class="kpi-value kv-green">${fmxK(utilidad)}</div><div class="kpi-delta up">margen prom. ${margen}%</div>${METAS.utilidad ? kpiBar(utilidad, METAS.utilidad, 'green') : ''}</div>
       <div class="kpi"><div class="kpi-top"><div class="kpi-label">CLIENTES ACTIVOS</div><div class="kpi-ico" style="background:var(--gray50);color:var(--gray600)">${icoHTML('building')}</div></div><div class="kpi-value">${cliActivos}</div><div class="kpi-delta">${clientes.length} en directorio</div>${METAS.clientes ? `<div class="kpi-bar"><div class="kpi-bar-top"><span class="kpi-bar-meta">META ${METAS.clientes}</span><span class="kpi-bar-meta" style="color:${cliActivos >= METAS.clientes ? 'var(--green)' : 'var(--amber)'};font-weight:700">${Math.min(Math.round(cliActivos / METAS.clientes * 100), 100)}%</span></div><div class="prog"><div class="prog-fill ${cliActivos >= METAS.clientes ? 'green' : 'amber'}" style="width:${Math.min(Math.round(cliActivos / METAS.clientes * 100), 100)}%"></div></div></div>` : ''}</div>
     </div>
     <div class="dash-grid">

@@ -28,11 +28,17 @@ beforeEach(() => {
 });
 
 const OBJETIVOS = {
+  // Capa 1 · Empresa
   metaVentas: 3000000,
   metaProduccion: 8000000,
   metaPipeline: 18000000,
   metaClientes: 12,
+  // Capa 2 · Dirección
+  metaUtilidad: 900000,
+  metaCobranza: 2500000,
+  // Capa 3 · Individuales
   objetivoEjecutivo: 2500000,
+  objetivosIndividuales: { Ximena: 2000000, Alexia: 800000 },
 };
 
 describe('Control de acceso', () => {
@@ -121,6 +127,39 @@ describe('GET/PUT objetivos', () => {
     expect(res.body.objetivoEjecutivo).toBe(3000000);
     expect(res.body.metaVentas).toBe(3000000);
     expect(res.body.metaClientes).toBe(12);
+  });
+
+
+  test('las 3 capas se guardan y se leen íntegras', async () => {
+    await request(app).put('/api/objetivos/2026-09')
+      .set('Authorization', `Bearer ${adminToken()}`).send(OBJETIVOS);
+    const res = await request(app).get('/api/objetivos/2026-09')
+      .set('Authorization', `Bearer ${adminToken()}`);
+    // Capa 1
+    expect(res.body.metaVentas).toBe(3000000);
+    expect(res.body.metaClientes).toBe(12);
+    // Capa 2
+    expect(res.body.metaUtilidad).toBe(900000);
+    expect(res.body.metaCobranza).toBe(2500000);
+    // Capa 3
+    expect(res.body.objetivosIndividuales).toEqual({ Ximena: 2000000, Alexia: 800000 });
+  });
+
+  test('objetivos individuales inválidos → 400', async () => {
+    const arr = await request(app).put('/api/objetivos/2026-09')
+      .set('Authorization', `Bearer ${adminToken()}`).send({ objetivosIndividuales: [1, 2] });
+    expect(arr.status).toBe(400);
+    const neg = await request(app).put('/api/objetivos/2026-09')
+      .set('Authorization', `Bearer ${adminToken()}`).send({ objetivosIndividuales: { Ximena: -5 } });
+    expect(neg.status).toBe(400);
+  });
+
+  test('objetivos individuales en cero se descartan (no se guardan)', async () => {
+    await request(app).put('/api/objetivos/2026-10')
+      .set('Authorization', `Bearer ${adminToken()}`).send({ objetivosIndividuales: { Ximena: 1000000, Alexia: 0 } });
+    const res = await request(app).get('/api/objetivos/2026-10')
+      .set('Authorization', `Bearer ${adminToken()}`);
+    expect(res.body.objetivosIndividuales).toEqual({ Ximena: 1000000 });
   });
 
   test('cada mes guarda objetivos independientes', async () => {

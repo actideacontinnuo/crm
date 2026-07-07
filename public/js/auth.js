@@ -292,7 +292,8 @@ async function cambiarPassword() {
 // ══════════════════════════════════════
 // OBJETIVOS (solo admin)
 // ══════════════════════════════════════
-const OBJ_CAMPOS = ['metaVentas', 'metaProduccion', 'metaPipeline', 'metaClientes', 'objetivoEjecutivo'];
+const OBJ_CAMPOS = ['metaVentas', 'metaProduccion', 'metaPipeline', 'metaClientes', 'metaUtilidad', 'metaCobranza'];
+let _objIndividuales = {}; // { nombre: monto } cargado del mes
 
 async function abrirObjetivos() {
   const hoy = new Date();
@@ -301,17 +302,59 @@ async function abrirObjetivos() {
   openM('objetivos');
 }
 
+// Lista de ejecutivas activas (rol ejecutivo) para la Capa 3 — desde usuarios reales
+async function _ejecutivasActivas() {
+  try {
+    const users = await API.get('/auth/usuarios');
+    const ejs = users.filter(u => u.role === 'ejecutivo' && u.activo !== false).map(u => u.ejec || u.nombre);
+    if (ejs.length) return [...new Set(ejs)];
+  } catch {}
+  // fallback: nombres que ya aparecen en OPs/prospectos
+  return (typeof EJEC_LIST !== 'undefined') ? EJEC_LIST.filter(n => n !== 'Natalia Gama') : [];
+}
+
 async function cargarObjetivosMes() {
   const mes = document.getElementById('obj-mes').value;
   if (!mes) return;
   OBJ_CAMPOS.forEach(k => { const el = document.getElementById('obj-' + k); if (el) el.value = ''; });
-  try {
-    const obj = await API.get(`/objetivos/${mes}`);
-    OBJ_CAMPOS.forEach(k => {
-      const el = document.getElementById('obj-' + k);
-      if (el && obj[k]) el.value = obj[k];
-    });
-  } catch {}
+
+  let obj = {};
+  try { obj = await ObjetivosStore.load(mes); } catch {}
+  OBJ_CAMPOS.forEach(k => { const el = document.getElementById('obj-' + k); if (el && obj[k]) el.value = obj[k]; });
+
+  // Capa 3 — construir una fila por ejecutiva
+  _objIndividuales = obj.objetivosIndividuales || {};
+  const ejecutivas = await _ejecutivasActivas();
+  // incluir también cualquier ejecutiva que ya tenga objetivo guardado aunque no esté en la lista
+  Object.keys(_objIndividuales).forEach(n => { if (!ejecutivas.includes(n)) ejecutivas.push(n); });
+
+  const cont = document.getElementById('obj-individuales');
+  cont.innerHTML = ejecutivas.length
+    ? ejecutivas.map(n => `
+      <div style="display:flex;align-items:center;gap:10px">
+        ${avatarHTML(n, 28)}
+        <span style="flex:1;font-size:13px;font-weight:600">${esc(n)}</span>
+        <input class="fi" style="width:170px" type="number" min="0" placeholder="objetivo MXN"
+          data-ejec="${esc(n)}" value="${_objIndividuales[n] || ''}" oninput="_recalcCoherencia()">
+      </div>`).join('')
+    : '<div class="kpi-bar-meta">No hay ejecutivas activas registradas todavía.</div>';
+  _recalcCoherencia();
+}
+
+// Indicador de coherencia: ¿la suma de objetivos individuales cubre la meta de la empresa?
+function _recalcCoherencia() {
+  const meta = parseFloat(document.getElementById('obj-metaVentas')?.value) || 0;
+  let suma = 0;
+  document.querySelectorAll('#obj-individuales input[data-ejec]').forEach(el => { suma += parseFloat(el.value) || 0; });
+  const el = document.getElementById('obj-coherencia');
+  if (!el) return;
+  if (!meta) { el.innerHTML = `<span style="color:var(--gray400)">SUMA INDIVIDUAL: ${fmx(suma)} · define la meta de ventas (Capa 1) para comparar</span>`; return; }
+  const pct = Math.round(suma / meta * 100);
+  const dif = suma - meta;
+  const col = pct >= 100 ? 'var(--green)' : pct >= 80 ? 'var(--amber)' : 'var(--red)';
+  const nota = pct >= 100 ? 'cubre la meta de la empresa ✓'
+    : `faltan ${fmx(Math.abs(dif))} para cubrir la meta`;
+  el.innerHTML = `<span style="color:${col};font-weight:700">SUMA INDIVIDUAL ${fmx(suma)} = ${pct}% de la meta empresa (${fmx(meta)})</span><br><span style="color:var(--gray600)">${nota}</span>`;
 }
 
 async function guardarObjetivos() {
@@ -325,6 +368,14 @@ async function guardarObjetivos() {
     if (isNaN(v) || v < 0) { toast('Revisa los valores: deben ser números positivos', 'red'); return; }
     body[k] = v;
   }
+  // Capa 3 — objetivos individuales
+  const individuales = {};
+  document.querySelectorAll('#obj-individuales input[data-ejec]').forEach(el => {
+    const v = parseFloat(el.value);
+    if (!isNaN(v) && v > 0) individuales[el.getAttribute('data-ejec')] = v;
+  });
+  body.objetivosIndividuales = individuales;
+
   if (!Object.keys(body).length) { toast('Captura al menos un objetivo', 'red'); return; }
 
   try {
@@ -337,7 +388,6 @@ async function guardarObjetivos() {
     const j = await r.json();
     toast('✓ Objetivos guardados — sincronizados en toda la plataforma');
     closeM('objetivos');
-    // El store propaga el cambio a Dashboard, Comercial y otras pestañas
     ObjetivosStore.set(mes, j.objetivos);
   } catch {
     toast('Error al guardar objetivos', 'red');
