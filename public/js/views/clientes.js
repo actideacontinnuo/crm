@@ -152,8 +152,7 @@ async function saveCliente() {
   if (!contacto) missing.push('Nombre del contacto');
   if (!email)    missing.push('Email');
   if (!_docState.csf) missing.push('CSF — Constancia de Situación Fiscal');
-  if (!_docState.oc)  missing.push('Opinión de Cumplimiento Positiva');
-  if (!_docState.ec)  missing.push('Carátula del Estado de Cuenta');
+  // Opinión de Cumplimiento y Estado de Cuenta son OPCIONALES — solo la CSF es obligatoria
 
   if (missing.length) {
     toast('Faltan: ' + missing.slice(0, 2).join(', ') + (missing.length > 2 ? ' y ' + (missing.length - 2) + ' más' : ''), 'red');
@@ -164,8 +163,6 @@ async function saveCliente() {
     if (!contacto) document.getElementById('nc-contacto').style.borderColor = 'var(--red)';
     if (!email)    document.getElementById('nc-email').style.borderColor  = 'var(--red)';
     if (!_docState.csf) document.getElementById('doc-csf').style.borderColor = 'var(--red)';
-    if (!_docState.oc)  document.getElementById('doc-oc').style.borderColor  = 'var(--red)';
-    if (!_docState.ec)  document.getElementById('doc-ec').style.borderColor  = 'var(--red)';
 
     let blocker = document.getElementById('nc-blocker');
     if (!blocker) {
