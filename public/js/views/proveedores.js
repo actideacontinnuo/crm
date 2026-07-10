@@ -65,11 +65,77 @@ async function renderProveedores() {
   }).join('') || `<tr><td colspan="8"><div class="empty-state"><div>${icoHTML('truck',26)}</div><div>SIN PROVEEDORES</div></div></td></tr>`;
 }
 
+// ── Documentos del proveedor (leídos por IA) ──
+let _provDocState = { csf: false, ec: false, oc: false };
+
+async function analizarDocProv(tipo, input) {
+  return _procesarDoc(tipo, input, {
+    prefix: 'pdoc',
+    state: _provDocState,
+    onData(tipo, d, status, area) {
+      if (tipo === 'csf') {
+        if (d.rfc)         { const el = document.getElementById('prv-rfc');   if (el) el.value = d.rfc; }
+        if (d.razonSocial) { const el = document.getElementById('prv-razon'); if (el && !el.value) el.value = d.razonSocial; }
+        status.style.color = 'var(--green)';
+        status.textContent = `✅ RFC: ${d.rfc || '—'} · ${d.razonSocial || ''}`;
+      } else if (tipo === 'ec') {
+        if (d.clabe) { const el = document.getElementById('prv-clabe'); if (el && !el.value) el.value = d.clabe; }
+        status.style.color = 'var(--green)';
+        status.textContent = `✅ ${d.banco || '—'} · CLABE: ${d.clabe || '—'} · Titular: ${d.titular || '—'}`;
+      } else if (tipo === 'oc') {
+        const positiva = d.sentido === 'POSITIVO';
+        const vigente  = d.mesVigente;
+        if (!positiva || !vigente) {
+          area.innerHTML = icoHTML('alert', 12) + ' Opinión no válida';
+          area.style.borderColor = 'var(--red)';
+          status.style.color = 'var(--red)';
+          status.textContent = d.observaciones || (!positiva ? 'La opinión no es positiva' : 'La opinión está vencida');
+          return false;
+        }
+        status.style.color = 'var(--green)';
+        status.textContent = `✅ Positiva · Fecha: ${d.fechaConsulta || '—'}`;
+      }
+    },
+  });
+}
+
+// Muestra/oculta la Opinión de Cumplimiento (solo persona moral) y la advertencia de excepción
+function updateProvDocs() {
+  const persona   = document.getElementById('prv-persona')?.value || 'moral';
+  const excepcion = !!document.getElementById('prv-excepcion')?.checked;
+  const ocWrap    = document.getElementById('pdoc-oc-wrap');
+  const docsWrap  = document.getElementById('prv-docs');
+  const warn      = document.getElementById('prv-excepcion-warn');
+
+  // Opinión de Cumplimiento: solo aplica a Persona Moral
+  if (ocWrap) ocWrap.style.display = persona === 'moral' ? '' : 'none';
+  // Excepción: atenúa los documentos (ya no serán obligatorios) y muestra la advertencia
+  if (docsWrap) { docsWrap.style.opacity = excepcion ? '.45' : '1'; docsWrap.style.pointerEvents = excepcion ? 'none' : 'auto'; }
+  if (warn) warn.style.display = excepcion ? 'block' : 'none';
+}
+
 async function saveProveedor() {
   const nom = document.getElementById('prv-nombre').value.trim();
   if (!nom) { toast('El nombre es requerido', 'red'); return; }
 
+  const persona   = document.getElementById('prv-persona')?.value || 'moral';
+  const excepcion = !!document.getElementById('prv-excepcion')?.checked;
+
+  // Validación de documentos (a menos que sea excepción)
+  if (!excepcion) {
+    const faltan = [];
+    if (!_provDocState.csf) faltan.push('CSF');
+    if (!_provDocState.ec)  faltan.push('Carátula bancaria');
+    if (persona === 'moral' && !_provDocState.oc) faltan.push('Opinión de Cumplimiento (persona moral)');
+    if (faltan.length) {
+      toast('Faltan documentos: ' + faltan.join(', ') + '. O marca "Hacer excepción".', 'red');
+      return;
+    }
+  }
+
   const facturaVal = document.getElementById('prv-factura')?.value || 'No — solo recibo';
+  const marca = `[${persona === 'moral' ? 'Persona Moral' : 'Persona Física'}]${excepcion ? ' [EXCEPCIÓN: sin documentos completos — pago por vía alterna]' : ''}`;
+  const notasUser = document.getElementById('prv-notas').value || '';
   const data = {
     nombre:       nom,
     razon:        document.getElementById('prv-razon').value || nom + ' SA de CV',
@@ -78,18 +144,26 @@ async function saveProveedor() {
     clabe:        document.getElementById('prv-clabe').value || '—',
     servicio:     document.getElementById('prv-servicio').value || 'General',
     cond:         document.getElementById('prv-cond').value,
-    emiteFactura: facturaVal.startsWith('Sí'),
-    notas:        document.getElementById('prv-notas').value || '',
-    contacto:     '',
-    tel:          '',
-    email:        '',
+    emiteFactura: facturaVal.startsWith('Sí') && !excepcion,
+    notas:        (marca + (notasUser ? ' · ' + notasUser : '')).trim(),
+    contacto:     document.getElementById('prv-contacto').value || '',
+    tel:          document.getElementById('prv-tel').value || '',
+    email:        document.getElementById('prv-email').value || '',
   };
 
   showSpinner();
   try {
     await db.proveedores.create(data);
     closeM('nuevo-proveedor');
-    ['prv-nombre','prv-razon','prv-rfc','prv-clabe','prv-servicio','prv-notas'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+    ['prv-nombre','prv-razon','prv-rfc','prv-clabe','prv-servicio','prv-notas','prv-contacto','prv-tel','prv-email'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+    // Resetear documentos y opciones del proveedor
+    _provDocState = { csf: false, ec: false, oc: false };
+    const exc = document.getElementById('prv-excepcion'); if (exc) exc.checked = false;
+    ['pdoc-csf','pdoc-ec','pdoc-oc'].forEach(p => {
+      const a = document.getElementById(p + '-area'); if (a) a.style.borderColor = '';
+      const s = document.getElementById(p + '-status'); if (s) s.textContent = '';
+    });
+    updateProvDocs();
     toast('✓ Proveedor dado de alta');
     renderProveedores();
   } catch (e) {

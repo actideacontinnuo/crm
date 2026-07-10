@@ -4,7 +4,10 @@
     {
       "name": "actidea-crm",
       "runtimeExecutable": "bash",
-      "runtimeArgs": ["-c", "cd '/Users/santiago/Desktop/Actidea Continnuo/CRM' && npm start"],
+      "runtimeArgs": [
+        "-c",
+        "cd '/Users/santiago/Desktop/Claude/PlainWork /Actidea Continnuo/CRM' && npm start"
+      ],
       "port": 3000
     }
   ]

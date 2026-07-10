@@ -1,16 +1,20 @@
 // ══════════════════════════════════════
 // CLIENTES VIEW
 // ══════════════════════════════════════
-let _docState = { csf: false, oc: false, ec: false };
+// Cliente: ahora solo se pide la CSF
+let _docState = { csf: false };
 
-async function analizarDoc(tipo, input) {
+// ── Lector genérico de documentos por IA ──
+// prefix: 'doc' (cliente) o 'pdoc' (proveedor). state: objeto donde marcar el éxito.
+// onData(tipo, d): auto-llena campos y devuelve false si el documento no es aceptable.
+async function _procesarDoc(tipo, input, cfg) {
   const file = input.files[0];
   if (!file) return;
 
-  const area   = document.getElementById(`doc-${tipo}-area`);
-  const status = document.getElementById(`doc-${tipo}-status`);
+  const area   = document.getElementById(`${cfg.prefix}-${tipo}-area`);
+  const status = document.getElementById(`${cfg.prefix}-${tipo}-status`);
 
-  area.innerHTML   = icoHTML('clock',12) + ' Analizando con IA…';
+  area.innerHTML         = icoHTML('clock', 12) + ' Analizando con IA…';
   area.style.borderColor = 'var(--amber)';
   status.textContent     = '';
 
@@ -18,65 +22,28 @@ async function analizarDoc(tipo, input) {
   form.append('file', file);
 
   try {
-    const res  = await fetch(`/api/vision/${tipo}`, {
-      method: 'POST',
-      headers: _authHeaders(), // valida y descarta tokens corruptos
-      body: form,
-    });
+    const res  = await fetch(`/api/vision/${tipo}`, { method: 'POST', headers: _authHeaders(), body: form });
     const json = await res.json();
-
-    if (!res.ok || json.error) {
-      throw new Error(json.error || 'Error en el servidor');
-    }
+    if (!res.ok || json.error) throw new Error(json.error || 'Error en el servidor');
 
     const d = json.data;
-
     if (!d.valido) {
-      area.innerHTML = icoHTML('x',12) + ' Documento no válido';
+      area.innerHTML = icoHTML('x', 12) + ' Documento no válido';
       area.style.borderColor = 'var(--red)';
       status.style.color = 'var(--red)';
       status.textContent = d.observaciones || 'No se pudo validar el documento';
+      input.value = '';
       return;
     }
 
-    // Auto-fill fields based on document type
-    if (tipo === 'csf') {
-      if (d.rfc)         { const el = document.getElementById('nc-rfc');   if (el) el.value = d.rfc; }
-      if (d.razonSocial) { const el = document.getElementById('nc-razon'); if (el) el.value = d.razonSocial; }
-      if (d.direccion)   { const el = document.getElementById('nc-dir');   if (el) el.value = d.direccion; }
-      status.style.color = 'var(--green)';
-      status.textContent = `✅ RFC: ${d.rfc || '—'} · ${d.razonSocial || ''} · Régimen: ${d.regimenFiscal || '—'}`;
-    } else if (tipo === 'oc') {
-      const positiva = d.sentido === 'POSITIVO';
-      const vigente  = d.mesVigente;
-      if (!positiva || !vigente) {
-        area.innerHTML = '⚠️ Opinión no válida';
-        area.style.borderColor = 'var(--red)';
-        status.style.color = 'var(--red)';
-        status.textContent = d.observaciones || (!positiva ? 'La opinión no es positiva' : 'La opinión está vencida');
-        return;
-      }
-      // Si la OC tiene RFC y el campo está vacío, llenarlo
-      if (d.rfc) {
-        const rfcEl = document.getElementById('nc-rfc');
-        if (rfcEl && !rfcEl.value) rfcEl.value = d.rfc;
-      }
-      _docState._ocData = { sentido: d.sentido, fechaConsulta: d.fechaConsulta, nombre: d.nombre };
-      status.style.color = 'var(--green)';
-      status.textContent = `✅ Positiva · Fecha: ${d.fechaConsulta || '—'} · ${d.nombre || ''}`;
-    } else if (tipo === 'ec') {
-      // Guardar datos bancarios
-      _docState._ecData = { banco: d.banco, clabe: d.clabe, titular: d.titular };
-      status.style.color = 'var(--green)';
-      status.textContent = `✅ ${d.banco || '—'} · CLABE: ${d.clabe || '—'} · Titular: ${d.titular || '—'}`;
-    }
+    const ok = cfg.onData(tipo, d, status, area);
+    if (ok === false) { input.value = ''; return; }
 
     area.innerHTML = `✅ ${esc(file.name)}`;
     area.style.borderColor = 'var(--green)';
-    _docState[tipo] = true;
+    cfg.state[tipo] = true;
 
   } catch (err) {
-    // Token de sesión corrupto en el navegador: limpiar y pedir login de nuevo
     if (/ByteString/i.test(err.message || '')) {
       localStorage.removeItem('crm_token');
       localStorage.removeItem('crm_user');
@@ -84,14 +51,27 @@ async function analizarDoc(tipo, input) {
       window.location.reload();
       return;
     }
-    area.innerHTML = icoHTML('x',12) + ' Error al analizar';
+    area.innerHTML = icoHTML('x', 12) + ' Error al analizar';
     area.style.borderColor = 'var(--red)';
     status.style.color = 'var(--red)';
     status.textContent = err.message;
   }
-
-  // Reset input so same file can be re-uploaded
   input.value = '';
+}
+
+// CLIENTE — solo CSF (auto-llena RFC, Razón Social y domicilio)
+async function analizarDoc(tipo, input) {
+  return _procesarDoc(tipo, input, {
+    prefix: 'doc',
+    state: _docState,
+    onData(tipo, d, status) {
+      if (d.rfc)         { const el = document.getElementById('nc-rfc');   if (el) el.value = d.rfc; }
+      if (d.razonSocial) { const el = document.getElementById('nc-razon'); if (el) el.value = d.razonSocial; }
+      if (d.direccion)   { const el = document.getElementById('nc-dir');   if (el) el.value = d.direccion; }
+      status.style.color = 'var(--green)';
+      status.textContent = `✅ RFC: ${d.rfc || '—'} · ${d.razonSocial || ''} · Régimen: ${d.regimenFiscal || '—'}`;
+    },
+  });
 }
 
 async function renderClientes() {
@@ -162,7 +142,7 @@ async function saveCliente() {
     if (!dir)      document.getElementById('nc-dir').style.borderColor    = 'var(--red)';
     if (!contacto) document.getElementById('nc-contacto').style.borderColor = 'var(--red)';
     if (!email)    document.getElementById('nc-email').style.borderColor  = 'var(--red)';
-    if (!_docState.csf) document.getElementById('doc-csf').style.borderColor = 'var(--red)';
+    if (!_docState.csf) { const a = document.getElementById('doc-csf-area'); if (a) a.style.borderColor = 'var(--red)'; }
 
     let blocker = document.getElementById('nc-blocker');
     if (!blocker) {
@@ -193,11 +173,7 @@ async function saveCliente() {
     ejec,
     pago:     document.getElementById('nc-pago').value,
     status:   'Activo',
-    docs:     {
-      csf: true,
-      oc:  _docState._ocData || true,
-      ec:  _docState._ecData || true,
-    },
+    docs:     { csf: true },
   };
 
   showSpinner();
@@ -230,11 +206,11 @@ function _buildCodigo(razon, ejec) {
 }
 
 function _resetClienteForm() {
-  _docState = { csf: false, oc: false, ec: false };
-  ['doc-csf','doc-oc','doc-ec'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) { el.classList.remove('uploaded'); el.style.borderColor = ''; el.innerHTML = ' Clic para confirmar recepción del documento'; }
-  });
+  _docState = { csf: false };
+  const csfArea = document.getElementById('doc-csf-area');
+  if (csfArea) { csfArea.style.borderColor = ''; csfArea.innerHTML = icoHTML('clip', 13) + ' Clic para subir PDF o imagen — la IA leerá RFC, Razón Social y domicilio'; }
+  const csfStatus = document.getElementById('doc-csf-status');
+  if (csfStatus) { csfStatus.textContent = ''; }
   ['nc-nombre','nc-razon','nc-rfc','nc-dir','nc-contacto','nc-email','nc-giro','nc-cargo','nc-tel'].forEach(id => {
     const el = document.getElementById(id);
     if (el) { el.value = ''; el.style.borderColor = ''; }

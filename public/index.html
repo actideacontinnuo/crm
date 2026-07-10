@@ -590,10 +590,10 @@
     <div class="fgrid"><div class="fg"><label class="fl">TELÉFONO</label><input class="fi" id="nc-tel" placeholder="+52 55 0000 0000"></div><div class="fg"><label class="fl">EMAIL</label><input class="fi" id="nc-email" type="email" placeholder="contacto@empresa.com"></div></div>
     <div class="fgrid"><div class="fg"><label class="fl">FORMA DE PAGO</label><select class="fsel-full" id="nc-pago"><option>30 días</option><option>60 días</option><option>90 días</option><option>Inmediato</option></select></div><div class="fg"><label class="fl">EJECUTIVO</label><select class="fsel-full" id="nc-ejec"><option>Natalia Gama</option><option>Ximena</option><option>Alexia</option></select></div></div>
     <div style="border-top:1px solid var(--border);padding-top:14px;margin-top:4px">
-      <div class="sect-label">DOCUMENTOS REQUERIDOS</div>
+      <div class="sect-label">DOCUMENTO REQUERIDO</div>
       <div id="nc-docs" style="display:flex;flex-direction:column;gap:14px;">
 
-        <!-- CSF -->
+        <!-- CSF — único documento para el alta de cliente -->
         <div>
           <label class="fl">CSF — CONSTANCIA DE SITUACIÓN FISCAL <span class="tag-amber tag" style="margin-left:6px">OBLIGATORIO</span></label>
           <div class="upload-area" id="doc-csf-area" onclick="document.getElementById('doc-csf-input').click()" style="cursor:pointer">
@@ -601,26 +601,6 @@
           </div>
           <input type="file" id="doc-csf-input" accept=".pdf,.jpg,.jpeg,.png,.webp" style="display:none" onchange="analizarDoc('csf',this)">
           <div id="doc-csf-status" style="font-size:11px;color:var(--gray400);margin-top:4px"></div>
-        </div>
-
-        <!-- Opinión de Cumplimiento -->
-        <div>
-          <label class="fl">OPINIÓN DE CUMPLIMIENTO POSITIVA (MES EN CURSO) <span class="tag tag-green" style="margin-left:6px">OPCIONAL</span></label>
-          <div class="upload-area" id="doc-oc-area" onclick="document.getElementById('doc-oc-input').click()" style="cursor:pointer">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-3px"><path d="M21.4 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.2-9.19a4 4 0 0 1 5.65 5.66l-9.2 9.19a2 2 0 0 1-2.82-2.83l8.49-8.48"/></svg> Clic para subir PDF — la IA verificará que sea positiva y del mes en curso
-          </div>
-          <input type="file" id="doc-oc-input" accept=".pdf,.jpg,.jpeg,.png,.webp" style="display:none" onchange="analizarDoc('oc',this)">
-          <div id="doc-oc-status" style="font-size:11px;color:var(--gray400);margin-top:4px"></div>
-        </div>
-
-        <!-- Estado de Cuenta -->
-        <div>
-          <label class="fl">CARÁTULA DEL ÚLTIMO ESTADO DE CUENTA <span class="tag tag-green" style="margin-left:6px">OPCIONAL</span></label>
-          <div class="upload-area" id="doc-ec-area" onclick="document.getElementById('doc-ec-input').click()" style="cursor:pointer">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-3px"><path d="M21.4 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.2-9.19a4 4 0 0 1 5.65 5.66l-9.2 9.19a2 2 0 0 1-2.82-2.83l8.49-8.48"/></svg> Clic para subir PDF, JPG o PNG — la IA leerá banco, CLABE y titular
-          </div>
-          <input type="file" id="doc-ec-input" accept=".pdf,.jpg,.jpeg,.png,.webp" style="display:none" onchange="analizarDoc('ec',this)">
-          <div id="doc-ec-status" style="font-size:11px;color:var(--gray400);margin-top:4px"></div>
         </div>
 
       </div>
@@ -867,6 +847,55 @@
     <div class="fgrid"><div class="fg"><label class="fl">CONTACTO</label><input class="fi" id="prv-contacto" placeholder="Nombre"></div><div class="fg"><label class="fl">TELÉFONO</label><input class="fi" id="prv-tel" placeholder="+52 55 0000 0000"></div></div>
     <div class="fg"><label class="fl">EMAIL</label><input class="fi" id="prv-email" type="email" placeholder="contacto@proveedor.com"></div>
     <div class="fg"><label class="fl">NOTAS INTERNAS</label><textarea class="fta" id="prv-notas" rows="2" placeholder="Ej: requiere anticipo 30%, disponible en CDMX y GDL..."></textarea></div>
+
+    <div style="border-top:1px solid var(--border);padding-top:14px;margin-top:8px">
+      <div class="sect-label">DOCUMENTOS DEL PROVEEDOR</div>
+
+      <div class="fg" style="margin-bottom:12px"><label class="fl">TIPO DE PERSONA</label>
+        <select class="fsel-full" id="prv-persona" onchange="updateProvDocs()">
+          <option value="moral">Persona Moral (empresa)</option>
+          <option value="fisica">Persona Física</option>
+        </select>
+      </div>
+
+      <div id="prv-docs" style="display:flex;flex-direction:column;gap:14px;">
+        <!-- CSF -->
+        <div id="pdoc-csf-wrap">
+          <label class="fl">CSF — CONSTANCIA DE SITUACIÓN FISCAL <span class="tag-amber tag" style="margin-left:6px">OBLIGATORIO</span></label>
+          <div class="upload-area" id="pdoc-csf-area" onclick="document.getElementById('pdoc-csf-input').click()" style="cursor:pointer">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-3px"><path d="M21.4 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.2-9.19a4 4 0 0 1 5.65 5.66l-9.2 9.19a2 2 0 0 1-2.82-2.83l8.49-8.48"/></svg> Clic para subir PDF o imagen — la IA leerá RFC y Razón Social
+          </div>
+          <input type="file" id="pdoc-csf-input" accept=".pdf,.jpg,.jpeg,.png,.webp" style="display:none" onchange="analizarDocProv('csf',this)">
+          <div id="pdoc-csf-status" style="font-size:11px;color:var(--gray400);margin-top:4px"></div>
+        </div>
+        <!-- Carátula bancaria (para pagos) -->
+        <div id="pdoc-ec-wrap">
+          <label class="fl">CARÁTULA BANCARIA (PARA PAGOS) <span class="tag-amber tag" style="margin-left:6px">OBLIGATORIO</span></label>
+          <div class="upload-area" id="pdoc-ec-area" onclick="document.getElementById('pdoc-ec-input').click()" style="cursor:pointer">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-3px"><path d="M21.4 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.2-9.19a4 4 0 0 1 5.65 5.66l-9.2 9.19a2 2 0 0 1-2.82-2.83l8.49-8.48"/></svg> Clic para subir PDF, JPG o PNG — la IA leerá banco, CLABE y titular
+          </div>
+          <input type="file" id="pdoc-ec-input" accept=".pdf,.jpg,.jpeg,.png,.webp" style="display:none" onchange="analizarDocProv('ec',this)">
+          <div id="pdoc-ec-status" style="font-size:11px;color:var(--gray400);margin-top:4px"></div>
+        </div>
+        <!-- Opinión de Cumplimiento (solo persona moral) -->
+        <div id="pdoc-oc-wrap">
+          <label class="fl">OPINIÓN DE CUMPLIMIENTO POSITIVA <span class="tag-amber tag" id="pdoc-oc-tag" style="margin-left:6px">OBLIGATORIO (PERSONA MORAL)</span></label>
+          <div class="upload-area" id="pdoc-oc-area" onclick="document.getElementById('pdoc-oc-input').click()" style="cursor:pointer">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-3px"><path d="M21.4 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.2-9.19a4 4 0 0 1 5.65 5.66l-9.2 9.19a2 2 0 0 1-2.82-2.83l8.49-8.48"/></svg> Clic para subir PDF — la IA verificará que sea positiva y del mes en curso
+          </div>
+          <input type="file" id="pdoc-oc-input" accept=".pdf,.jpg,.jpeg,.png,.webp" style="display:none" onchange="analizarDocProv('oc',this)">
+          <div id="pdoc-oc-status" style="font-size:11px;color:var(--gray400);margin-top:4px"></div>
+        </div>
+      </div>
+
+      <label style="display:flex;gap:9px;align-items:flex-start;margin-top:14px;font-size:12.5px;cursor:pointer;line-height:1.4">
+        <input type="checkbox" id="prv-excepcion" onchange="updateProvDocs()" style="margin-top:2px">
+        <span>Hacer <strong>excepción</strong>: este proveedor no puede entregar los documentos (persona física que no factura). Se le pagará por otro medio.</span>
+      </label>
+      <div id="prv-excepcion-warn" style="display:none;margin-top:10px;background:#FFF8F0;border:1px solid #F0DFC0;border-radius:8px;padding:10px 12px;font-size:12px;color:var(--amber);line-height:1.45">
+        <strong>⚠ Advertencia:</strong> estás dando de alta un proveedor <strong>sin documentos fiscales completos</strong>. No podrá facturar y su pago deberá gestionarse por una vía alterna (efectivo, transferencia sin factura, etc.). Úsalo solo cuando sea estrictamente necesario.
+      </div>
+    </div>
   </div>
   <div class="modal-footer"><button class="btn btn-ghost" onclick="closeM('nuevo-proveedor')">Cancelar</button><button class="btn btn-primary" onclick="saveProveedor()">Guardar Proveedor</button></div>
 </div></div>
