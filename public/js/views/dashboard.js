@@ -86,9 +86,13 @@ async function renderDashboard() {
 
   showSpinner();
   let ops, pagos, prospectos, clientes;
+  let pagosVisibles = true; // pagos es solo-admin: los demás roles ven el resto del dashboard
   try {
     [ops, pagos, prospectos, clientes] = await Promise.all([
-      db.ops.list(), db.pagos.list(), db.prospectos.list(), db.clientes.list(),
+      db.ops.list(),
+      db.pagos.list().catch(() => { pagosVisibles = false; return []; }),
+      db.prospectos.list(),
+      db.clientes.list(),
     ]);
   } catch (e) {
     toast('Error al cargar dashboard', 'red');
@@ -178,7 +182,7 @@ async function renderDashboard() {
       <div class="kpi" style="--accent:var(--green);--accent-dim:var(--green-dim)"><div class="kpi-top"><div class="kpi-label">PIPELINE PROSPECTOS</div><div class="kpi-ico">${icoHTML('target')}</div></div><div class="kpi-value kv-green">${fmxK(pipeline)}</div><div class="kpi-delta up">${prospectos.length} oportunidades</div>${kpiBar(pipeline, METAS.pipeline, 'green')}</div>
     </div>
     <div class="kpis" style="margin-bottom:22px">
-      <div class="kpi" style="--accent:var(--red);--accent-dim:var(--red-dim)"><div class="kpi-top"><div class="kpi-label">COBRANZA PENDIENTE</div><div class="kpi-ico" style="background:var(--red-dim);color:var(--red)">${icoHTML('wallet')}</div></div><div class="kpi-value kv-red">${fmxK(totalPend)}</div><div class="kpi-delta ${vencidos ? 'down' : ''}">${vencidos ? icoHTML('alert') + ' ' + vencidos + ' vencidos' : pagosPend.length + ' por cobrar'}</div>${METAS.cobranza ? kpiBar(cobradoMes, METAS.cobranza, cobradoMes >= METAS.cobranza ? 'green' : 'amber') : ''}</div>
+      <div class="kpi" style="--accent:var(--red);--accent-dim:var(--red-dim)"><div class="kpi-top"><div class="kpi-label">COBRANZA PENDIENTE</div><div class="kpi-ico" style="background:var(--red-dim);color:var(--red)">${icoHTML('wallet')}</div></div><div class="kpi-value kv-red">${pagosVisibles ? fmxK(totalPend) : '—'}</div><div class="kpi-delta ${vencidos ? 'down' : ''}">${!pagosVisibles ? 'solo Dirección' : vencidos ? icoHTML('alert') + ' ' + vencidos + ' vencidos' : pagosPend.length + ' por cobrar'}</div>${METAS.cobranza ? kpiBar(cobradoMes, METAS.cobranza, cobradoMes >= METAS.cobranza ? 'green' : 'amber') : ''}</div>
       <div class="kpi" style="--accent:var(--green);--accent-dim:var(--green-dim)"><div class="kpi-top"><div class="kpi-label">UTILIDAD GENERADA</div><div class="kpi-ico" style="background:var(--green-dim);color:var(--green)">${icoHTML('trend')}</div></div><div class="kpi-value kv-green">${fmxK(utilidad)}</div><div class="kpi-delta up">margen prom. ${margen}%</div>${METAS.utilidad ? kpiBar(utilidad, METAS.utilidad, 'green') : ''}</div>
       <div class="kpi"><div class="kpi-top"><div class="kpi-label">CLIENTES ACTIVOS</div><div class="kpi-ico" style="background:var(--gray50);color:var(--gray600)">${icoHTML('building')}</div></div><div class="kpi-value">${cliActivos}</div><div class="kpi-delta">${clientes.length} en directorio</div>${METAS.clientes ? `<div class="kpi-bar"><div class="kpi-bar-top"><span class="kpi-bar-meta">META ${METAS.clientes}</span><span class="kpi-bar-meta" style="color:${cliActivos >= METAS.clientes ? 'var(--green)' : 'var(--amber)'};font-weight:700">${Math.min(Math.round(cliActivos / METAS.clientes * 100), 100)}%</span></div><div class="prog"><div class="prog-fill ${cliActivos >= METAS.clientes ? 'green' : 'amber'}" style="width:${Math.min(Math.round(cliActivos / METAS.clientes * 100), 100)}%"></div></div></div>` : ''}</div>
     </div>
@@ -204,12 +208,12 @@ async function renderDashboard() {
           <div class="panel-body">${rankingHTML(ops)}</div>
         </div>
         <div class="panel">
-          <div class="panel-hdr"><div class="panel-title"><span class="dot" style="background:var(--red)"></span>COBROS URGENTES</div><span class="tag ${vencidos ? 'tag-red' : 'tag-green'}">${vencidos ? vencidos + ' VENCIDOS' : 'AL DÍA'}</span></div>
+          <div class="panel-hdr"><div class="panel-title"><span class="dot" style="background:var(--red)"></span>COBROS URGENTES</div><span class="tag ${!pagosVisibles ? '' : vencidos ? 'tag-red' : 'tag-green'}">${!pagosVisibles ? 'SOLO DIRECCIÓN' : vencidos ? vencidos + ' VENCIDOS' : 'AL DÍA'}</span></div>
           <div class="panel-body">${
             pagosPend.length ? pagosPend.slice(0, 4).map(p => {
               const o = opById(p.opId); const c = cliById(o.clienteId);
               return `<div class="pay-row" onclick="nav('pagos')"><div class="pay-ico ${p.status === 'Vencido' ? 'pi-venc' : 'pi-cobro'}">${p.status === 'Vencido' ? '⚠' : '$'}</div><div style="flex:1;min-width:0"><div style="font-size:12.5px;font-weight:500">${esc(p.concepto)}</div><div class="kpi-bar-meta" style="margin-top:2px">${esc(o.numero) || '—'} · ${esc(c.nombre) || '—'}</div></div><div style="text-align:right"><div class="mono" style="font-size:12px;font-weight:700;color:${p.status === 'Vencido' ? 'var(--red)' : 'var(--green)'}">${fmxK(p.monto)}</div><div class="kpi-bar-meta">${p.status === 'Vencido' ? 'VENCIDO' : esc(p.fechaAcordada) || '—'}</div></div></div>`;
-            }).join('') : `<div class="kpi-bar-meta" style="padding:8px 0">✓ SIN COBROS PENDIENTES</div>`
+            }).join('') : `<div class="kpi-bar-meta" style="padding:8px 0">${pagosVisibles ? '✓ SIN COBROS PENDIENTES' : 'VISIBLE SOLO PARA DIRECCIÓN'}</div>`
           }</div>
         </div>
         ${user?.role === 'admin' ? `<div class="panel">

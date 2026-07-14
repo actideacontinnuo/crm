@@ -21,7 +21,7 @@ async function renderProveedores() {
   showSpinner();
   let provs, deudas;
   try {
-    [provs, deudas] = await Promise.all([db.proveedores.list(), db.deudas.list()]);
+    [provs, deudas] = await Promise.all([db.proveedores.list(), db.deudas.list().catch(() => [])]);
   } catch (e) {
     toast('Error al cargar proveedores', 'red');
     return;

@@ -225,3 +225,31 @@ test.describe('Regresión: token de sesión corrupto', () => {
     expect(erroresJS.filter(m => /ByteString/i.test(m))).toHaveLength(0);
   });
 });
+
+test.describe('Regresión: dashboard para roles no-admin', () => {
+  test('el dashboard carga aunque /api/pagos responda 403 (ejecutivo/administración)', async ({ page }) => {
+    await page.goto(BASE_URL);
+    await page.evaluate(() => {
+      const tok = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.' +
+        btoa(JSON.stringify({ id:'ximena', nombre:'Ximena', role:'ejecutivo', ejec:'Ximena', exp: 9999999999 }))
+          .replace(/=/g,'').replace(/\+/g,'-').replace(/\//g,'_') + '.fake';
+      localStorage.setItem('crm_token', tok);
+      localStorage.setItem('crm_user', JSON.stringify({ id:'ximena', nombre:'Ximena', role:'ejecutivo', ejec:'Ximena', mustChangePassword:false }));
+    });
+    // pagos y deudas → 403 como en producción para no-admin; el resto → []
+    await page.route('**/api/pagos**', route => route.fulfill({ status: 403, contentType: 'application/json', body: '{"error":"Acceso restringido a Dirección"}' }));
+    await page.route('**/api/deudas**', route => route.fulfill({ status: 403, contentType: 'application/json', body: '{"error":"Acceso restringido a Dirección"}' }));
+    await page.route('**/api/**', route => {
+      const u = route.request().url();
+      if (u.includes('/api/pagos') || u.includes('/api/deudas')) return route.fallback();
+      return route.fulfill({ status: 200, contentType: 'application/json', body: u.includes('/api/objetivos') ? '{}' : '[]' });
+    });
+    await page.reload();
+    // El dashboard debe renderizar sus KPIs, no quedarse en blanco
+    await expect(page.locator('#view-dashboard .kpi-label').first()).toBeVisible({ timeout: 10000 });
+    const kpis = await page.locator('#view-dashboard .kpi-label').count();
+    expect(kpis).toBeGreaterThanOrEqual(6);
+    // Y la cobranza queda marcada como solo Dirección
+    await expect(page.locator('#view-dashboard')).toContainText('solo Dirección');
+  });
+});

@@ -114,7 +114,7 @@ async function openDetalleOP(id) {
   showSpinner();
   let o, clientes, pagos;
   try {
-    [o, clientes, pagos] = await Promise.all([db.ops.get(id), db.clientes.list(), db.pagos.list()]);
+    [o, clientes, pagos] = await Promise.all([db.ops.get(id), db.clientes.list(), db.pagos.list().catch(() => [])]);
   } catch (e) {
     toast('Error al cargar OP', 'red');
     return;
@@ -192,7 +192,7 @@ async function openEDR(id) {
     [o, clientes, deudas, proveedores] = await Promise.all([
       db.ops.get(id),
       db.clientes.list(),
-      db.deudas.list(),
+      db.deudas.list().catch(() => []),
       db.proveedores.list(),
     ]);
   } catch (e) {

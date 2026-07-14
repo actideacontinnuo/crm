@@ -335,7 +335,7 @@ async function updateBadges() {
     const [prospectos, ops, pagos, casos] = await Promise.all([
       db.prospectos.list(),
       db.ops.list(),
-      db.pagos.list(),
+      db.pagos.list().catch(() => []), // solo-admin: otros roles sin badge de pagos
       db.casos.list(),
     ]);
 

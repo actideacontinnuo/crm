@@ -367,8 +367,8 @@ async function exportEDR() {
 
   const ops      = await db.ops.list();
   const clientes = await db.clientes.list();
-  const deudas   = await db.deudas.list();
-  const pagos    = await db.pagos.list();
+  const deudas   = await db.deudas.list().catch(() => []);
+  const pagos    = await db.pagos.list().catch(() => []);
   const o    = ops.find(x => x.id === opId) || {};
   const cli  = clientes.find(x => x.id === o.clienteId) || {};
   const opDeudas = deudas.filter(d => d.opId === opId);
