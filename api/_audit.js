@@ -30,7 +30,9 @@ async function logAudit({ usuario, accion, entidad = '', detalle = '', ip = '', 
 }
 
 function clientIp(req) {
-  return (req.headers['x-forwarded-for'] || req.ip || '').split(',')[0].trim();
+  // req.ip ya resuelve la IP real del último salto con 'trust proxy' configurado;
+  // no confiar en X-Forwarded-For crudo (el cliente puede falsificarlo).
+  return (req.ip || '').trim() || 'desconocida';
 }
 
 module.exports = { logAudit, clientIp, esFueraDeHorario };

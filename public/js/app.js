@@ -73,6 +73,7 @@ const STATE = {
   selCot: null,
   selPago: null,
   selProsp: null,
+  convirtiendoProspecto: null, // id del prospecto SOLO cuando se convierte a cliente
   selCliente: null,
   selProv: null,
   selCaso: null,

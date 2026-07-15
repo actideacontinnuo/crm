@@ -99,6 +99,7 @@ function prop_text(val) {
   return { rich_text: s ? [{ text: { content: s } }] : [] };
 }
 function prop_number(val) {
+  if (val === '' || val === null || val === undefined) return { number: null };
   const n = Number(val);
   return { number: isNaN(n) ? null : n };
 }

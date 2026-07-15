@@ -88,6 +88,7 @@ app.use('/api', killSwitchMiddleware);
 
 app.use('/api/auth/login', loginLimiter);
 app.use('/api/auth/olvide-password', loginLimiter);
+app.use('/api/auth/verify-2fa', loginLimiter);
 app.use('/api/auth', require('./api/auth'));
 
 // ── Middleware de autenticación (todo lo demás requiere token) ──

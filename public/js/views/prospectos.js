@@ -296,6 +296,7 @@ function confirmarCalificacion() {
 
 async function convertirACliente() {
   const p = await db.prospectos.get(STATE.selProsp);
+  STATE.convirtiendoProspecto = STATE.selProsp; // marca explícita de conversión
   closeM('detalle-prospecto');
   setTimeout(() => {
     document.getElementById('nc-nombre').value  = p.empresa;

@@ -327,3 +327,23 @@ describe('2FA — ciclo completo', () => {
     expect(status.body.enabled).toBe(false);
   });
 });
+
+describe('2FA setup no bloquea a quien ya lo tiene activo', () => {
+  const { authenticator } = require('otplib');
+  test('re-generar el secreto apaga TwoFAEnabled hasta re-confirmar (evita lockout)', async () => {
+    // activar 2FA
+    const s1 = await request(app).get('/api/auth/2fa/setup').set('Authorization', `Bearer ${adminToken()}`);
+    await request(app).post('/api/auth/2fa/confirm').set('Authorization', `Bearer ${adminToken()}`)
+      .send({ code: authenticator.generate(s1.body.secret) });
+    let st = await request(app).get('/api/auth/2fa/status').set('Authorization', `Bearer ${adminToken()}`);
+    expect(st.body.enabled).toBe(true);
+    // volver a entrar a setup (sin confirmar) → 2FA debe quedar apagado, no bloqueado
+    await request(app).get('/api/auth/2fa/setup').set('Authorization', `Bearer ${adminToken()}`);
+    st = await request(app).get('/api/auth/2fa/status').set('Authorization', `Bearer ${adminToken()}`);
+    expect(st.body.enabled).toBe(false);
+    // el login ya NO exige 2FA (no quedó a medias)
+    const login = await request(app).post('/api/auth/login').send({ usuario: 'natalia', password: 'AdminTest123!' });
+    expect(login.body.requiresTwoFA).toBeUndefined();
+    expect(login.body.token).toBeDefined();
+  });
+});

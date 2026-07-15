@@ -383,7 +383,7 @@ async function exportEDR() {
       <td>${esc(d.proveedor || '—')}</td>
       <td>${esc(d.concepto || '—')}</td>
       <td style="text-align:right">$${Math.round(d.monto || 0).toLocaleString('es-MX')}</td>
-      <td style="text-align:right">${d.status === 'Pagado' ? '✓ Pagado' : (d.status || 'Pendiente')}</td>
+      <td style="text-align:right">${String(d.status).toLowerCase() === 'pagado' ? '✓ Pagado' : (d.status || 'Pendiente')}</td>
     </tr>`).join('');
 
   const html = `<!DOCTYPE html><html lang="es"><head>

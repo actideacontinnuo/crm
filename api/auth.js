@@ -388,7 +388,9 @@ router.get('/2fa/setup', authMiddleware, async (req, res) => {
 
     // Se guarda como "pendiente" — TwoFAEnabled sigue en false hasta confirmar con un código válido
     const user = await findUserById(req.user.id);
-    await updatePage(user.pageId, { 'TwoFASecret': prop_text(secret) });
+    // Apagar 2FA hasta que confirme con un código del NUEVO secreto — así,
+    // si nunca confirma, no queda con TwoFAEnabled=true y un secreto que no coincide.
+    await updatePage(user.pageId, { 'TwoFASecret': prop_text(secret), 'TwoFAEnabled': prop_checkbox(false) });
 
     res.json({ secret, qr });
   } catch (err) { res.status(500).json({ error: err.message }); }

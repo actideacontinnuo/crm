@@ -144,7 +144,7 @@ async function saveProveedor() {
     clabe:        document.getElementById('prv-clabe').value || '—',
     servicio:     document.getElementById('prv-servicio').value || 'General',
     cond:         document.getElementById('prv-cond').value,
-    emiteFactura: facturaVal.startsWith('Sí') && !excepcion,
+    emiteFactura: facturaVal === 'true' && !excepcion,
     notas:        (marca + (notasUser ? ' · ' + notasUser : '')).trim(),
     contacto:     document.getElementById('prv-contacto').value || '',
     tel:          document.getElementById('prv-tel').value || '',
@@ -179,7 +179,7 @@ async function openDetalleProveedor(id) {
   try {
     [p, deudas, ops] = await Promise.all([
       db.proveedores.get(id),
-      db.deudas.list(),
+      db.deudas.list().catch(() => []),
       db.ops.list(),
     ]);
   } catch (e) {
@@ -234,7 +234,7 @@ async function renderDeudasModal() {
   let deudas, provs, ops;
   try {
     [deudas, provs, ops] = await Promise.all([
-      db.deudas.list(),
+      db.deudas.list().catch(() => []),
       db.proveedores.list(),
       db.ops.list(),
     ]);

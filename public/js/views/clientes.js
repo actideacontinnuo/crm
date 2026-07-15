@@ -100,7 +100,7 @@ async function renderClientes() {
   tbody.innerHTML = filtered.length
     ? filtered.map(c => {
         const opsCount = ops.filter(o => o.clienteId === c.id).length;
-        const allDocs = c.docs && c.docs.csf && c.docs.oc && c.docs.ec;
+        const allDocs = c.docs && c.docs.csf; // solo la CSF es obligatoria
         return `<tr onclick="openDetalleCliente('${c.id}')">
           <td class="mono" style="color:var(--red)">${esc(c.codigo)}</td>
           <td><div style="font-weight:600">${esc(c.nombre)}</div><div style="font-size:11px;color:var(--gray400)">${esc(c.razon) || '—'}</div></td>
@@ -180,10 +180,11 @@ async function saveCliente() {
   try {
     await db.clientes.create(data);
 
-    // If converting from a prospecto, archive it
-    if (STATE.selProsp) {
-      await db.prospectos.delete(STATE.selProsp);
-      STATE.selProsp = null;
+    // Si viene de una conversión, marcar el prospecto como Convertido
+    // (se usa PATCH, permitido a todos los roles dueños; DELETE es solo-admin)
+    if (STATE.convirtiendoProspecto) {
+      try { await db.prospectos.update(STATE.convirtiendoProspecto, { status: 'Convertido' }); } catch {}
+      STATE.convirtiendoProspecto = null;
     }
 
     closeM('nuevo-cliente');

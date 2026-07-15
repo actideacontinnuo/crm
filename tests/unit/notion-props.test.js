@@ -136,3 +136,17 @@ describe('Round-trip prop write/read', () => {
     expect(read_text({ rich_text: [{ plain_text: 'hello' }] })).toBe('hello');
   });
 });
+
+describe('prop_number con vacío/null (regresión)', () => {
+  const { prop_number } = require('../../api/notion');
+  test('cadena vacía → number null (no 0)', () => {
+    expect(prop_number('').number).toBeNull();
+    expect(prop_number(null).number).toBeNull();
+    expect(prop_number(undefined).number).toBeNull();
+  });
+  test('número válido se preserva', () => {
+    expect(prop_number(1500).number).toBe(1500);
+    expect(prop_number('2500').number).toBe(2500);
+    expect(prop_number(0).number).toBe(0); // cero explícito sí es 0
+  });
+});
