@@ -5,17 +5,21 @@ const EJEC_LIST = ['Natalia Gama', 'Ximena', 'Alexia'];
 const EJEC_COL = { 'Natalia Gama': '#CC2200', 'Ximena': '#1A6B3C', 'Alexia': '#A0620A' };
 
 // ── Roles comerciales y comisión (Brief v2) ──────────────────
-// Roster de personas asignables a Propietario / Ejec. de cuenta / Ejec. asignado.
-const PERSONAS = ['Natalia Gama', 'Ximena', 'Alexia', 'Eduardo Gama', 'Alfredo', 'Oscar'];
+// Rosters por rol:
+//  - Propietario: todos menos Oscar (Eduardo y Alfredo SOLO como propietario)
+//  - Ejec. de cuenta / asignado: solo ejecutivos reales (Natalia, Ximena, Alexia)
+const PERSONAS_PROPIETARIO = ['Natalia Gama', 'Ximena', 'Alexia', 'Eduardo Gama', 'Alfredo'];
+const PERSONAS_EJECUTIVO   = ['Natalia Gama', 'Ximena', 'Alexia'];
 const NATALIA_ID = 'Natalia Gama';
 const PROPIETARIOS_ESPECIALES = ['Eduardo Gama', 'Alfredo'];
 // Bono en OPs: siempre manual y solo para estas ejecutivas
 const BONO_ELEGIBLES = ['Alexia', 'Ximena'];
 
-// Opciones <option> para un <select> de personas (con opción vacía "— Selecciona —")
-function personaOptions(sel) {
+// Opciones <option> para un <select> a partir de un roster
+function personaOptions(sel, roster) {
+  const list = roster || PERSONAS_PROPIETARIO;
   return '<option value="">— Selecciona —</option>' +
-    PERSONAS.map(n => `<option value="${esc(n)}"${n === sel ? ' selected' : ''}>${esc(n)}</option>`).join('');
+    list.map(n => `<option value="${esc(n)}"${n === sel ? ' selected' : ''}>${esc(n)}</option>`).join('');
 }
 
 // Comisión según las reglas §3 (espejo del backend, solo para previsualizar)
@@ -34,10 +38,11 @@ function refrescarComision(prefix) {
   let ejc  = document.getElementById(prefix + '-ejeccuenta')?.value || '';
   const esApollo = prefix === 'np' && (document.getElementById('np-fuente')?.value === 'Apollo');
   const r = calcComision(prop, ejc, esApollo);
-  // Regla 1 y 3 imponen Ejec. de cuenta = Natalia: reflejarlo en el select
-  const impNatalia = esApollo || (prop && PROPIETARIOS_ESPECIALES.includes(prop) && prop !== ejc);
+  // Regla 3 impone Ejec. de cuenta = Natalia. En Apollo NO se toca (lo asigna Natalia manual).
+  const impNatalia = (prop && PROPIETARIOS_ESPECIALES.includes(prop) && prop !== ejc);
   const ejcSel = document.getElementById(prefix + '-ejeccuenta');
   if (ejcSel && impNatalia) { ejcSel.value = NATALIA_ID; ejc = NATALIA_ID; }
+  // Apollo: Propietario = Natalia por default
   const propSel = document.getElementById(prefix + '-propietario');
   if (propSel && esApollo) propSel.value = NATALIA_ID;
   const el = document.getElementById(prefix + '-comision-preview');
@@ -50,10 +55,12 @@ function refrescarComision(prefix) {
 // Puebla los 3 selects de roles de un modal (prefijo 'np' o 'nc') si están vacíos,
 // respetando lo ya seleccionado (p. ej. al convertir un prospecto).
 function _initRolesModal(prefix) {
-  ['propietario', 'ejeccuenta', 'ejecasignado'].forEach(rol => {
-    const el = document.getElementById(prefix + '-' + rol);
-    if (el) el.innerHTML = personaOptions(el.value);
-  });
+  const pel = document.getElementById(prefix + '-propietario');
+  if (pel) pel.innerHTML = personaOptions(pel.value, PERSONAS_PROPIETARIO);
+  const cel = document.getElementById(prefix + '-ejeccuenta');
+  if (cel) cel.innerHTML = personaOptions(cel.value, PERSONAS_EJECUTIVO);
+  const ael = document.getElementById(prefix + '-ejecasignado');
+  if (ael) ael.innerHTML = personaOptions(ael.value, PERSONAS_EJECUTIVO);
   refrescarComision(prefix);
   if (prefix === 'nc') _actualizarCodigoCliente();
 }

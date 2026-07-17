@@ -3,11 +3,15 @@
 // Propietario / Ejecutivo de cuenta / Ejecutivo asignado + comisión.
 // ════════════════════════════════════════════════════════════
 
-// Roster de personas asignables (identidad = nombre exacto usado también en login)
-const PERSONAS = ['Natalia Gama', 'Ximena', 'Alexia', 'Eduardo Gama', 'Alfredo', 'Oscar'];
+// Rosters por rol:
+//  - Propietario: todos menos Oscar (Eduardo y Alfredo SOLO entran como propietario)
+//  - Ejecutivo de cuenta / asignado: solo ejecutivos reales (Natalia, Ximena, Alexia)
+const PERSONAS_PROPIETARIO = ['Natalia Gama', 'Ximena', 'Alexia', 'Eduardo Gama', 'Alfredo'];
+const PERSONAS_EJECUTIVO   = ['Natalia Gama', 'Ximena', 'Alexia'];
+const PERSONAS = [...new Set([...PERSONAS_PROPIETARIO, ...PERSONAS_EJECUTIVO])];
 
 const NATALIA = 'Natalia Gama';
-// Regla 3 — propietarios especiales (el brief los llama "Eduardo Gama" y "Alfie"=Alfredo)
+// Regla 3 — propietarios especiales (Eduardo Gama y Alfredo; misma regla de negocio)
 const PROPIETARIOS_ESPECIALES = ['Eduardo Gama', 'Alfredo'];
 
 // Calcula asignaciones automáticas y comisión FIJA al momento de la asignación.
@@ -22,10 +26,10 @@ function aplicarReglasComision(data, { esApollo = false } = {}) {
     regla:           4,
   };
 
-  // Regla 1 — Origen Apollo: propietario y ejec. de cuenta = Natalia (automático)
+  // Regla 1 — Origen Apollo: Propietario = Natalia por default.
+  // Ejec. de cuenta y Ejec. asignado los asigna Natalia MANUALMENTE (quedan tal cual).
   if (esApollo) {
     out.propietario = NATALIA;
-    out.ejecCuenta  = NATALIA;
     out.comision    = null;  // Natalia es dueña directa, sin % de terceros
     out.regla       = 1;
     return out;
@@ -52,4 +56,4 @@ function aplicarReglasComision(data, { esApollo = false } = {}) {
   return out;
 }
 
-module.exports = { PERSONAS, NATALIA, PROPIETARIOS_ESPECIALES, aplicarReglasComision };
+module.exports = { PERSONAS, PERSONAS_PROPIETARIO, PERSONAS_EJECUTIVO, NATALIA, PROPIETARIOS_ESPECIALES, aplicarReglasComision };

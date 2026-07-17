@@ -4,10 +4,10 @@
 const { aplicarReglasComision, NATALIA, PROPIETARIOS_ESPECIALES } = require('../../api/_roles');
 
 describe('Regla 1 — Origen Apollo', () => {
-  test('Apollo impone Propietario y Ejec. de cuenta = Natalia, sin comisión', () => {
-    const r = aplicarReglasComision({ propietario: 'Ximena', ejecCuenta: 'Ximena' }, { esApollo: true });
+  test('Apollo impone Propietario = Natalia, sin comisión; Ejec. de cuenta queda manual', () => {
+    const r = aplicarReglasComision({ propietario: 'Ximena', ejecCuenta: 'Alexia' }, { esApollo: true });
     expect(r.propietario).toBe(NATALIA);
-    expect(r.ejecCuenta).toBe(NATALIA);
+    expect(r.ejecCuenta).toBe('Alexia'); // manual — Natalia lo asigna, no se fuerza
     expect(r.comision).toBeNull();
     expect(r.regla).toBe(1);
   });
