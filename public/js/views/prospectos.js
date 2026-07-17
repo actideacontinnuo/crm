@@ -132,7 +132,9 @@ async function saveProspecto() {
     email:      document.getElementById('np-email').value || '',
     evento:     document.getElementById('np-evento').value || '',
     estimado:   String(parseFloat(document.getElementById('np-estimado').value) || 0),
-    ejec:       document.getElementById('np-ejec').value,
+    propietario:  document.getElementById('np-propietario').value || '',
+    ejecCuenta:   document.getElementById('np-ejeccuenta').value || '',
+    ejecAsignado: document.getElementById('np-ejecasignado').value || '',
     fuente:     document.getElementById('np-fuente').value,
     status:     document.getElementById('np-status').value,
     seguimiento: document.getElementById('np-fecha').value || new Date().toISOString().split('T')[0],
@@ -297,6 +299,8 @@ function confirmarCalificacion() {
 async function convertirACliente() {
   const p = await db.prospectos.get(STATE.selProsp);
   STATE.convirtiendoProspecto = STATE.selProsp; // marca explícita de conversión
+  // Los 3 roles y la comisión se copian IDÉNTICOS del prospecto (Brief §2 continuidad, §3.1)
+  STATE.convComision = (p.comision === undefined ? null : p.comision);
   closeM('detalle-prospecto');
   setTimeout(() => {
     document.getElementById('nc-nombre').value  = p.empresa;
@@ -304,8 +308,11 @@ async function convertirACliente() {
     document.getElementById('nc-cargo').value   = p.cargo;
     document.getElementById('nc-tel').value     = p.tel;
     document.getElementById('nc-email').value   = p.email;
-    const sel = document.getElementById('nc-ejec');
-    if (sel) { for (let i = 0; i < sel.options.length; i++) if (sel.options[i].value === p.ejec) sel.selectedIndex = i; }
+    // Copiar los 3 roles comerciales; _initRolesModal respeta estos valores al poblar
+    const setSel = (id, val) => { const s = document.getElementById(id); if (s) s.value = val || ''; };
+    setSel('nc-propietario',  p.propietario);
+    setSel('nc-ejeccuenta',   p.ejecCuenta);
+    setSel('nc-ejecasignado', p.ejecAsignado);
     openM('nuevo-cliente');
   }, 200);
 }

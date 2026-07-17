@@ -156,8 +156,11 @@ async function saveCliente() {
     return;
   }
 
-  const ejec   = document.getElementById('nc-ejec').value;
-  const codigo = _buildCodigo(razon, ejec);
+  const propietario  = document.getElementById('nc-propietario').value || '';
+  const ejecCuenta   = document.getElementById('nc-ejeccuenta').value || '';
+  const ejecAsignado = document.getElementById('nc-ejecasignado').value || '';
+  // Código de cliente: RFC(3) + Ejec. de cuenta(3) + DDMMAA (Brief §5)
+  const codigo = codigoCliente(rfc, ejecCuenta);
 
   const data = {
     codigo,
@@ -170,11 +173,16 @@ async function saveCliente() {
     cargo:    document.getElementById('nc-cargo').value || '',
     tel:      document.getElementById('nc-tel').value || '',
     email,
-    ejec,
+    propietario,
+    ejecCuenta,
+    ejecAsignado,
     pago:     document.getElementById('nc-pago').value,
     status:   'Activo',
     docs:     { csf: true },
   };
+
+  // Al convertir un prospecto, la comisión FIJA se copia tal cual (incluso null, §3.1)
+  if (STATE.convirtiendoProspecto) data.comision = STATE.convComision ?? null;
 
   showSpinner();
   try {
@@ -216,6 +224,12 @@ function _resetClienteForm() {
     const el = document.getElementById(id);
     if (el) { el.value = ''; el.style.borderColor = ''; }
   });
+  // Resetear los 3 roles comerciales y el estado de conversión
+  ['nc-propietario','nc-ejeccuenta','nc-ejecasignado'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  STATE.convirtiendoProspecto = null;
+  STATE.convComision = null;
+  const codPrev = document.getElementById('nc-codigo-preview'); if (codPrev) codPrev.textContent = '';
+  const comPrev = document.getElementById('nc-comision-preview'); if (comPrev) comPrev.innerHTML = '';
   const blocker = document.getElementById('nc-blocker');
   if (blocker) blocker.remove();
 }

@@ -97,14 +97,18 @@ async function queryDB(dbKey, filter = null) {
   const rows = _store[dbKey] || [];
   if (!filter) return rows;
 
-  // Soportar filtros de título y select (los que usan auth.js y los routers con roleFilter)
-  if (filter.property && filter.title?.equals) {
-    const val = filter.title.equals;
-    return rows.filter(r => _readTitle(r.properties[filter.property]) === val);
+  const coincide = (r, f) => {
+    if (f.title?.equals)  return _readTitle(r.properties[f.property]) === f.title.equals;
+    if (f.select?.equals) return (r.properties[f.property]?.select?.name ?? '') === f.select.equals;
+    return false;
+  };
+  // Filtro OR (acceso por registro con 3 roles): coincide si alguna sub-condición aplica
+  if (Array.isArray(filter.or)) {
+    return rows.filter(r => filter.or.some(f => coincide(r, f)));
   }
-  if (filter.property && filter.select?.equals) {
-    const val = filter.select.equals;
-    return rows.filter(r => (r.properties[filter.property]?.select?.name ?? '') === val);
+  // Soportar filtros de título y select (auth.js y routers legados)
+  if (filter.property && (filter.title?.equals || filter.select?.equals)) {
+    return rows.filter(r => coincide(r, filter));
   }
   return rows;
 }

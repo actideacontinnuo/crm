@@ -4,6 +4,78 @@
 const EJEC_LIST = ['Natalia Gama', 'Ximena', 'Alexia'];
 const EJEC_COL = { 'Natalia Gama': '#CC2200', 'Ximena': '#1A6B3C', 'Alexia': '#A0620A' };
 
+// ── Roles comerciales y comisión (Brief v2) ──────────────────
+// Roster de personas asignables a Propietario / Ejec. de cuenta / Ejec. asignado.
+const PERSONAS = ['Natalia Gama', 'Ximena', 'Alexia', 'Eduardo Gama', 'Alfredo', 'Oscar'];
+const NATALIA_ID = 'Natalia Gama';
+const PROPIETARIOS_ESPECIALES = ['Eduardo Gama', 'Alfredo'];
+
+// Opciones <option> para un <select> de personas (con opción vacía "— Selecciona —")
+function personaOptions(sel) {
+  return '<option value="">— Selecciona —</option>' +
+    PERSONAS.map(n => `<option value="${esc(n)}"${n === sel ? ' selected' : ''}>${esc(n)}</option>`).join('');
+}
+
+// Comisión según las reglas §3 (espejo del backend, solo para previsualizar)
+function calcComision(propietario, ejecCuenta, esApollo) {
+  if (esApollo) return { comision: null, texto: 'Regla 1 · Apollo — Natalia dueña directa (sin % de terceros)' };
+  if (propietario && ejecCuenta && propietario === ejecCuenta)
+    return { comision: 15, texto: 'Regla 2 · Mismo dueño — comisión 15% + bono manual al cierre' };
+  if (propietario && PROPIETARIOS_ESPECIALES.includes(propietario))
+    return { comision: 7.5, texto: 'Regla 3 · Propietario especial — Ejec. de cuenta = Natalia, comisión 7.5%' };
+  return { comision: null, texto: 'Regla 4 · Caso general — comisión no gestionada por el sistema' };
+}
+
+// Refresca el preview de comisión de un modal (prefijo 'np' o 'nc')
+function refrescarComision(prefix) {
+  const prop = document.getElementById(prefix + '-propietario')?.value || '';
+  let ejc  = document.getElementById(prefix + '-ejeccuenta')?.value || '';
+  const esApollo = prefix === 'np' && (document.getElementById('np-fuente')?.value === 'Apollo');
+  const r = calcComision(prop, ejc, esApollo);
+  // Regla 1 y 3 imponen Ejec. de cuenta = Natalia: reflejarlo en el select
+  const impNatalia = esApollo || (prop && PROPIETARIOS_ESPECIALES.includes(prop) && prop !== ejc);
+  const ejcSel = document.getElementById(prefix + '-ejeccuenta');
+  if (ejcSel && impNatalia) { ejcSel.value = NATALIA_ID; ejc = NATALIA_ID; }
+  const propSel = document.getElementById(prefix + '-propietario');
+  if (propSel && esApollo) propSel.value = NATALIA_ID;
+  const el = document.getElementById(prefix + '-comision-preview');
+  if (el) {
+    const pct = r.comision === null ? '—' : r.comision + '%';
+    el.innerHTML = `<span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--gray400)">COMISIÓN: <strong style="color:${r.comision ? 'var(--green)' : 'var(--gray400)'}">${pct}</strong> · ${esc(r.texto)}</span>`;
+  }
+}
+
+// Puebla los 3 selects de roles de un modal (prefijo 'np' o 'nc') si están vacíos,
+// respetando lo ya seleccionado (p. ej. al convertir un prospecto).
+function _initRolesModal(prefix) {
+  ['propietario', 'ejeccuenta', 'ejecasignado'].forEach(rol => {
+    const el = document.getElementById(prefix + '-' + rol);
+    if (el) el.innerHTML = personaOptions(el.value);
+  });
+  refrescarComision(prefix);
+  if (prefix === 'nc') _actualizarCodigoCliente();
+}
+
+// Código de cliente en vivo: RFC(3) + Ejec. de cuenta(3) + DDMMAA (Brief §5)
+function codigoCliente(rfc, ejecCuenta, fecha) {
+  const r = (rfc || 'XXX').replace(/[^A-Za-z0-9]/g, '').toUpperCase().slice(0, 3);
+  const e = (ejecCuenta || 'EJE').replace(/[^A-Za-z]/g, '').toUpperCase().slice(0, 3);
+  const d = fecha ? new Date(fecha) : new Date();
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const yy = String(d.getFullYear()).slice(2);
+  return `${r}${e}${dd}${mm}${yy}`;
+}
+
+function _actualizarCodigoCliente() {
+  const rfc = document.getElementById('nc-rfc')?.value || '';
+  const ejc = document.getElementById('nc-ejeccuenta')?.value || '';
+  const prev = document.getElementById('nc-codigo-preview');
+  if (prev) prev.textContent = 'CÓDIGO DE CLIENTE: ' + codigoCliente(rfc, ejc);
+}
+
+
+
 
 // ══════════════════════════════════════
 // ÍCONOS SVG — set del diseño de referencia (+ extras del CRM)
@@ -247,6 +319,8 @@ function openM(name) {
   const el = document.getElementById('m-' + name);
   if (el) { el.classList.add('open'); document.body.style.overflow = 'hidden'; }
 
+  if (name === 'nuevo-prospecto') { _initRolesModal('np'); }
+  if (name === 'nuevo-cliente')   { _initRolesModal('nc'); }
   if (name === 'nueva-op') { _populateClienteSelectNuevaOP(); _previewOPNum(); }
   if (name === 'cotizador') { populateCotSelects(); }
   if (name === 'deudas') { renderDeudasModal(); }

@@ -95,28 +95,38 @@ describe('PATCH /api/prospectos/:id — campos inmutables', () => {
     expect(res.status).toBe(200);
   });
 
-  test('NO permite cambiar empresa (campo inmutable)', async () => {
-    const id = await crearProspecto();
-    await request(app).patch(`/api/prospectos/${id}`)
-      .set('Authorization', `Bearer ${adminToken()}`)
+  test('el ejecutivo NO puede cambiar empresa (campo inmutable para su rol)', async () => {
+    // prospecto propiedad de Alexia
+    const alta = await request(app).post('/api/prospectos')
+      .set('Authorization', `Bearer ${ejecToken()}`).send(PROSPECTO_VALIDO);
+    await request(app).patch(`/api/prospectos/${alta.body.id}`)
+      .set('Authorization', `Bearer ${ejecToken()}`)
       .send({ empresa: 'EMPRESA MANIPULADA', status: 'Contactado' });
-
-    const lista = await request(app).get('/api/prospectos')
-      .set('Authorization', `Bearer ${adminToken()}`);
-    const p = lista.body.find(x => x.id === id);
-    expect(p.empresa).toBe('TechCorp SA'); // sin cambio
+    const res = await request(app).get(`/api/prospectos/${alta.body.id}`)
+      .set('Authorization', `Bearer ${ejecToken()}`);
+    expect(res.body.empresa).toBe('TechCorp SA'); // sin cambio
+    expect(res.body.status).toBe('Contactado');   // el mutable sí
   });
 
-  test('NO permite cambiar email (campo inmutable)', async () => {
+  test('el admin SÍ puede corregir empresa', async () => {
     const id = await crearProspecto();
     await request(app).patch(`/api/prospectos/${id}`)
       .set('Authorization', `Bearer ${adminToken()}`)
-      .send({ email: 'hackeado@evil.com' });
-
+      .send({ empresa: 'Nombre Corregido' });
     const lista = await request(app).get('/api/prospectos')
       .set('Authorization', `Bearer ${adminToken()}`);
-    const p = lista.body.find(x => x.id === id);
-    expect(p.email).toBe('juan@techcorp.com'); // sin cambio
+    expect(lista.body.find(x => x.id === id).empresa).toBe('Nombre Corregido');
+  });
+
+  test('el ejecutivo NO puede cambiar email (campo inmutable para su rol)', async () => {
+    const alta = await request(app).post('/api/prospectos')
+      .set('Authorization', `Bearer ${ejecToken()}`).send(PROSPECTO_VALIDO);
+    await request(app).patch(`/api/prospectos/${alta.body.id}`)
+      .set('Authorization', `Bearer ${ejecToken()}`)
+      .send({ email: 'hackeado@evil.com' });
+    const res = await request(app).get(`/api/prospectos/${alta.body.id}`)
+      .set('Authorization', `Bearer ${ejecToken()}`);
+    expect(res.body.email).toBe('juan@techcorp.com'); // sin cambio
   });
 
   test('ejecutivo NO puede eliminar prospectos (403)', async () => {

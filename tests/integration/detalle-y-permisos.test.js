@@ -93,12 +93,12 @@ describe('Prospectos — detalle, propiedad y notas', () => {
   });
 
   test('PATCH ignora los campos inmutables (empresa, contacto, tel, email, ejec)', async () => {
-    const pr = await crear('/api/prospectos', { empresa: 'Original', contacto: 'Juan', ejec: 'Natalia Gama' });
+    const pr = await crear('/api/prospectos', { empresa: 'Original', contacto: 'Juan', propietario: 'Alexia' }, ejecToken());
     const res = await request(app).patch(`/api/prospectos/${pr.id}`)
-      .set('Authorization', `Bearer ${adminToken()}`)
+      .set('Authorization', `Bearer ${ejecToken()}`)
       .send({ empresa: 'Hackeada', contacto: 'Otro', status: 'Calificado' });
     expect(res.status).toBe(200);
-    expect(res.body.empresa).toBe('Original');
+    expect(res.body.empresa).toBe('Original');  // inmutable para el ejecutivo
     expect(res.body.contacto).toBe('Juan');
     expect(res.body.status).toBe('Calificado');
   });

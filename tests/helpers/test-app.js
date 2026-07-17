@@ -65,9 +65,19 @@ function buildApp() {
     }
     next();
   }
+  // Acceso por registro (3 roles) — espeja server.js
+  function rolFilterCliente() {
+    return (req, res, next) => {
+      if (req.user.role !== 'admin') {
+        if (req.method === 'DELETE') return res.status(403).json({ error: 'Solo el Admin puede eliminar registros' });
+        req.rolFilter = req.user.ejec;
+      }
+      next();
+    };
+  }
 
-  app.use('/api/prospectos',   roleFilter());
-  app.use('/api/clientes',     roleFilter());
+  app.use('/api/prospectos',   rolFilterCliente());
+  app.use('/api/clientes',     rolFilterCliente());
   app.use('/api/ops',          roleFilter());
   app.use('/api/cotizaciones', roleFilter());
   app.use('/api/pagos',        adminOnly);

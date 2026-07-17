@@ -514,7 +514,13 @@
     <div class="fgrid"><div class="fg"><label class="fl">EMPRESA</label><input class="fi" id="np-empresa" placeholder="Nombre de la empresa"></div><div class="fg"><label class="fl">CONTACTO</label><input class="fi" id="np-contacto" placeholder="Nombre completo"></div></div>
     <div class="fgrid"><div class="fg"><label class="fl">TELÉFONO</label><input class="fi" id="np-tel" placeholder="+52 55 0000 0000"></div><div class="fg"><label class="fl">EMAIL</label><input class="fi" id="np-email" type="email" placeholder="correo@empresa.com"></div></div>
     <div class="fgrid"><div class="fg"><label class="fl">CARGO</label><input class="fi" id="np-cargo" placeholder="Director de Eventos"></div><div class="fg"><label class="fl">ESTIMADO MXN</label><input class="fi" id="np-estimado" type="number" placeholder="500000"></div></div>
-    <div class="fgrid"><div class="fg"><label class="fl">EJECUTIVO</label><select class="fsel-full" id="np-ejec"><option>Natalia Gama</option><option>Ximena</option><option>Alexia</option></select></div><div class="fg"><label class="fl">FUENTE</label><select class="fsel-full" id="np-fuente"><option>Referido</option><option>Campo</option><option>LinkedIn</option><option>Scouting</option><option>Evento</option></select></div></div>
+    <div class="fg"><label class="fl">FUENTE</label><select class="fsel-full" id="np-fuente" onchange="refrescarComision('np')"><option>Referido</option><option>Campo</option><option>LinkedIn</option><option>Scouting</option><option>Evento</option><option value="Apollo">Apollo (prospección automática)</option></select></div>
+    <div class="fgrid">
+      <div class="fg"><label class="fl">PROPIETARIO</label><select class="fsel-full" id="np-propietario" onchange="refrescarComision('np')"></select></div>
+      <div class="fg"><label class="fl">EJECUTIVO DE CUENTA</label><select class="fsel-full" id="np-ejeccuenta" onchange="refrescarComision('np')"></select></div>
+    </div>
+    <div class="fg"><label class="fl">EJECUTIVO ASIGNADO</label><select class="fsel-full" id="np-ejecasignado"></select></div>
+    <div id="np-comision-preview" style="margin:2px 0 12px"></div>
     <div class="fg"><label class="fl">TIPO DE EVENTO</label><input class="fi" id="np-evento" placeholder="Congreso anual, lanzamiento, gala..."></div>
     <div class="fgrid"><div class="fg"><label class="fl">PRÓXIMO SEGUIMIENTO</label><input class="fi" id="np-fecha" type="date"></div><div class="fg"><label class="fl">ESTATUS</label><select class="fsel-full" id="np-status"><option>Nuevo</option><option>Contactado</option><option>En conversación</option><option>Listo p/ cotizar</option></select></div></div>
     <div class="fg"><label class="fl">NOTAS</label><textarea class="fta" id="np-notas" rows="3" placeholder="¿De qué habló? ¿Qué evento necesita?..."></textarea></div>
@@ -588,7 +594,14 @@
     <div class="fg"><label class="fl">DIRECCIÓN FISCAL</label><input class="fi" id="nc-dir" placeholder="Calle, No., Colonia, Ciudad, CP"></div>
     <div class="fgrid"><div class="fg"><label class="fl">NOMBRE CONTACTO</label><input class="fi" id="nc-contacto" placeholder="Nombre completo"></div><div class="fg"><label class="fl">CARGO</label><input class="fi" id="nc-cargo" placeholder="Director de Eventos"></div></div>
     <div class="fgrid"><div class="fg"><label class="fl">TELÉFONO</label><input class="fi" id="nc-tel" placeholder="+52 55 0000 0000"></div><div class="fg"><label class="fl">EMAIL</label><input class="fi" id="nc-email" type="email" placeholder="contacto@empresa.com"></div></div>
-    <div class="fgrid"><div class="fg"><label class="fl">FORMA DE PAGO</label><select class="fsel-full" id="nc-pago"><option>30 días</option><option>60 días</option><option>90 días</option><option>Inmediato</option></select></div><div class="fg"><label class="fl">EJECUTIVO</label><select class="fsel-full" id="nc-ejec"><option>Natalia Gama</option><option>Ximena</option><option>Alexia</option></select></div></div>
+    <div class="fg"><label class="fl">FORMA DE PAGO</label><select class="fsel-full" id="nc-pago"><option>30 días</option><option>60 días</option><option>90 días</option><option>Inmediato</option></select></div>
+    <div class="fgrid">
+      <div class="fg"><label class="fl">PROPIETARIO</label><select class="fsel-full" id="nc-propietario" onchange="refrescarComision('nc');_actualizarCodigoCliente()"></select></div>
+      <div class="fg"><label class="fl">EJECUTIVO DE CUENTA</label><select class="fsel-full" id="nc-ejeccuenta" onchange="refrescarComision('nc');_actualizarCodigoCliente()"></select></div>
+    </div>
+    <div class="fg"><label class="fl">EJECUTIVO ASIGNADO</label><select class="fsel-full" id="nc-ejecasignado"></select></div>
+    <div id="nc-comision-preview" style="margin:2px 0 4px"></div>
+    <div id="nc-codigo-preview" style="margin:0 0 12px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--gray400)"></div>
     <div style="border-top:1px solid var(--border);padding-top:14px;margin-top:4px">
       <div class="sect-label">DOCUMENTO REQUERIDO</div>
       <div id="nc-docs" style="display:flex;flex-direction:column;gap:14px;">

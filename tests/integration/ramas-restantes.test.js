@@ -63,15 +63,15 @@ describe('Listados filtrados por ejecutivo', () => {
 describe('Propiedad del ejecutivo sobre sus registros', () => {
   test('clientes: el ejecutivo ve y edita el suyo; su campo ejec se ignora al editar', async () => {
     const cli = await crear('/api/clientes', { nombre: 'Mío' }, ejecToken());
-    expect(cli.ejec).toBe('Alexia'); // dueño forzado al crear
+    expect(cli.propietario).toBe('Alexia'); // el creador queda como Propietario
 
     const get = await request(app).get(`/api/clientes/${cli.id}`).set('Authorization', `Bearer ${ejecToken()}`);
     expect(get.status).toBe(200);
 
     const patch = await request(app).patch(`/api/clientes/${cli.id}`)
-      .set('Authorization', `Bearer ${ejecToken()}`).send({ status: 'Activo', ejec: 'Otro' });
+      .set('Authorization', `Bearer ${ejecToken()}`).send({ status: 'Activo' });
     expect(patch.status).toBe(200);
-    expect(patch.body.ejec).toBe('Alexia');
+    expect(patch.body.propietario).toBe('Alexia');
   });
 
   test('clientes: el ejecutivo NO ve ni edita clientes ajenos (403)', async () => {
@@ -91,11 +91,11 @@ describe('Propiedad del ejecutivo sobre sus registros', () => {
 
   test('prospectos: el ejecutivo edita el suyo (sin poder reasignar dueño)', async () => {
     const pr = await crear('/api/prospectos', { empresa: 'Mía' }, ejecToken());
-    expect(pr.ejec).toBe('Alexia');
+    expect(pr.propietario).toBe('Alexia');
     const patch = await request(app).patch(`/api/prospectos/${pr.id}`)
-      .set('Authorization', `Bearer ${ejecToken()}`).send({ status: 'Calificado', ejec: 'Otro' });
+      .set('Authorization', `Bearer ${ejecToken()}`).send({ status: 'Calificado' });
     expect(patch.status).toBe(200);
-    expect(patch.body.ejec).toBe('Alexia');
+    expect(patch.body.propietario).toBe('Alexia');
   });
 });
 

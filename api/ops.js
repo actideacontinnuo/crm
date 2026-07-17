@@ -21,6 +21,7 @@ function toObj(page) {
     cobrado:    read_number(p['Cobrado']),
     utilidad:   read_number(p['Utilidad']),
     status:     read_select(p['Status']),
+    bono:       read_text(p['Bono']),
   };
 }
 
@@ -37,6 +38,7 @@ function toProps(data) {
   if (data.cobrado  !== undefined) props['Cobrado']     = prop_number(data.cobrado);
   if (data.utilidad !== undefined) props['Utilidad']    = prop_number(data.utilidad);
   if (data.status   !== undefined) props['Status']      = prop_select(data.status);
+  if (data.bono     !== undefined) props['Bono']        = prop_text(data.bono);
   return props;
 }
 

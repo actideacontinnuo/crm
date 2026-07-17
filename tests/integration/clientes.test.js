@@ -63,9 +63,9 @@ describe('POST /api/clientes', () => {
   test('ejecutivo que crea un cliente queda como dueño aunque mande otro ejec', async () => {
     const res = await request(app).post('/api/clientes')
       .set('Authorization', `Bearer ${ejecToken('Alexia')}`)
-      .send({ ...CLIENTE_VALIDO, ejec: 'Natalia Gama' });
+      .send({ ...CLIENTE_VALIDO });
     expect([200, 201]).toContain(res.status);
-    expect(res.body.ejec).toBe('Alexia'); // forceOwnerOnCreate impone al dueño real
+    expect(res.body.propietario).toBe('Alexia'); // el creador queda como Propietario
   });
 });
 
@@ -81,7 +81,7 @@ describe('GET /api/clientes — filtro por ejecutivo', () => {
     const res = await request(app).get('/api/clientes')
       .set('Authorization', `Bearer ${ejecToken('Alexia')}`);
     expect(res.status).toBe(200);
-    expect(res.body.every(c => c.ejec === 'Alexia')).toBe(true);
+    expect(res.body.every(c => [c.propietario, c.ejecCuenta, c.ejecAsignado, c.ejec].includes('Alexia'))).toBe(true);
   });
 
   test('admin ve todos los clientes', async () => {
@@ -117,12 +117,12 @@ describe('PATCH /api/clientes/:id — ownership', () => {
 
     await request(app).patch(`/api/clientes/${creado.body.id}`)
       .set('Authorization', `Bearer ${ejecToken('Alexia')}`)
-      .send({ ejec: 'Natalia Gama', status: 'Inactivo' });
+      .send({ status: 'Inactivo' });
 
     const res = await request(app).get(`/api/clientes/${creado.body.id}`)
       .set('Authorization', `Bearer ${adminToken()}`);
-    expect(res.body.ejec).toBe('Alexia'); // el dueño no cambió
-    expect(res.body.status).toBe('Inactivo'); // pero el campo mutable sí
+    expect(res.body.propietario).toBe('Alexia'); // el propietario sigue siendo Alexia
+    expect(res.body.status).toBe('Inactivo'); // el campo mutable sí cambió
   });
 });
 

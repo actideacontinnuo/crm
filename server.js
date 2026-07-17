@@ -101,8 +101,12 @@ app.use('/api', enforcePasswordChange);
 app.use('/api', auditLogger);
 
 // ── Middleware de roles ───────────────────
-app.use('/api/prospectos',   roleFilter());
-app.use('/api/clientes',     roleFilter());
+// Prospectos y Clientes: acceso por REGISTRO según los 3 roles comerciales
+// (Propietario / Ejec. de cuenta / Ejec. asignado), para ejecutivos Y administración.
+// El admin (Dirección) ve todo.
+app.use('/api/prospectos',   rolFilterCliente());
+app.use('/api/clientes',     rolFilterCliente());
+// OPs y Cotizaciones: modelo legado (un solo Ejecutivo dueño)
 app.use('/api/ops',          roleFilter());
 app.use('/api/cotizaciones', roleFilter());
 
@@ -166,6 +170,19 @@ function roleFilter() {
     }
     if (req.user.role === 'administracion' && req.method === 'DELETE') {
       return res.status(403).json({ error: 'Solo el Admin puede eliminar registros' });
+    }
+    next();
+  };
+}
+
+// Acceso por registro (3 roles) para Prospectos y Clientes. Ejecutivos y
+// administración quedan filtrados a los registros donde su identidad aparece
+// como Propietario, Ejec. de cuenta o Ejec. asignado. Solo el Admin elimina.
+function rolFilterCliente() {
+  return (req, res, next) => {
+    if (req.user.role !== 'admin') {
+      if (req.method === 'DELETE') return res.status(403).json({ error: 'Solo el Admin puede eliminar registros' });
+      req.rolFilter = req.user.ejec; // identidad del usuario (Ejecutivo)
     }
     next();
   };
