@@ -150,24 +150,24 @@ async function openDetalleOP(id) {
         </div>`).join('')
     : `<div style="color:var(--gray400);font-size:12px">Sin pagos registrados. <span style="color:var(--red);cursor:pointer" onclick="closeM('detalle-op');openM('nuevo-pago')">Registrar pago →</span></div>`;
 
-  // Bono de Regla 2 (Brief §4): editable SOLO cuando el evento terminó (status Ejecutado).
-  // Lo captura Natalia (admin) manualmente. Se inserta antes de las acciones.
+  // Bono en la OP: SIEMPRE manual y SOLO aplica a Alexia y Ximena.
+  // Lo captura Dirección (admin). No está atado a la comisión ni al estatus.
   const user = sesionActual();
   const bonoHost = document.getElementById('dop-cobros');
-  const esEjecutado = o.status === 'Ejecutado';
-  const puedeEditarBono = esEjecutado && user?.role === 'admin';
-  const bonoHTML = `<div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border)">
-      <div class="info-cell-label" style="margin-bottom:6px">BONO (REGLA 2 · CAPTURA AL CIERRE)</div>
-      ${esEjecutado
-        ? (puedeEditarBono
-            ? `<div style="display:flex;gap:8px;align-items:center">
-                 <input class="fi" id="dop-bono" style="flex:1" placeholder="Monto o % del bono" value="${esc(o.bono) || ''}">
-                 <button class="btn btn-primary btn-sm" onclick="guardarBonoOP('${o.id}')">Guardar bono</button>
-               </div>`
-            : `<div class="info-cell-val">${esc(o.bono) || '—'}</div><div style="font-size:11px;color:var(--gray400)">Solo Dirección captura el bono</div>`)
-        : `<div style="font-size:12px;color:var(--gray400)">Disponible una vez que el evento esté <strong>Ejecutado</strong>.</div>`}
-    </div>`;
-  bonoHost.insertAdjacentHTML('afterend', bonoHTML);
+  const aplicaBono = BONO_ELEGIBLES.includes(o.ejec);
+  if (aplicaBono) {
+    const puedeEditar = user?.role === 'admin';
+    const bonoHTML = `<div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border)">
+        <div class="info-cell-label" style="margin-bottom:6px">BONO · ${esc(o.ejec)} (CAPTURA MANUAL)</div>
+        ${puedeEditar
+          ? `<div style="display:flex;gap:8px;align-items:center">
+               <input class="fi" id="dop-bono" style="flex:1" placeholder="Monto o % del bono" value="${esc(o.bono) || ''}">
+               <button class="btn btn-primary btn-sm" onclick="guardarBonoOP('${o.id}')">Guardar bono</button>
+             </div>`
+          : `<div class="info-cell-val">${esc(o.bono) || '—'}</div><div style="font-size:11px;color:var(--gray400)">Solo Dirección captura el bono</div>`}
+      </div>`;
+    bonoHost.insertAdjacentHTML('afterend', bonoHTML);
+  }
 
   const statuses = ['Cotización', 'En Producción', 'Ejecutado'];
   document.getElementById('dop-acciones').innerHTML =

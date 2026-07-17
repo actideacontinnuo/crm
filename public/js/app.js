@@ -9,6 +9,8 @@ const EJEC_COL = { 'Natalia Gama': '#CC2200', 'Ximena': '#1A6B3C', 'Alexia': '#A
 const PERSONAS = ['Natalia Gama', 'Ximena', 'Alexia', 'Eduardo Gama', 'Alfredo', 'Oscar'];
 const NATALIA_ID = 'Natalia Gama';
 const PROPIETARIOS_ESPECIALES = ['Eduardo Gama', 'Alfredo'];
+// Bono en OPs: siempre manual y solo para estas ejecutivas
+const BONO_ELEGIBLES = ['Alexia', 'Ximena'];
 
 // Opciones <option> para un <select> de personas (con opción vacía "— Selecciona —")
 function personaOptions(sel) {
