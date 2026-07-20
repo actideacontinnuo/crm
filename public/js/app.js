@@ -312,6 +312,7 @@ function nav(view) {
     prospectos: renderProspectos,
     clientes: renderClientes,
     ops: renderOPs,
+    controlpagos: renderControlPagos,
     cotizaciones: renderCotizaciones,
     pagos: renderPagos,
     proveedores: renderProveedores,

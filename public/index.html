@@ -211,6 +211,7 @@
   <div class="s-section">
     <div class="s-label">OPERACIONES</div>
     <div class="nav-item" onclick="nav('ops')"><span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-3px"><path d="M21 8l-9-5-9 5 9 5 9-5zM3 8v8l9 5 9-5V8M12 13v8"/></svg></span>OPs<span class="nav-badge am" id="badge-ops">0</span></div>
+    <div class="nav-item role-admin role-administracion" onclick="nav('controlpagos')"><span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-3px"><path d="M3 7a2 2 0 0 1 2-2h13a1 1 0 0 1 1 1v2"/><path d="M3 7v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7a1 1 0 0 0-1-1H5a2 2 0 0 1-2-2z"/><circle cx="16" cy="13" r="1.3" fill="currentColor"/></svg></span>Control de Pagos</div>
     <div class="nav-item" onclick="nav('cotizaciones')"><span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-3px"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h6"/></svg></span>Cotizaciones</div>
   </div>
   <div class="s-section role-admin role-administracion">
@@ -334,6 +335,8 @@
 </div>
 
 <!-- ═══════════ VIEW: COTIZACIONES ═══════════ -->
+<div id="view-controlpagos" class="view"></div>
+
 <div id="view-cotizaciones" class="view">
   <div class="ph">
     <div><div class="ph-eye">HISTORIAL DE VERSIONES</div><div class="ph-title">Cotizaciones</div></div>
@@ -1129,6 +1132,7 @@
 <script src="/js/views/proveedores.js"></script>
 <script src="/js/views/casos.js"></script>
 <script src="/js/views/dashboard.js"></script>
+<script src="/js/views/controlpagos.js"></script>
 <script src="/js/views/comercial.js"></script>
 <script src="/js/views/reportes.js"></script>
 </body>
