@@ -26,14 +26,9 @@ function aplicarReglasComision(data, { esApollo = false } = {}) {
     regla:           4,
   };
 
-  // Regla 1 — Origen Apollo: Propietario = Natalia por default.
-  // Ejec. de cuenta y Ejec. asignado los asigna Natalia MANUALMENTE (quedan tal cual).
-  if (esApollo) {
-    out.propietario = NATALIA;
-    out.comision    = null;  // Natalia es dueña directa, sin % de terceros
-    out.regla       = 1;
-    return out;
-  }
+  // Apollo: Propietario = Natalia por default (si no se especificó otro). La comisión
+  // se calcula con LAS MISMAS reglas que cualquier otra fuente (2, 3 o 4).
+  if (esApollo && !out.propietario) out.propietario = NATALIA;
 
   // Regla 2 — Propietario == Ejecutivo de cuenta (mismo dueño) → 15% (prioridad sobre R3)
   if (out.propietario && out.ejecCuenta && out.propietario === out.ejecCuenta) {

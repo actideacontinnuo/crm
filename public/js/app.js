@@ -24,10 +24,11 @@ function personaOptions(sel, roster) {
 
 // Comisión según las reglas §3 (espejo del backend, solo para previsualizar)
 function calcComision(propietario, ejecCuenta, esApollo) {
-  if (esApollo) return { comision: null, texto: 'Regla 1 · Apollo — Natalia dueña directa (sin % de terceros)' };
-  if (propietario && ejecCuenta && propietario === ejecCuenta)
+  // Apollo solo fija Natalia como propietaria por default; la comisión sale de las mismas reglas.
+  const prop = (esApollo && !propietario) ? NATALIA_ID : propietario;
+  if (prop && ejecCuenta && prop === ejecCuenta)
     return { comision: 15, texto: 'Regla 2 · Mismo dueño — comisión 15% + bono manual al cierre' };
-  if (propietario && PROPIETARIOS_ESPECIALES.includes(propietario))
+  if (prop && PROPIETARIOS_ESPECIALES.includes(prop))
     return { comision: 7.5, texto: 'Regla 3 · Propietario especial — Ejec. de cuenta = Natalia, comisión 7.5%' };
   return { comision: null, texto: 'Regla 4 · Caso general — comisión no gestionada por el sistema' };
 }
