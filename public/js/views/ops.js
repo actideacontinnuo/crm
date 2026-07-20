@@ -133,10 +133,13 @@ async function openDetalleOP(id) {
     <div class="info-cell"><div class="info-cell-label">CLIENTE</div><div class="info-cell-val">${esc(cli.nombre) || '—'}</div><div style="font-size:11px;color:var(--gray400)">${esc(cli.contacto) || '—'}</div></div>
     <div class="info-cell"><div class="info-cell-label">FECHA EVENTO</div><div class="info-cell-val">${esc(o.fechaEvento) || '—'}</div><div style="font-size:11px;color:var(--gray400)">Ejecutivo: ${esc(o.ejec) || '—'}</div></div>`;
 
+const _sub = o.cotizado || 0, _iva = _sub * 0.16, _totIva = _sub + _iva;
   document.getElementById('dop-montos').innerHTML = `
-    <div class="info-cell" style="text-align:center"><div class="info-cell-label">COTIZADO</div><div style="font-family:'Bebas Neue',cursive;font-size:22px">${fmx(o.cotizado)}</div></div>
+    <div class="info-cell" style="text-align:center"><div class="info-cell-label">SUBTOTAL</div><div style="font-family:'Bebas Neue',cursive;font-size:22px">${fmx(_sub)}</div></div>
     <div class="info-cell" style="text-align:center;background:var(--green-dim);border:1px solid var(--green-bdr)"><div class="info-cell-label" style="color:var(--green)">COBRADO</div><div style="font-family:'Bebas Neue',cursive;font-size:22px;color:var(--green)">${fmx(o.cobrado)}</div></div>
-    <div class="info-cell" style="text-align:center;background:var(--red-dim);border:1px solid var(--red-border)"><div class="info-cell-label" style="color:var(--red)">PENDIENTE</div><div style="font-family:'Bebas Neue',cursive;font-size:22px;color:var(--red)">${fmx(Math.max(0, (o.cotizado||0) - (o.cobrado||0)))}</div></div>`;
+    <div class="info-cell" style="text-align:center;background:var(--red-dim);border:1px solid var(--red-border)"><div class="info-cell-label" style="color:var(--red)">PENDIENTE</div><div style="font-family:'Bebas Neue',cursive;font-size:22px;color:var(--red)">${fmx(Math.max(0, _totIva - (o.cobrado||0)))}</div></div>`;
+  const ivaHost = document.getElementById('dop-montos');
+  ivaHost.insertAdjacentHTML('afterend', `<div style="display:flex;justify-content:space-between;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--gray600);margin:-6px 0 12px;padding:0 4px"><span>IVA 16%: <strong>${fmx(_iva)}</strong></span><span>TOTAL CON IVA: <strong style="color:var(--black)">${fmx(_totIva)}</strong></span></div>`);
 
   const pagosOP = pagos.filter(pg => pg.opId === id && pg.tipo === 'Cobro a cliente');
   document.getElementById('dop-cobros').innerHTML = pagosOP.length

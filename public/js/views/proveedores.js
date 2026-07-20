@@ -85,15 +85,14 @@ async function analizarDocProv(tipo, input) {
       } else if (tipo === 'oc') {
         const positiva = d.sentido === 'POSITIVO';
         const vigente  = d.mesVigente;
+        // Se acepta el documento; si no es positiva/vigente, se avisa en ámbar (no bloquea).
         if (!positiva || !vigente) {
-          area.innerHTML = icoHTML('alert', 12) + ' Opinión no válida';
-          area.style.borderColor = 'var(--red)';
-          status.style.color = 'var(--red)';
-          status.textContent = d.observaciones || (!positiva ? 'La opinión no es positiva' : 'La opinión está vencida');
-          return false;
+          status.style.color = 'var(--amber)';
+          status.textContent = '⚠ ' + (d.observaciones || (!positiva ? 'La opinión no es positiva' : 'La opinión no parece del mes en curso')) + ' — revisar';
+        } else {
+          status.style.color = 'var(--green)';
+          status.textContent = `✅ Positiva · Fecha: ${d.fechaConsulta || '—'}`;
         }
-        status.style.color = 'var(--green)';
-        status.textContent = `✅ Positiva · Fecha: ${d.fechaConsulta || '—'}`;
       }
     },
   });

@@ -243,13 +243,14 @@ function genCodigo(cliente) {
 }
 
 // Build OP number from cliente codigo + date + sequence count
-function buildOPNum(clienteId, allOps) {
-  const cl = getClienteById(clienteId);
-  const prefix = cl && cl.codigo ? cl.codigo.substring(0, 6) : 'XXXXXX';
+// Código de OP: RFC(3) - Propietario(3) - ddmmaa - Vxx   ej: APP-NAT-200726-V01
+function buildOPNum(cliente, allOps) {
+  const rfc  = (cliente?.rfc || 'XXX').replace(/[^A-Za-z0-9]/g, '').substring(0, 3).toUpperCase() || 'XXX';
+  const prop = (cliente?.propietario || cliente?.ejecCuenta || cliente?.ejec || 'XXX').replace(/[^A-Za-z]/g, '').substring(0, 3).toUpperCase() || 'XXX';
   const d = new Date();
   const dateStr = String(d.getDate()).padStart(2, '0') + String(d.getMonth() + 1).padStart(2, '0') + String(d.getFullYear()).slice(2);
-  const count = (allOps || []).filter(o => o.clienteId === clienteId).length + 1;
-  return `${prefix}${dateStr}-${String(count).padStart(2, '0')}`;
+  const count = (allOps || []).filter(o => o.clienteId === cliente?.id).length + 1;
+  return `${rfc}-${prop}-${dateStr}-V${String(count).padStart(2, '0')}`;
 }
 
 // ══════════════════════════════════════
@@ -366,10 +367,21 @@ async function _populateClienteSelectNuevaOP() {
 async function _previewOPNum() {
   const s = document.getElementById('op-cliente');
   if (!s) return;
-  const ops = await db.ops.list();
-  const num = buildOPNum(s.value, ops);
+  const [ops, cliente] = await Promise.all([db.ops.list(), getClienteById(s.value)]);
+  const num = buildOPNum(cliente, ops);
   const el = document.getElementById('op-num-prev');
   if (el) el.value = num;
+}
+
+// #3 Todas las OPs incluyen IVA (16%): muestra IVA y total con IVA en el modal
+const IVA_RATE = 0.16;
+function _previewOPIva() {
+  const sub = parseFloat(document.getElementById('op-monto')?.value) || 0;
+  const iva = sub * IVA_RATE;
+  const el = document.getElementById('op-iva-prev');
+  const lbl = document.getElementById('op-iva-label');
+  if (lbl) lbl.textContent = 'IVA 16% Y TOTAL CON IVA';
+  if (el) el.textContent = sub ? `IVA 16%: ${fmx(iva)}  ·  Total con IVA: ${fmx(sub + iva)}` : '';
 }
 
 async function _refreshPagoOPSelect() {

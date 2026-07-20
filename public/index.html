@@ -513,7 +513,7 @@
   <div class="modal-body">
     <div class="fgrid"><div class="fg"><label class="fl">EMPRESA</label><input class="fi" id="np-empresa" placeholder="Nombre de la empresa"></div><div class="fg"><label class="fl">CONTACTO</label><input class="fi" id="np-contacto" placeholder="Nombre completo"></div></div>
     <div class="fgrid"><div class="fg"><label class="fl">TELÉFONO</label><input class="fi" id="np-tel" placeholder="+52 55 0000 0000"></div><div class="fg"><label class="fl">EMAIL</label><input class="fi" id="np-email" type="email" placeholder="correo@empresa.com"></div></div>
-    <div class="fgrid"><div class="fg"><label class="fl">CARGO</label><input class="fi" id="np-cargo" placeholder="Director de Eventos"></div><div class="fg"><label class="fl">ESTIMADO MXN</label><input class="fi" id="np-estimado" type="number" placeholder="500000"></div></div>
+    <div class="fg"><label class="fl">CARGO</label><input class="fi" id="np-cargo" placeholder="Director de Eventos"></div>
     <div class="fg"><label class="fl">FUENTE</label><select class="fsel-full" id="np-fuente" onchange="refrescarComision('np')"><option>Referido</option><option>Campo</option><option>LinkedIn</option><option>Scouting</option><option>Evento</option><option value="Apollo">Apollo (prospección automática)</option></select></div>
     <div class="fgrid">
       <div class="fg"><label class="fl">PROPIETARIO</label><select class="fsel-full" id="np-propietario" onchange="refrescarComision('np')"></select></div>
@@ -656,8 +656,8 @@
     <div id="op-cliente-wrap" class="fg"><label class="fl">CLIENTE</label><select class="fsel-full" id="op-cliente" onchange="previewOPNum()"></select></div>
     <div class="fg"><label class="fl">DESCRIPCIÓN</label><input class="fi" id="op-desc" placeholder="Congreso Nacional 2026 (sin acentos para el código)"></div>
     <div class="fgrid"><div class="fg"><label class="fl">FECHA DEL EVENTO</label><input class="fi" id="op-fecha" type="date"></div><div class="fg"><label class="fl">EJECUTIVO</label><select class="fsel-full" id="op-ejec"><option value="Natalia Gama">Natalia Gama</option><option value="Ximena">Ximena</option><option value="Alexia">Alexia</option></select></div></div>
-    <div class="fgrid"><div class="fg"><label class="fl">TOTAL COTIZADO (MXN, sin IVA)</label><input class="fi" id="op-monto" type="number" placeholder="0.00"></div><div class="fg"><label class="fl">ESTATUS INICIAL</label><select class="fsel-full" id="op-status"><option>Cotización</option><option>En Producción</option></select></div></div>
-    <div class="fg"><label class="fl">NÚMERO OP (autogenerado)</label><input class="fi" id="op-num-prev" readonly style="background:var(--gray50);color:var(--gray400);font-family:'JetBrains Mono',monospace;font-size:12px" placeholder="Se genera al seleccionar cliente"></div>
+    <div class="fgrid"><div class="fg"><label class="fl">SUBTOTAL COTIZADO (MXN, sin IVA)</label><input class="fi" id="op-monto" type="number" placeholder="0.00" oninput="_previewOPIva()"></div><div class="fg"><label class="fl">ESTATUS INICIAL</label><select class="fsel-full" id="op-status"><option>Cotización</option><option>En Producción</option></select></div></div>
+    <div class="fg"><label class="fl" id="op-iva-label" style="color:var(--gray400)">IVA 16% + total con IVA aparecerán aquí</label><div id="op-iva-prev" style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--gray600);margin-bottom:10px"></div></div><div class="fg"><label class="fl">NÚMERO OP (autogenerado)</label><input class="fi" id="op-num-prev" readonly style="background:var(--gray50);color:var(--gray400);font-family:'JetBrains Mono',monospace;font-size:12px" placeholder="Se genera al seleccionar cliente"></div>
   </div>
   <div class="modal-footer"><button class="btn btn-ghost" onclick="closeM('nueva-op')">Cancelar</button><button class="btn btn-primary" onclick="saveOP()">Crear OP</button></div>
 </div></div>
@@ -854,7 +854,7 @@
     <div class="fg"><label class="fl" id="prv-clabe-label">CLABE INTERBANCARIA</label><input class="fi" id="prv-clabe" placeholder="18 dígitos" style="font-family:'JetBrains Mono',monospace"></div>
     <div class="fg"><label class="fl">PRODUCTO O SERVICIO</label><input class="fi" id="prv-servicio" placeholder="Audio, video e iluminación para eventos"></div>
     <div class="fgrid">
-      <div class="fg"><label class="fl">CONDICIONES DE PAGO</label><select class="fsel-full" id="prv-cond"><option>Inmediato</option><option>7 días</option><option>15 días</option><option>30 días</option><option>60 días</option></select></div>
+      <div class="fg"><label class="fl">CONDICIONES DE PAGO</label><select class="fsel-full" id="prv-cond"><option>Anticipo</option><option>Inmediato</option><option>7 días</option><option>15 días</option><option>30 días</option><option>60 días</option></select></div>
       <div class="fg"><label class="fl">EMITE FACTURA</label><select class="fsel-full" id="prv-factura"><option value="true">Sí — emite factura</option><option value="false">No — solo recibo</option></select></div>
     </div>
     <div class="fgrid"><div class="fg"><label class="fl">CONTACTO</label><input class="fi" id="prv-contacto" placeholder="Nombre"></div><div class="fg"><label class="fl">TELÉFONO</label><input class="fi" id="prv-tel" placeholder="+52 55 0000 0000"></div></div>
