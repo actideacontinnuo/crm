@@ -78,7 +78,7 @@ function buildApp() {
 
   app.use('/api/prospectos',   rolFilterCliente());
   app.use('/api/clientes',     rolFilterCliente());
-  app.use('/api/ops',          roleFilter());
+  app.use('/api/ops',          rolFilterCliente());
   app.use('/api/cotizaciones', roleFilter());
   app.use('/api/pagos',        adminOnly);
   app.use('/api/deudas',       adminOnly);

@@ -106,8 +106,9 @@ app.use('/api', auditLogger);
 // El admin (Dirección) ve todo.
 app.use('/api/prospectos',   rolFilterCliente());
 app.use('/api/clientes',     rolFilterCliente());
-// OPs y Cotizaciones: modelo legado (un solo Ejecutivo dueño)
-app.use('/api/ops',          roleFilter());
+// OPs: heredan los 3 roles del cliente (jerarquía Propietario/Ejec.cuenta/Ejec.asignado)
+app.use('/api/ops',          rolFilterCliente());
+// Cotizaciones: modelo legado (un solo Ejecutivo dueño)
 app.use('/api/cotizaciones', roleFilter());
 
 // Pagos y comisiones: solo admin

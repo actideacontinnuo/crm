@@ -64,11 +64,24 @@ async function saveOP() {
   const monto  = parseFloat(document.getElementById('op-monto').value) || 0;
   const status = document.getElementById('op-status').value;
 
+  // La OP hereda los 3 roles comerciales del cliente. El "dueño" operativo de la
+  // OP (Ejecutivo) es SIEMPRE el Ejecutivo asignado del cliente. Natalia y el
+  // Ejec. de cuenta conservan acceso por jerarquía (ver filtroRolesNotion backend).
+  let cli = null;
+  if (cliId && cliId !== '__interno__') { try { cli = await getClienteById(cliId); } catch (_) {} }
+  const propietario  = cli?.propietario  || '';
+  const ejecCuenta   = cli?.ejecCuenta   || '';
+  const ejecAsignado = cli?.ejecAsignado || cli?.ejec || '';
+  const ejec = ejecAsignado || document.getElementById('op-ejec').value;
+
   const data = {
     numero,
     desc,
     clienteId:  cliId,
-    ejec:       document.getElementById('op-ejec').value,
+    ejec,
+    propietario,
+    ejecCuenta,
+    ejecAsignado,
     fechaEvento: document.getElementById('op-fecha').value || new Date().toISOString().split('T')[0],
     cotizado:   monto,
     cobrado:    0,
