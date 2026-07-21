@@ -112,47 +112,42 @@ describe('Prospectos — detalle, propiedad y notas', () => {
   });
 });
 
-describe('Cotizaciones — detalle, secciones y aliases', () => {
-  test('GET /:id devuelve la cotización con secciones', async () => {
-    const cot = await crear('/api/cotizaciones', {
-      cotId: 'COT-1', ejec: 'Natalia Gama',
-      secciones: { audio: [{ item: 'Bocinas' }] },
-    });
-    const res = await request(app).get(`/api/cotizaciones/${cot.id}`).set('Authorization', `Bearer ${adminToken()}`);
-    expect(res.status).toBe(200);
-    expect(res.body.secciones.audio).toEqual([{ item: 'Bocinas' }]);
-    expect(res.body.secciones.catering).toEqual([]); // defaults completados
-  });
+describe('Cotizaciones — archivos y propiedad', () => {
+  // Helper multipart con un PDF adjunto
+  function postCot(token, fields) {
+    const req = request(app).post('/api/cotizaciones').set('Authorization', `Bearer ${token}`);
+    Object.entries(fields || {}).forEach(([k, v]) => req.field(k, String(v)));
+    req.attach('pdf', Buffer.from('%PDF-1.4'), { filename: 'c.pdf', contentType: 'application/pdf' });
+    return req;
+  }
 
-  test('acepta aliases fee → Fee % y total → Total con IVA', async () => {
-    const cot = await crear('/api/cotizaciones', { idCot: 'COT-2', fee: 10, total: 116000 });
-    expect(cot.cotId).toBe('COT-2');
-    expect(cot.feePct).toBe(10);
-    expect(cot.totalConIva).toBe(116000);
+  test('GET /:id devuelve la cotización con la URL del PDF', async () => {
+    const creada = await postCot(adminToken(), { cotId: 'COT-1', ejec: 'Natalia Gama' });
+    const res = await request(app).get(`/api/cotizaciones/${creada.body.id}`).set('Authorization', `Bearer ${adminToken()}`);
+    expect(res.status).toBe(200);
+    expect(res.body.pdf[0].url).toMatch(/^https?:\/\//);
+    expect(res.body.excel).toEqual([]); // no se subió Excel
   });
 
   test('un ejecutivo no ve ni edita cotizaciones ajenas (403)', async () => {
-    const cot = await crear('/api/cotizaciones', { cotId: 'COT-3', ejec: 'Natalia Gama' });
-    const get = await request(app).get(`/api/cotizaciones/${cot.id}`).set('Authorization', `Bearer ${ejecToken()}`);
+    const cot = await postCot(adminToken(), { cotId: 'COT-3', ejec: 'Natalia Gama' });
+    const get = await request(app).get(`/api/cotizaciones/${cot.body.id}`).set('Authorization', `Bearer ${ejecToken()}`);
     expect(get.status).toBe(403);
-    const patch = await request(app).patch(`/api/cotizaciones/${cot.id}`)
-      .set('Authorization', `Bearer ${ejecToken()}`).send({ status: 'Aprobada' });
+    const patch = await request(app).patch(`/api/cotizaciones/${cot.body.id}`)
+      .set('Authorization', `Bearer ${ejecToken()}`).field('status', 'Aprobada');
     expect(patch.status).toBe(403);
   });
 
   test('al crear, el ejecutivo queda como dueño aunque mande otro nombre', async () => {
-    const res = await request(app).post('/api/cotizaciones')
-      .set('Authorization', `Bearer ${ejecToken()}`)
-      .send({ cotId: 'COT-4', ejec: 'Natalia Gama' });
+    const res = await postCot(ejecToken(), { cotId: 'COT-4', ejec: 'Natalia Gama' });
     expect(res.status).toBe(200);
     expect(res.body.ejec).toBe('Alexia');
   });
 
   test('el ejecutivo puede editar la suya y el campo ejec se ignora', async () => {
-    const creada = await request(app).post('/api/cotizaciones')
-      .set('Authorization', `Bearer ${ejecToken()}`).send({ cotId: 'COT-5' });
+    const creada = await postCot(ejecToken(), { cotId: 'COT-5' });
     const patch = await request(app).patch(`/api/cotizaciones/${creada.body.id}`)
-      .set('Authorization', `Bearer ${ejecToken()}`).send({ status: 'Aprobada', ejec: 'Otro' });
+      .set('Authorization', `Bearer ${ejecToken()}`).field('status', 'Aprobada').field('ejec', 'Otro');
     expect(patch.status).toBe(200);
     expect(patch.body.ejec).toBe('Alexia');
     expect(patch.body.status).toBe('Aprobada');

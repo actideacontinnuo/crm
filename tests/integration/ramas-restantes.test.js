@@ -30,6 +30,16 @@ async function crear(ruta, body, token = adminToken()) {
   return res.body;
 }
 
+// Cotizaciones usan multipart (PDF/Excel). Helper con un PDF de prueba adjunto.
+async function crearCot(fields, token = adminToken()) {
+  const req = request(app).post('/api/cotizaciones').set('Authorization', `Bearer ${token}`);
+  Object.entries(fields).forEach(([k, v]) => req.field(k, String(v)));
+  req.attach('pdf', Buffer.from('%PDF-1.4'), { filename: 'c.pdf', contentType: 'application/pdf' });
+  const res = await req;
+  expect(res.status).toBe(200);
+  return res.body;
+}
+
 describe('Listados filtrados por ejecutivo', () => {
   test('prospectos: el ejecutivo solo ve los suyos', async () => {
     await crear('/api/prospectos', { empresa: 'DeNatalia', ejec: 'Natalia Gama' });
@@ -51,8 +61,8 @@ describe('Listados filtrados por ejecutivo', () => {
   test('ops y cotizaciones: el ejecutivo solo ve las suyas', async () => {
     await crear('/api/ops', { numero: 'OP-N', ejec: 'Natalia Gama' });
     await crear('/api/ops', { numero: 'OP-A', ejec: 'Alexia' });
-    await crear('/api/cotizaciones', { cotId: 'COT-N', ejec: 'Natalia Gama' });
-    await crear('/api/cotizaciones', { cotId: 'COT-A', ejec: 'Alexia' });
+    await crearCot({ cotId: 'COT-N', ejec: 'Natalia Gama' });
+    await crearCot({ cotId: 'COT-A', ejec: 'Alexia' }, ejecToken());
     const ops = await request(app).get('/api/ops').set('Authorization', `Bearer ${ejecToken()}`);
     expect(ops.body.map(o => o.numero)).toEqual(['OP-A']);
     const cots = await request(app).get('/api/cotizaciones').set('Authorization', `Bearer ${ejecToken()}`);
@@ -143,10 +153,4 @@ describe('JSON malformado guardado en Notion (no debe romper la lectura)', () =>
     for (const c of res.body) expect(c.historial).toEqual([]);
   });
 
-  test('cotización con Secciones corruptas devuelve las secciones por defecto', async () => {
-    mockNotion.getStore().cotizaciones.push(paginaConTexto('ID Cot', 'COT-X', 'Secciones', '{rota'));
-    const res = await request(app).get('/api/cotizaciones').set('Authorization', `Bearer ${adminToken()}`);
-    expect(res.status).toBe(200);
-    expect(res.body[0].secciones).toEqual({ audio: [], esceno: [], logistica: [], catering: [], otros: [] });
-  });
 });

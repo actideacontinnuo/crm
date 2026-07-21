@@ -217,6 +217,7 @@ module.exports = {
   prop_checkbox: (v) => ({ checkbox: Boolean(v) }),
   prop_email:    (v) => ({ email: v || null }),
   prop_phone:    (v) => ({ phone_number: v || null }),
+  prop_files:    (list) => ({ files: (list || []).filter(f => f && f.id).map(f => ({ type: 'file_upload', name: f.name || 'archivo', file_upload: { id: f.id } })) }),
   // Prop readers
   read_title:    (p) => p?.title?.[0]?.plain_text   ?? '',
   read_text:     (p) => p?.rich_text?.map(r => r.plain_text).join('') ?? '',
@@ -226,4 +227,7 @@ module.exports = {
   read_checkbox: (p) => p?.checkbox     ?? false,
   read_email:    (p) => p?.email        ?? '',
   read_phone:    (p) => p?.phone_number ?? '',
+  read_files:    (p) => (p?.files || []).map(f => ({ name: f.name || 'archivo', url: f.file?.url || f.external?.url || ('https://mock.notion/file/' + (f.file_upload?.id || 'x')) })).filter(f => f.url),
+  // Subida de archivos: en tests devolvemos un id ficticio, sin red.
+  uploadFileToNotion: async (_buf, filename) => 'mock-upload-' + String(filename || 'file').replace(/\W/g, '').slice(0, 8),
 };

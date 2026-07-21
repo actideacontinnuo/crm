@@ -339,21 +339,15 @@
 
 <div id="view-cotizaciones" class="view">
   <div class="ph">
-    <div><div class="ph-eye">HISTORIAL DE VERSIONES</div><div class="ph-title">Cotizaciones</div></div>
+    <div><div class="ph-eye">DOCUMENTOS · PDF + EXCEL</div><div class="ph-title">Cotizaciones</div></div>
     <div class="ph-actions">
-      <button class="btn btn-ghost btn-sm" onclick="openM('nuevo-caso')"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-3px"><path d="M3 9a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2 2 2 0 0 0 0 4 2 2 0 0 1-2 2H5a2 2 0 0 1-2-2 2 2 0 0 0 0-4z"/><path d="M13 7v10"/></svg> Nuevo Caso</button>
-      <button class="btn btn-primary btn-sm" onclick="openM('cotizador')">+ Nueva Cotización</button>
+      <button class="btn btn-primary btn-sm" onclick="openSubirCotizacion()">+ Subir Cotización</button>
     </div>
-  </div>
-  <div class="panel" id="tickets-panel" style="border-left:3px solid var(--amber);">
-    <div class="panel-hdr"><div class="panel-title">CASOS ABIERTOS</div><span class="tag-amber tag" id="tickets-count">0 PENDIENTES</span></div>
-    <div id="tickets-list" style="padding:0 16px;"></div>
   </div>
   <div class="panel">
     <table class="tbl">
       <thead><tr>
-        <th>ID COTIZACIÓN</th><th>CLIENTE / EVENTO</th><th>VER</th><th>MONTO TOTAL c/IVA</th>
-        <th>FECHA</th><th>ESTATUS</th><th>TICKETS</th><th></th>
+        <th>OP / ID</th><th>CLIENTE / EVENTO</th><th>FECHA</th><th>ESTATUS</th><th>ARCHIVOS</th><th></th>
       </tr></thead>
       <tbody id="cot-tbody"></tbody>
     </table>
@@ -700,47 +694,26 @@
   <div class="modal-footer"><button class="btn btn-ghost" onclick="closeM('edr')">Cerrar</button><button class="btn btn-ghost" onclick="exportEDR()"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-3px"><path d="M12 3v12M7 11l5 5 5-5M5 21h14"/></svg> Exportar PDF</button></div>
 </div></div>
 
-<!-- COTIZADOR COMPLETO -->
+<!-- SUBIR COTIZACIÓN (solo archivos PDF + Excel) -->
 <div class="modal-overlay" id="m-cotizador" onclick="closeM('cotizador')">
-<div class="modal" onclick="event.stopPropagation()" style="width:min(96vw,1000px);max-height:92vh">
+<div class="modal" onclick="event.stopPropagation()" style="width:min(96vw,560px)">
   <div class="modal-hdr">
-    <div><div class="modal-eye" id="cot-op-num">NUEVA COTIZACIÓN</div><div class="modal-title" id="cot-title">Cotizador</div></div>
-    <div style="display:flex;gap:8px;align-items:center">
-      <button class="btn btn-ghost btn-sm" onclick="openM('nuevo-caso');closeM('cotizador')"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-3px"><path d="M3 9a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2 2 2 0 0 0 0 4 2 2 0 0 1-2 2H5a2 2 0 0 1-2-2 2 2 0 0 0 0-4z"/><path d="M13 7v10"/></svg> Caso</button>
-      <button class="modal-close" onclick="closeM('cotizador')">✕</button>
-    </div>
+    <div><div class="modal-eye">DOCUMENTOS</div><div class="modal-title">Subir Cotización</div></div>
+    <button class="modal-close" onclick="closeM('cotizador')">✕</button>
   </div>
-  <div class="modal-body" style="padding:16px 20px">
-    <div class="fgrid3" style="margin-bottom:14px">
+  <div class="modal-body" style="padding:18px 20px">
+    <div class="fgrid" style="margin-bottom:14px">
       <div class="fg" style="margin:0"><label class="fl">CLIENTE</label><select class="fsel-full" id="cot-cliente" onchange="cotUpdateOP()"></select></div>
       <div class="fg" style="margin:0"><label class="fl">OP RELACIONADA</label><select class="fsel-full" id="cot-op"></select></div>
-      <div class="fg" style="margin:0"><label class="fl">EJECUTIVO</label><select class="fsel-full" id="cot-ejec"><option value="Natalia Gama">Natalia Gama</option><option value="Ximena">Ximena</option><option value="Alexia">Alexia</option></select></div>
     </div>
-    <div class="cot-wrap">
-      <table class="cot-tbl">
-        <thead><tr>
-          <th style="min-width:200px">DESCRIPCIÓN</th>
-          <th style="width:55px;text-align:center">CANT.</th>
-          <th style="width:50px;text-align:center">DÍAS</th>
-          <th style="width:100px">COSTO UNIT.</th>
-          <th style="width:100px">PRECIO VENTA</th>
-          <th style="width:70px">% UTIL.</th>
-          <th style="width:100px;color:#FF6644">IMPORTE</th>
-          <th style="min-width:130px">PROVEEDOR</th>
-          <th style="width:30px"></th>
-        </tr></thead>
-        <tbody id="cot-tbody-inner"></tbody>
-        <tfoot id="cot-tfoot"></tfoot>
-      </table>
-    </div>
-    <button class="btn btn-ghost btn-sm" style="margin-top:10px" onclick="cotAddRow('otros')">+ Agregar concepto</button>
-    <div style="background:var(--cream);border-radius:7px;padding:9px 13px;margin-top:12px;font-size:12px;color:var(--gray600);line-height:1.8">
-      <strong>Fórmula:</strong> Precio venta = Costo × (1+%Util) · Importe = Precio venta × Cant × Días · Total con IVA = (Subtotal + Fee Agencia%) × 1.16
+    <div class="fg"><label class="fl">ARCHIVO PDF</label><input class="fi" id="cot-pdf" type="file" accept="application/pdf"></div>
+    <div class="fg"><label class="fl">ARCHIVO EXCEL</label><input class="fi" id="cot-excel" type="file" accept=".xls,.xlsx,.csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"></div>
+    <div style="background:var(--cream);border-radius:7px;padding:9px 13px;margin-top:6px;font-size:12px;color:var(--gray600);line-height:1.7">
+      Sube el <strong>PDF</strong> y/o el <strong>Excel</strong> de la cotización. Se guardan en Notion. Máx. 20 MB por archivo.
     </div>
   </div>
   <div class="modal-footer">
     <button class="btn btn-ghost" onclick="closeM('cotizador')">Cancelar</button>
-    <button class="btn btn-ghost" onclick="cotSaveAsDraft()">Guardar borrador</button>
     <button class="btn btn-primary" onclick="cotSave()">Guardar Cotización</button>
   </div>
 </div></div>
@@ -752,8 +725,6 @@
   <div class="modal-body" id="vc-body"></div>
   <div class="modal-footer">
     <button class="btn btn-ghost" onclick="closeM('ver-cotizacion')">Cerrar</button>
-    <button class="btn btn-ghost" onclick="closeM('ver-cotizacion');openM('nuevo-caso')"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-3px"><path d="M3 9a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2 2 2 0 0 0 0 4 2 2 0 0 1-2 2H5a2 2 0 0 1-2-2 2 2 0 0 0 0-4z"/><path d="M13 7v10"/></svg> Crear Caso</button>
-    <button class="btn btn-primary" onclick="crearNuevaVersionCot()">Nueva Versión</button>
   </div>
 </div></div>
 

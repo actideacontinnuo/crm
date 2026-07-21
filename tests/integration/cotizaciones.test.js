@@ -1,6 +1,6 @@
 /**
- * Integration tests — Cotizaciones
- * Cubre: CRUD, secciones JSON, alias de campos (fee/feePct, total/totalConIva), ownership
+ * Integration tests — Cotizaciones (modelo SOLO archivos: PDF + Excel en Notion)
+ * Cubre: alta con archivos, lectura de URLs, ownership.
  */
 const request    = require('supertest');
 const mockNotion = require('../helpers/mock-notion');
@@ -19,78 +19,58 @@ function ejecToken(ejec = 'Alexia') {
   return jwt.sign({ id: 'alexia', nombre: 'Alexia', role: 'ejecutivo', ejec }, SECRET, { expiresIn: '1h' });
 }
 
+const PDF   = Buffer.from('%PDF-1.4 contenido de prueba');
+const XLSX  = Buffer.from('PK excel de prueba');
+
+// Alta con multipart (campos + archivos)
+function crearCot(token, { fields = {}, pdf = true, excel = true } = {}) {
+  const req = request(app).post('/api/cotizaciones').set('Authorization', `Bearer ${token}`);
+  Object.entries(fields).forEach(([k, v]) => req.field(k, String(v)));
+  if (pdf)   req.attach('pdf',   PDF,  { filename: 'cotizacion.pdf', contentType: 'application/pdf' });
+  if (excel) req.attach('excel', XLSX, { filename: 'costos.xlsx', contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  return req;
+}
+
 let app;
 beforeEach(() => {
   mockNotion.resetStore();
   app = buildApp();
 });
 
-const COT_VALIDA = {
-  idCot:     'COT-2026-001',
-  clienteId: 'cliente-abc',
-  version:   'v1',
-  fecha:     '2026-07-01',
-  status:    'Borrador',
-  subtotal:  100000,
-  feePct:    15,
-  iva:       16000,
-  totalConIva: 133400,
-  ejec:      'Natalia Gama',
-  secciones: { audio: [{ concepto: 'Bocinas', monto: 40000 }], esceno: [], logistica: [], catering: [], otros: [] },
-};
-
-describe('POST /api/cotizaciones', () => {
-  test('crea cotización completa con secciones', async () => {
-    const res = await request(app).post('/api/cotizaciones')
-      .set('Authorization', `Bearer ${adminToken()}`)
-      .send(COT_VALIDA);
+describe('POST /api/cotizaciones (archivos)', () => {
+  test('crea cotización con PDF + Excel y devuelve sus URLs', async () => {
+    const res = await crearCot(adminToken(), { fields: { cotId: 'COT-2026-001', clienteId: 'cliente-abc', ejec: 'Natalia Gama' } });
     expect([200, 201]).toContain(res.status);
     expect(res.body.cotId).toBe('COT-2026-001');
-    expect(res.body.secciones.audio.length).toBe(1);
-    expect(res.body.secciones.audio[0].monto).toBe(40000);
+    expect(res.body.pdf.length).toBe(1);
+    expect(res.body.pdf[0].url).toMatch(/^https?:\/\//);
+    expect(res.body.excel.length).toBe(1);
   });
 
-  test('acepta el alias cotId en lugar de idCot', async () => {
-    const { idCot, ...resto } = COT_VALIDA;
+  test('acepta solo PDF (sin Excel)', async () => {
+    const res = await crearCot(adminToken(), { fields: { cotId: 'COT-SOLO-PDF' }, excel: false });
+    expect([200, 201]).toContain(res.status);
+    expect(res.body.pdf.length).toBe(1);
+    expect(res.body.excel.length).toBe(0);
+  });
+
+  test('rechaza cuando no se sube ningún archivo (400)', async () => {
+    const res = await crearCot(adminToken(), { fields: { cotId: 'COT-VACIA' }, pdf: false, excel: false });
+    expect(res.status).toBe(400);
+  });
+
+  test('rechaza un tipo de archivo no permitido (400)', async () => {
     const res = await request(app).post('/api/cotizaciones')
       .set('Authorization', `Bearer ${adminToken()}`)
-      .send({ ...resto, cotId: 'COT-ALIAS-01' });
-    expect([200, 201]).toContain(res.status);
-    expect(res.body.cotId).toBe('COT-ALIAS-01');
-  });
-
-  test('acepta alias fee y total', async () => {
-    const { feePct, totalConIva, ...resto } = COT_VALIDA;
-    const res = await request(app).post('/api/cotizaciones')
-      .set('Authorization', `Bearer ${adminToken()}`)
-      .send({ ...resto, fee: 12, total: 99000 });
-    expect([200, 201]).toContain(res.status);
-    expect(res.body.fee).toBe(12);
-    expect(res.body.total).toBe(99000);
-  });
-
-  test('secciones corruptas en Notion no rompen la lectura', async () => {
-    const creada = await request(app).post('/api/cotizaciones')
-      .set('Authorization', `Bearer ${adminToken()}`)
-      .send(COT_VALIDA);
-    // Corromper el JSON directamente en el mock store
-    const res = await request(app).patch(`/api/cotizaciones/${creada.body.id}`)
-      .set('Authorization', `Bearer ${adminToken()}`)
-      .send({ version: 'v2' });
-    expect(res.status).toBe(200);
-    expect(res.body.secciones).toBeDefined(); // siempre objeto con las 5 llaves
-    expect(Array.isArray(res.body.secciones.audio)).toBe(true);
+      .attach('pdf', Buffer.from('texto'), { filename: 'nota.txt', contentType: 'text/plain' });
+    expect(res.status).toBe(400);
   });
 });
 
 describe('Ownership de cotizaciones', () => {
   test('ejecutivo solo ve sus cotizaciones', async () => {
-    await request(app).post('/api/cotizaciones')
-      .set('Authorization', `Bearer ${adminToken()}`)
-      .send(COT_VALIDA);
-    await request(app).post('/api/cotizaciones')
-      .set('Authorization', `Bearer ${ejecToken('Alexia')}`)
-      .send({ ...COT_VALIDA, idCot: 'COT-ALEXIA-1' });
+    await crearCot(adminToken(), { fields: { cotId: 'COT-NAT' } });
+    await crearCot(ejecToken('Alexia'), { fields: { cotId: 'COT-ALE' } });
 
     const res = await request(app).get('/api/cotizaciones')
       .set('Authorization', `Bearer ${ejecToken('Alexia')}`);
@@ -99,22 +79,18 @@ describe('Ownership de cotizaciones', () => {
   });
 
   test('ejecutivo NO puede editar cotización ajena (403)', async () => {
-    const creada = await request(app).post('/api/cotizaciones')
-      .set('Authorization', `Bearer ${adminToken()}`)
-      .send(COT_VALIDA);
+    const creada = await crearCot(adminToken(), { fields: { cotId: 'COT-NAT' } });
     const res = await request(app).patch(`/api/cotizaciones/${creada.body.id}`)
       .set('Authorization', `Bearer ${ejecToken('Alexia')}`)
-      .send({ status: 'Aprobada' });
+      .field('status', 'Aprobada');
     expect(res.status).toBe(403);
   });
 
-  test('admin puede editar cualquier cotización', async () => {
-    const creada = await request(app).post('/api/cotizaciones')
-      .set('Authorization', `Bearer ${ejecToken('Alexia')}`)
-      .send(COT_VALIDA);
+  test('admin puede editar cualquier cotización (metadatos sin archivo)', async () => {
+    const creada = await crearCot(ejecToken('Alexia'), { fields: { cotId: 'COT-ALE' } });
     const res = await request(app).patch(`/api/cotizaciones/${creada.body.id}`)
       .set('Authorization', `Bearer ${adminToken()}`)
-      .send({ status: 'Aprobada' });
+      .field('status', 'Aprobada');
     expect(res.status).toBe(200);
     expect(res.body.status).toBe('Aprobada');
   });

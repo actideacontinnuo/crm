@@ -105,18 +105,9 @@ async function saveOP() {
   }
 
   if (!monto) {
-    const doOpen = confirm(`OP creada: ${numero}\n\n⚠ No tiene monto cotizado todavía.\n\n¿Deseas abrir el cotizador ahora?`);
+    const doOpen = confirm(`OP creada: ${numero}\n\n⚠ No tiene monto cotizado todavía.\n\n¿Deseas subir la cotización (PDF/Excel) ahora?`);
     if (doOpen) {
-      setTimeout(async () => {
-        await populateCotSelects();
-        const cSel = document.getElementById('cot-cliente');
-        if (cSel) cSel.value = cliId;
-        await cotUpdateOP();
-        setTimeout(() => { const opSel = document.getElementById('cot-op'); if (opSel && newOP) opSel.value = newOP.id; }, 100);
-        STATE.cotEditor = { id: null, opId: newOP?.id || null, clienteId: cliId, ejec: 'Natalia Gama', secciones: { audio:[], esceno:[], logistica:[], catering:[], otros:[] }, fee: 15 };
-        openM('cotizador');
-        setTimeout(renderCotizador, 150);
-      }, 200);
+      setTimeout(() => openSubirCotizacion(newOP?.id), 200);
     }
   } else {
     toast('✓ OP creada: ' + numero);
@@ -306,20 +297,67 @@ function toggleOPInterna(checked) {
   }
 }
 
-async function openCotForOP() {
-  const id = STATE.selOP;
-  closeM('detalle-op');
-  setTimeout(async () => {
-    const o = await db.ops.get(id);
-    await populateCotSelects();
-    STATE.cotEditor = { id: null, opId: id, clienteId: o.clienteId, ejec: o.ejec || 'Natalia Gama', secciones: { audio:[], esceno:[], logistica:[], catering:[], otros:[] }, fee: 15 };
-    const cSel = document.getElementById('cot-cliente');
-    if (cSel) cSel.value = o.clienteId;
-    await cotUpdateOP();
-    setTimeout(() => { const opSel = document.getElementById('cot-op'); if (opSel) opSel.value = id; }, 100);
-    openM('cotizador');
-    setTimeout(renderCotizador, 150);
-  }, 200);
+// openCotForOP se define en views/cotizaciones.js (abre el modal de subida de archivos).
+
+// ── Exportar Estado de Resultados (EdR) como PDF imprimible ──
+async function exportEDR() {
+  const opId = STATE.selOP;
+  if (!opId) return;
+
+  const [ops, clientes, deudas, pagos] = await Promise.all([
+    db.ops.list(), db.clientes.list(),
+    db.deudas.list().catch(() => []), db.pagos.list().catch(() => []),
+  ]);
+  const o   = ops.find(x => x.id === opId) || {};
+  const cli = clientes.find(x => x.id === o.clienteId) || {};
+  const opDeudas = deudas.filter(d => d.opId === opId);
+  const opPagos  = pagos.filter(p => p.opId === opId);
+
+  const pagado   = opPagos.reduce((a, p) => a + (p.monto || 0), 0);
+  const costos   = opDeudas.reduce((a, d) => a + (d.monto || 0), 0);
+  const utilidad = (o.cotizado || 0) - costos;
+
+  const filas = opDeudas.map(d => `
+    <tr>
+      <td>${esc(d.proveedor || '—')}</td>
+      <td>${esc(d.concepto || '—')}</td>
+      <td style="text-align:right">$${Math.round(d.monto || 0).toLocaleString('es-MX')}</td>
+      <td style="text-align:right">${String(d.status).toLowerCase() === 'pagado' ? '✓ Pagado' : (d.status || 'Pendiente')}</td>
+    </tr>`).join('');
+
+  const html = `<!DOCTYPE html><html lang="es"><head>
+    <meta charset="UTF-8">
+    <title>EDR ${esc(o.numero)} — ${esc(cli.nombre)}</title>
+    <style>
+      body { font-family: Arial, sans-serif; font-size: 12px; color: #333; margin: 32px; }
+      h1 { font-size: 20px; margin: 0 0 4px; } h2 { font-size: 13px; color: #666; margin: 0 0 24px; }
+      table { width: 100%; border-collapse: collapse; margin-top: 16px; }
+      th { background: #f4f4f0; text-align: left; padding: 8px 10px; font-size: 11px; letter-spacing: .08em; }
+      td { padding: 7px 10px; border-bottom: 1px solid #e5e5e5; }
+      .total { font-size: 15px; font-weight: 700; }
+      .green { color: #1a6b3c; } .red { color: #CC2200; }
+    </style>
+  </head><body>
+    <h1>${esc(o.numero)} · Estado de Resultados</h1>
+    <h2>${esc(cli.nombre || 'OP Interna')} — ${esc(o.desc)}</h2>
+    <table>
+      <tr><th>CONCEPTO</th><th style="text-align:right">MONTO</th></tr>
+      <tr><td>Valor cotizado (sin IVA)</td><td style="text-align:right">$${Math.round(o.cotizado||0).toLocaleString('es-MX')}</td></tr>
+      <tr><td>Cobrado al cliente</td><td style="text-align:right" class="green">$${Math.round(pagado).toLocaleString('es-MX')}</td></tr>
+      <tr><td>Costos a proveedores</td><td style="text-align:right" class="red">$${Math.round(costos).toLocaleString('es-MX')}</td></tr>
+      <tr><td class="total">Utilidad bruta</td><td style="text-align:right" class="total ${utilidad>=0?'green':'red'}">$${Math.round(utilidad).toLocaleString('es-MX')}</td></tr>
+    </table>
+    ${opDeudas.length ? `<table style="margin-top:24px">
+      <tr><th>PROVEEDOR</th><th>CONCEPTO</th><th style="text-align:right">MONTO</th><th style="text-align:right">ESTATUS</th></tr>
+      ${filas}
+    </table>` : ''}
+    <p style="margin-top:32px;font-size:10px;color:#999">Generado el ${new Date().toLocaleString('es-MX')} · Actidea Continnuo</p>
+  </body></html>`;
+
+  const win = window.open('', '_blank');
+  win.document.write(html);
+  win.document.close();
+  setTimeout(() => win.print(), 400);
 }
 
 async function guardarBonoOP(id) {

@@ -66,6 +66,19 @@ const API = {
     if (!r.ok) return _handleErrorResponse(r);
     return r.json();
   },
+  // Envío multipart (archivos + campos de texto). NO fijamos Content-Type: el
+  // navegador añade el boundary automáticamente al pasar un FormData.
+  async upload(path, method, data) {
+    const fd = new FormData();
+    Object.entries(data || {}).forEach(([k, v]) => {
+      if (v === undefined || v === null) return;
+      if (v instanceof File) fd.append(k, v, v.name);
+      else fd.append(k, v);
+    });
+    const r = await fetch('/api' + path, { method, headers: _authHeaders(), body: fd });
+    if (!r.ok) return _handleErrorResponse(r);
+    return r.json();
+  },
 };
 
 // Entity data access with simple lazy cache
@@ -106,8 +119,8 @@ const db = {
   cotizaciones: {
     list: () => _cached('cotizaciones', () => API.get('/cotizaciones')),
     get: (id) => API.get('/cotizaciones/' + id),
-    create: async (data) => { const r = await API.post('/cotizaciones', data); _invalidate('cotizaciones'); return r; },
-    update: async (id, data) => { const r = await API.patch('/cotizaciones/' + id, data); _invalidate('cotizaciones'); return r; },
+    create: async (data) => { const r = await API.upload('/cotizaciones', 'POST', data); _invalidate('cotizaciones'); return r; },
+    update: async (id, data) => { const r = await API.upload('/cotizaciones/' + id, 'PATCH', data); _invalidate('cotizaciones'); return r; },
   },
   pagos: {
     list: () => _cached('pagos', () => API.get('/pagos')),

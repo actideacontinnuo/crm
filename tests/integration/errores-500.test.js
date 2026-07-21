@@ -39,7 +39,6 @@ const CASOS = [
   ['get',    '/api/ops/algun-id'],
   ['patch',  '/api/ops/algun-id',      { status: 'Y' }],
   ['get',    '/api/cotizaciones'],
-  ['post',   '/api/cotizaciones',      { cotId: 'COT-1' }],
   ['get',    '/api/cotizaciones/algun-id'],
   ['patch',  '/api/cotizaciones/algun-id', { status: 'Y' }],
   ['get',    '/api/pagos'],
@@ -72,6 +71,18 @@ describe.each(CASOS)('Notion caído → %s %s', (metodo, ruta, body) => {
     let req = request(app)[metodo](ruta).set('Authorization', `Bearer ${adminToken()}`);
     if (body) req = req.send(body);
     const res = await req;
+    expect(res.status).toBe(500);
+    expect(res.body.error).toBeDefined();
+  });
+});
+
+describe('Cotizaciones POST (multipart) — error 500', () => {
+  test('responde 500 si Notion falla al crear la página', async () => {
+    mockNotion.setFailNext('Notion caído (simulado)');
+    const res = await request(app).post('/api/cotizaciones')
+      .set('Authorization', `Bearer ${adminToken()}`)
+      .field('cotId', 'COT-1')
+      .attach('pdf', Buffer.from('%PDF-1.4'), { filename: 'x.pdf', contentType: 'application/pdf' });
     expect(res.status).toBe(500);
     expect(res.body.error).toBeDefined();
   });

@@ -118,6 +118,44 @@ function prop_email(val) {
 function prop_phone(val) {
   return { phone_number: val || null };
 }
+// Propiedad "files": recibe una lista de { id, name } (file_upload ya subidos).
+function prop_files(list) {
+  const arr = (list || []).filter(f => f && f.id).map(f => ({
+    type: 'file_upload', name: f.name || 'archivo', file_upload: { id: f.id },
+  }));
+  return { files: arr };
+}
+
+// ─── Subida de archivos a Notion (Direct Upload) ──────────────
+// El SDK 2.3.0 aún no expone `fileUploads`, así que usamos la API REST directa.
+// Devuelve el id del file_upload listo para adjuntarse a una propiedad "files".
+const NOTION_VERSION = '2022-06-28';
+async function uploadFileToNotion(buffer, filename, contentType) {
+  const authHeaders = {
+    Authorization: `Bearer ${process.env.NOTION_TOKEN}`,
+    'Notion-Version': NOTION_VERSION,
+  };
+  return withRetry(async () => {
+    // 1) Crear el file_upload (single_part, hasta 20 MB)
+    const createRes = await fetch('https://api.notion.com/v1/file_uploads', {
+      method: 'POST',
+      headers: { ...authHeaders, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mode: 'single_part', filename, content_type: contentType }),
+    });
+    const created = await createRes.json();
+    if (!createRes.ok) throw new Error(created.message || 'No se pudo iniciar la subida a Notion');
+
+    // 2) Enviar los bytes (multipart/form-data, campo "file")
+    const form = new FormData();
+    form.append('file', new Blob([buffer], { type: contentType }), filename);
+    const sendRes = await fetch(`https://api.notion.com/v1/file_uploads/${created.id}/send`, {
+      method: 'POST', headers: authHeaders, body: form,
+    });
+    const sent = await sendRes.json();
+    if (!sendRes.ok) throw new Error(sent.message || 'No se pudo subir el archivo a Notion');
+    return created.id;
+  });
+}
 
 // ─── Property readers (read from Notion) ──────────────────
 function read_title(prop) {
@@ -144,6 +182,14 @@ function read_email(prop) {
 function read_phone(prop) {
   return prop?.phone_number ?? '';
 }
+// Lee una propiedad "files" → [{ name, url }]. Las URLs de archivos subidos a
+// Notion son temporales (caducan ~1h); el frontend siempre relee al abrir.
+function read_files(prop) {
+  return (prop?.files || []).map(f => ({
+    name: f.name || 'archivo',
+    url: f.type === 'external' ? f.external?.url : (f.file?.url || ''),
+  })).filter(f => f.url);
+}
 
 module.exports = {
   notion,
@@ -153,6 +199,7 @@ module.exports = {
   updatePage,
   getPage,
   archivePage,
-  prop_title, prop_text, prop_number, prop_select, prop_date, prop_checkbox, prop_email, prop_phone,
-  read_title, read_text, read_number, read_select, read_date, read_checkbox, read_email, read_phone,
+  prop_title, prop_text, prop_number, prop_select, prop_date, prop_checkbox, prop_email, prop_phone, prop_files,
+  read_title, read_text, read_number, read_select, read_date, read_checkbox, read_email, read_phone, read_files,
+  uploadFileToNotion,
 };
