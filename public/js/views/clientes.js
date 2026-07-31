@@ -365,9 +365,9 @@ async function openDetalleCliente(id) {
   document.getElementById('dc-cotizaciones').innerHTML = clienteCots.length
     ? clienteCots.map(ct => {
         const op = opMapById[ct.opId] || {};
-        const titulo = op.numero || ct.cotId || ('COT-' + ct.id.slice(-4));
+        const titulo = (typeof _etiquetaCot === 'function') ? _etiquetaCot(ct, op) : (op.numero || ct.cotId || ('COT-' + ct.id.slice(-4)));
         return `<div class="op-card" onclick="openVerCotizacion('${ct.id}');closeM('detalle-cliente')">
-          <div class="op-num">${esc(titulo)}${ct.version ? ' · ' + esc(ct.version) : ''}</div>
+          <div class="op-num">${esc(titulo)}</div>
           <div class="op-name">${esc(ct.fecha) || '—'}</div>
           <div class="op-meta" style="display:flex;gap:5px;flex-wrap:wrap">
             ${_fileTag(ct.pdf, 'PDF', icoHTML('file', 12))}

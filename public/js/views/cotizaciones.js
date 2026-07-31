@@ -1,7 +1,25 @@
 // ══════════════════════════════════════
 // COTIZACIONES — SOLO ARCHIVOS (PDF + Excel en Notion)
 // Cada cotización es un PDF y/o un Excel adjunto. Sin cotizador ni cálculos.
+//
+// El NOMBRE de la OP nunca cambia (CODIGOCLIENTE-01 DESCRIPCIÓN). Cada versión
+// de cotización que se sube a esa OP se etiqueta con el mismo nombre + " V1",
+// " V2", " V3"... — el sufijo de versión vive SOLO en la etiqueta de la
+// cotización, jamás en el código de la OP.
 // ══════════════════════════════════════
+
+// Nombre visible de la OP: "CODIGO-01 DESCRIPCIÓN" (sin versión)
+function _nombreOP(op) {
+  if (!op || !op.numero) return '';
+  return op.desc ? `${op.numero} ${op.desc}` : op.numero;
+}
+
+// Etiqueta de cotización: nombre de OP + " Vn" (o COT-xxxx si no hay OP relacionada)
+function _etiquetaCot(cot, op) {
+  const base = _nombreOP(op) || cot.cotId || ('COT-' + cot.id.slice(-4));
+  const v = String(cot.version || '').match(/\d+/);
+  return v ? `${base} V${v[0]}` : base;
+}
 
 async function renderCotizaciones() {
   showSpinner();
@@ -33,10 +51,10 @@ async function renderCotizaciones() {
     ? cots.map(c => {
         const cli = cliMap[c.clienteId] || {};
         const op  = opMap[c.opId] || {};
-        const titulo = (c.opId && op.numero ? op.numero : (c.cotId || 'COT-' + c.id.slice(-4)));
+        const titulo = _etiquetaCot(c, op);
         return `<tr onclick="openVerCotizacion('${c.id}')">
           <td class="mono" style="color:var(--red)">${esc(titulo)}</td>
-          <td><div style="font-weight:600">${esc(cli.nombre) || '—'}</div><div style="font-size:11px;color:var(--gray400)">${esc(op.desc) || '—'}</div></td>
+          <td><div style="font-weight:600">${esc(cli.nombre) || '—'}</div><div style="font-size:11px;color:var(--gray400)">${esc(op.numero) || '—'}</div></td>
           <td class="mono">${esc(c.fecha) || '—'}</td>
           <td>${pillHTML(c.status)}</td>
           <td style="display:flex;gap:5px;flex-wrap:wrap">
@@ -135,8 +153,8 @@ async function openVerCotizacion(id) {
   const cli = clientes.find(x => x.id === c.clienteId) || {};
   const op  = ops.find(x => x.id === c.opId) || {};
 
-  document.getElementById('vc-num').textContent   = (op.numero || c.cotId || 'COT') + ' · ' + String(c.status || '').toUpperCase();
-  document.getElementById('vc-title').textContent = (cli.nombre || '—') + ' — ' + (op.desc || 'Cotización');
+  document.getElementById('vc-num').textContent   = _etiquetaCot(c, op) + ' · ' + String(c.status || '').toUpperCase();
+  document.getElementById('vc-title').textContent = cli.nombre || '—';
 
   const fileCard = (arr, label, icon) => {
     const f = (arr || [])[0];

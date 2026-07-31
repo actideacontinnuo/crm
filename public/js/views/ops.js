@@ -116,9 +116,12 @@ async function saveOP() {
 
 async function openDetalleOP(id) {
   showSpinner();
-  let o, clientes, pagos;
+  let o, clientes, pagos, cots;
   try {
-    [o, clientes, pagos] = await Promise.all([db.ops.get(id), db.clientes.list(), db.pagos.list().catch(() => [])]);
+    [o, clientes, pagos, cots] = await Promise.all([
+      db.ops.get(id), db.clientes.list(), db.pagos.list().catch(() => []),
+      db.cotizaciones.list().catch(() => []),
+    ]);
   } catch (e) {
     toast('Error al cargar OP', 'red');
     return;
@@ -174,6 +177,24 @@ const _sub = o.cotizado || 0, _iva = _sub * 0.16, _totIva = _sub + _iva;
           : `<div class="info-cell-val">${esc(o.bono) || '—'}</div><div style="font-size:11px;color:var(--gray400)">Solo Dirección captura el bono</div>`}
       </div>`;
     bonoHost.insertAdjacentHTML('afterend', bonoHTML);
+  }
+
+  // Todas las versiones de cotización (PDF/Excel) cargadas para esta OP.
+  const opCots = (cots || []).filter(ct => ct.opId === id);
+  const _fileTagOP = (arr, label, icon) => {
+    const f = (arr || [])[0];
+    if (!f || !f.url) return `<span class="tag" style="opacity:.45">SIN ${label}</span>`;
+    return `<a href="${esc(f.url)}" target="_blank" rel="noopener" class="tag tag-green" style="text-decoration:none" onclick="event.stopPropagation()">${icon} ${label} ↓</a>`;
+  };
+  const dopCotHost = document.getElementById('dop-cotizaciones');
+  if (dopCotHost) {
+    dopCotHost.innerHTML = opCots.length
+      ? opCots.map(ct => `
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:7px 0;border-bottom:1px solid var(--border);cursor:pointer" onclick="openVerCotizacion('${ct.id}')">
+            <div style="font-size:12.5px;font-weight:600">${esc((typeof _etiquetaCot === 'function') ? _etiquetaCot(ct, o) : ct.cotId)}</div>
+            <div style="display:flex;gap:5px;flex-wrap:wrap">${_fileTagOP(ct.pdf, 'PDF', icoHTML('file', 11))}${_fileTagOP(ct.excel, 'EXCEL', icoHTML('grid', 11))}</div>
+          </div>`).join('')
+      : '<div style="color:var(--gray400);font-size:12px">Sin cotizaciones cargadas para esta OP</div>';
   }
 
   const statuses = ['Cotización', 'En Producción', 'Ejecutado'];
@@ -300,29 +321,11 @@ function toggleOPInterna(checked) {
 // openCotForOP se define en views/cotizaciones.js (abre el modal de subida de archivos).
 
 // ══════════════════════════════════════
-// EDITAR OP (oficina total) — reasignar ejecutivo + recalcular código
-// Código: RFC-EJEC-DDMMAA-Vxx. Cambiar el Ejec. asignado actualiza las iniciales
-// (ALE→XIM) y el "dueño" operativo (ejec). El dígito de versión es editable.
+// EDITAR OP (oficina total) — reasignar ejecutivo, estatus, montos
+// Código: CODIGOCLIENTE-01, -02, -03... Se asigna UNA vez al crear la OP (ver
+// buildOPNum en app.js) y YA NO cambia por reasignar ejecutivo — el número es
+// el identificador fijo del proyecto/evento para ese cliente.
 // ══════════════════════════════════════
-function _inicialesEjec(name) {
-  return String(name || '').replace(/[^A-Za-z]/g, '').substring(0, 3).toUpperCase() || 'XXX';
-}
-
-function _recomputeOPNum(current, ejecAsignado, version, cliente) {
-  const asg = _inicialesEjec(ejecAsignado);
-  const v   = 'V' + String(Math.max(1, parseInt(version, 10) || 1)).padStart(2, '0');
-  const parts = String(current || '').split('-');
-  // Formato estándar RFC-EJEC-DDMMAA-Vxx → conservar RFC y fecha, cambiar ejec + versión
-  if (parts.length === 4) return `${parts[0]}-${asg}-${parts[2]}-${v}`;
-  // Código sin formato estándar (legado): reconstruir con RFC del cliente + fecha de hoy
-  const rfc = (cliente?.rfc || 'XXX').replace(/[^A-Za-z0-9]/g, '').substring(0, 3).toUpperCase() || 'XXX';
-  const d = new Date();
-  const dd = String(d.getDate()).padStart(2, '0');
-  const mm = String(d.getMonth() + 1).padStart(2, '0');
-  const yy = String(d.getFullYear()).slice(2);
-  return `${rfc}-${asg}-${dd}${mm}${yy}-${v}`;
-}
-
 async function openEditarOP() {
   const id = STATE.selOP;
   if (!id) return;
@@ -343,46 +346,32 @@ async function openEditarOP() {
   document.getElementById('eop-fecha').value  = o.fechaEvento || '';
   document.getElementById('eop-status').value = o.status || 'Cotización';
   document.getElementById('eop-monto').value  = o.cotizado || 0;
+  document.getElementById('eop-num').value    = o.numero || '';
 
   document.getElementById('eop-propietario').innerHTML  = personaOptions(o.propietario  || cli?.propietario  || '', PERSONAS_PROPIETARIO);
   document.getElementById('eop-ejeccuenta').innerHTML   = personaOptions(o.ejecCuenta   || cli?.ejecCuenta   || '', PERSONAS_EJECUTIVO);
   document.getElementById('eop-ejecasignado').innerHTML = personaOptions(o.ejecAsignado || o.ejec || cli?.ejecAsignado || '', PERSONAS_EJECUTIVO);
 
-  const parts = String(o.numero || '').split('-');
-  const vmatch = parts.length === 4 ? (parts[3].match(/\d+/) || [])[0] : '';
-  document.getElementById('eop-version').value = vmatch ? parseInt(vmatch, 10) : 1;
-
-  _previewEditarOPNum();
   closeM('detalle-op');
   setTimeout(() => openM('editar-op'), 200);
-}
-
-function _previewEditarOPNum() {
-  const st = STATE._editOP;
-  if (!st) return;
-  const asg = document.getElementById('eop-ejecasignado')?.value;
-  const ver = document.getElementById('eop-version')?.value;
-  const el  = document.getElementById('eop-num');
-  if (el) el.value = _recomputeOPNum(st.numero, asg, ver, st.cliente);
 }
 
 async function saveEditarOP() {
   const st = STATE._editOP;
   if (!st) return;
   const ejecAsignado = document.getElementById('eop-ejecasignado').value;
-  const numero = document.getElementById('eop-num').value.trim();
   const desc   = document.getElementById('eop-desc').value.trim();
   if (!desc) { toast('La descripción es requerida', 'red'); return; }
 
   const data = {
-    numero,
+    // El número (código) NO se toca al reasignar ejecutivo — es fijo por proyecto.
     desc,
     status:       document.getElementById('eop-status').value,
     cotizado:     parseFloat(document.getElementById('eop-monto').value) || 0,
     propietario:  document.getElementById('eop-propietario').value || '',
     ejecCuenta:   document.getElementById('eop-ejeccuenta').value || '',
     ejecAsignado,
-    ejec:         ejecAsignado, // el dueño operativo de la OP es SIEMPRE el ejec. asignado
+    ejec:         ejecAsignado, // ejecutivo asignado = quien ejecuta/lleva el proyecto (para el bono)
   };
   const fecha = document.getElementById('eop-fecha').value;
   if (fecha) data.fechaEvento = fecha;
@@ -392,7 +381,7 @@ async function saveEditarOP() {
     await db.ops.update(st.id, data);
     closeM('editar-op');
     STATE._editOP = null;
-    toast('✓ OP actualizada: ' + numero);
+    toast('✓ OP actualizada: ' + st.numero);
     renderOPs();
     updateBadges();
   } catch (e) {

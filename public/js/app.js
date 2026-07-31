@@ -256,13 +256,13 @@ function genCodigo(cliente) {
 
 // Build OP number from cliente codigo + date + sequence count
 // Código de OP: RFC(3) - Propietario(3) - ddmmaa - Vxx   ej: APP-NAT-200726-V01
+// Código de OP = código de cliente completo + consecutivo fijo por cliente
+// (-01, -02, -03...). Se asigna UNA vez al crear la OP y ya NO cambia después
+// (no lleva ejecutivo ni versión — eso se ve aparte en pantalla).
 function buildOPNum(cliente, allOps) {
-  const rfc  = (cliente?.rfc || 'XXX').replace(/[^A-Za-z0-9]/g, '').substring(0, 3).toUpperCase() || 'XXX';
-  const asig = (cliente?.ejecAsignado || cliente?.ejecCuenta || cliente?.propietario || cliente?.ejec || 'XXX').replace(/[^A-Za-z]/g, '').substring(0, 3).toUpperCase() || 'XXX';
-  const d = new Date();
-  const dateStr = String(d.getDate()).padStart(2, '0') + String(d.getMonth() + 1).padStart(2, '0') + String(d.getFullYear()).slice(2);
+  const cod = cliente?.codigo || (cliente?.rfc || 'XXX').replace(/[^A-Za-z0-9]/g, '').substring(0, 3).toUpperCase() || 'XXX';
   const count = (allOps || []).filter(o => o.clienteId === cliente?.id).length + 1;
-  return `${rfc}-${asig}-${dateStr}-V${String(count).padStart(2, '0')}`;
+  return `${cod}-${String(count).padStart(2, '0')}`;
 }
 
 // ══════════════════════════════════════

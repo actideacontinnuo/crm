@@ -707,6 +707,8 @@
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px" id="dop-montos"></div>
     <div class="sect-label">PLAN DE COBROS</div>
     <div id="dop-cobros" style="margin-bottom:14px"></div>
+    <div class="sect-label">COTIZACIONES CARGADAS (TODAS LAS VERSIONES)</div>
+    <div id="dop-cotizaciones" style="margin-bottom:14px"></div>
     <div class="sect-label">CAMBIAR ESTATUS</div>
     <div style="display:flex;gap:8px;flex-wrap:wrap" id="dop-acciones"></div>
   </div>
@@ -731,15 +733,12 @@
     <div class="fgrid3">
       <div class="fg" style="margin:0"><label class="fl">PROPIETARIO</label><select class="fsel-full" id="eop-propietario"></select></div>
       <div class="fg" style="margin:0"><label class="fl">EJEC. DE CUENTA</label><select class="fsel-full" id="eop-ejeccuenta"></select></div>
-      <div class="fg" style="margin:0"><label class="fl">EJEC. ASIGNADO</label><select class="fsel-full" id="eop-ejecasignado" onchange="_previewEditarOPNum()"></select></div>
+      <div class="fg" style="margin:0"><label class="fl">EJEC. ASIGNADO</label><select class="fsel-full" id="eop-ejecasignado"></select></div>
     </div>
-    <div class="fgrid">
-      <div class="fg"><label class="fl">VERSIÓN (dígito)</label><input class="fi" id="eop-version" type="number" min="1" max="99" oninput="_previewEditarOPNum()"></div>
-      <div class="fg"><label class="fl">SUBTOTAL COTIZADO (sin IVA)</label><input class="fi" id="eop-monto" type="number"></div>
-    </div>
-    <div class="fg"><label class="fl">NÚMERO OP (se recalcula al cambiar ejecutivo o versión)</label><input class="fi" id="eop-num" style="font-family:'JetBrains Mono',monospace;font-size:12px;background:var(--gray50)"></div>
+    <div class="fg"><label class="fl">SUBTOTAL COTIZADO (sin IVA)</label><input class="fi" id="eop-monto" type="number"></div>
+    <div class="fg"><label class="fl">NÚMERO OP</label><input class="fi" id="eop-num" readonly style="font-family:'JetBrains Mono',monospace;font-size:12px;background:var(--gray50);color:var(--gray400)"></div>
     <div style="background:var(--cream);border-radius:7px;padding:9px 13px;font-size:11px;color:var(--gray600);line-height:1.6">
-      El código sigue <strong>RFC-EJEC-DDMMAA-Vxx</strong>. Al cambiar el Ejecutivo asignado se actualizan las iniciales (p. ej. ALE→XIM) y el "dueño" operativo de la OP. Puedes ajustar el dígito de versión manualmente.
+      El código de la OP es <strong>CÓDIGO-DE-CLIENTE-01, -02, -03…</strong>: se asigna una sola vez al crear la OP y ya NO cambia. Reasignar el Ejecutivo asignado solo actualiza quién lleva el proyecto (para el bono), no el código.
     </div>
   </div>
   <div class="modal-footer">
