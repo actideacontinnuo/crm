@@ -6,6 +6,26 @@
 //   Ejecutivo asignado. req.rolFilter (identidad del usuario) se setea para roles
 //   'ejecutivo' y 'administracion'; el admin (Natalia/Dirección) ve todo.
 
+const { PROPIETARIOS_ESPECIALES } = require('./_roles');
+
+// "Oficina total": ve y EDITA todos los registros como Dirección, pero NO elimina
+// (salvo el admin). Son: el admin (Natalia) y el personal de administración que
+// NO es propietario especial (Oscar). Eduardo/Alfredo son 'administracion' pero
+// propietarios especiales, así que conservan acceso por fila (solo lo suyo).
+function esOficinaTotal(user) {
+  if (!user) return false;
+  if (user.role === 'admin') return true;
+  if (user.role !== 'administracion') return false;
+  const ident = user.ejec || user.nombre || '';
+  return !PROPIETARIOS_ESPECIALES.includes(ident) && !PROPIETARIOS_ESPECIALES.includes(user.nombre);
+}
+
+// Identidad para el filtro por fila (row-level). Los ejecutivos traen 'ejec';
+// los administracion-especiales traen su nombre como identidad de propietario.
+function identidadRol(user) {
+  return user?.ejec || user?.nombre || null;
+}
+
 // ── Modelo legado (un solo dueño) ──────────────────────────
 function assertOwnership(req, res, recordEjec) {
   if (req.ejecFilter && recordEjec !== req.ejecFilter) {
@@ -49,6 +69,7 @@ function assertRolAccess(req, res, obj) {
 }
 
 module.exports = {
+  esOficinaTotal, identidadRol,
   assertOwnership, forceOwnerOnCreate,
   filtroRolesNotion, perteneceAlRegistro, assertRolAccess,
 };

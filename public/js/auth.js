@@ -178,16 +178,23 @@ function aplicarSesion(user) {
   if (nombre) nombre.textContent = user.nombre;
   if (rol)    rol.textContent    = ROL_LABELS[user.role] || user.role.toUpperCase();
   if (avatar) avatar.textContent = user.nombre.split(' ').map(x => x[0]).join('').slice(0, 2).toUpperCase();
-  _aplicarRolUI(user.role);
+  _aplicarRolUI(user);
 }
 
-function _aplicarRolUI(role) {
+function _aplicarRolUI(user) {
+  const role = user?.role;
+  const oficina = (typeof esOficinaTotal === 'function') ? esOficinaTotal(user) : (role === 'admin');
   document.querySelectorAll('.role-admin').forEach(el => {
     el.style.display = role === 'admin' ? '' : 'none';
   });
   document.querySelectorAll('.role-administracion').forEach(el => {
     el.style.display = (role === 'admin' || role === 'administracion') ? '' : 'none';
   });
+  // Oficina total (Natalia + Oscar): pagos, control de pagos, edición global.
+  document.querySelectorAll('.role-oficina').forEach(el => {
+    el.style.display = oficina ? '' : 'none';
+  });
+  document.body.classList.toggle('is-oficina-total', !!oficina);
 }
 
 function cerrarSesion() {

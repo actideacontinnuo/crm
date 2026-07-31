@@ -18,6 +18,7 @@ const helmet  = require('helmet');
 const rateLimit = require('express-rate-limit');
 const { authMiddleware } = require('../../middleware/auth');
 const { logAudit, clientIp } = require('../../api/_audit');
+const { esOficinaTotal, identidadRol } = require('../../api/_guard');
 
 function buildApp() {
   const app = express();
@@ -68,20 +69,33 @@ function buildApp() {
   // Acceso por registro (3 roles) — espeja server.js
   function rolFilterCliente() {
     return (req, res, next) => {
-      if (req.user.role !== 'admin') {
-        if (req.method === 'DELETE') return res.status(403).json({ error: 'Solo el Admin puede eliminar registros' });
-        req.rolFilter = req.user.ejec;
+      if (esOficinaTotal(req.user)) {
+        if (req.method === 'DELETE' && req.user.role !== 'admin') {
+          return res.status(403).json({ error: 'Solo el Admin puede eliminar registros' });
+        }
+        return next();
       }
+      if (req.method === 'DELETE') return res.status(403).json({ error: 'Solo el Admin puede eliminar registros' });
+      req.rolFilter = identidadRol(req.user);
       next();
     };
+  }
+  function oficinaOnly(req, res, next) {
+    if (esOficinaTotal(req.user)) {
+      if (req.method === 'DELETE' && req.user.role !== 'admin') {
+        return res.status(403).json({ error: 'Solo el Admin puede eliminar registros' });
+      }
+      return next();
+    }
+    return res.status(403).json({ error: 'Acceso restringido a Dirección y Administración' });
   }
 
   app.use('/api/prospectos',   rolFilterCliente());
   app.use('/api/clientes',     rolFilterCliente());
   app.use('/api/ops',          rolFilterCliente());
   app.use('/api/cotizaciones', roleFilter());
-  app.use('/api/pagos',        adminOnly);
-  app.use('/api/deudas',       adminOnly);
+  app.use('/api/pagos',        oficinaOnly);
+  app.use('/api/deudas',       oficinaOnly);
   app.use('/api/proveedores',  deleteAdminOnly);
   app.use('/api/auditoria',    adminOnly);
   app.use('/api/backup',       adminOnly);

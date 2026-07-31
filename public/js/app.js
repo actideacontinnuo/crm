@@ -15,6 +15,18 @@ const PROPIETARIOS_ESPECIALES = ['Eduardo Gama', 'Alfredo'];
 // Bono en OPs: siempre manual y solo para estas ejecutivas
 const BONO_ELEGIBLES = ['Alexia', 'Ximena'];
 
+// "Oficina total": Natalia (admin) y Oscar (administración no-especial). Ven y
+// editan TODO en el CRM (espeja esOficinaTotal del backend). Eduardo/Alfredo son
+// administración pero propietarios especiales → NO son oficina total.
+function esOficinaTotal(user) {
+  if (!user) return false;
+  if (user.role === 'admin') return true;
+  if (user.role !== 'administracion') return false;
+  const ident = user.ejec || user.nombre || '';
+  return !PROPIETARIOS_ESPECIALES.includes(ident) && !PROPIETARIOS_ESPECIALES.includes(user.nombre);
+}
+function soyOficinaTotal() { return esOficinaTotal(typeof sesionActual === 'function' ? sesionActual() : null); }
+
 // Opciones <option> para un <select> a partir de un roster
 function personaOptions(sel, roster) {
   const list = roster || PERSONAS_PROPIETARIO;

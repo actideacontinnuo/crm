@@ -41,12 +41,11 @@ async function renderProspectos() {
         </div></td>
         <td>${pillHTML(p.status)}</td>
         <td><div style="font-size:12px">${esc(p.ejec)}</div></td>
-        <td class="mono">${fmx(p.estimado)}</td>
         <td class="mono" style="color:${p.seguimiento && p.seguimiento <= today ? 'var(--red)' : ''}">${esc(p.seguimiento) || '—'}</td>
         <td><span class="tag tag-gray">${esc(p.fuente) || '—'}</span></td>
         <td><button class="btn btn-ghost btn-xs" onclick="event.stopPropagation();openDetalleProspecto('${p.id}')">Ver</button></td>
       </tr>`).join('')
-    : `<tr><td colspan="8"><div class="empty-state"><div>${icoHTML('search',26)}</div><div>SIN RESULTADOS</div></div></td></tr>`;
+    : `<tr><td colspan="7"><div class="empty-state"><div>${icoHTML('search',26)}</div><div>SIN RESULTADOS</div></div></td></tr>`;
 }
 
 const _LOCKED_FIELDS = ['np-empresa','np-contacto','np-tel','np-email'];
@@ -85,22 +84,26 @@ async function openEditarProspecto() {
   document.getElementById('np-tel').value       = p.tel        || '';
   document.getElementById('np-email').value     = p.email      || '';
   document.getElementById('np-evento').value    = p.evento     || '';
-  document.getElementById('np-estimado').value  = p.estimado   || '';
   document.getElementById('np-fecha').value     = p.seguimiento || '';
   document.getElementById('np-notas').value     = '';
 
-  // Lock fields that cannot be modified after creation
-  const LOCKED = ['np-empresa','np-contacto','np-tel','np-email'];
-  LOCKED.forEach(id => {
-    const el = document.getElementById(id);
-    if (!el) return;
-    el.readOnly = true;
-    el.style.background   = 'var(--cream)';
-    el.style.color        = 'var(--gray400)';
-    el.style.cursor       = 'not-allowed';
-    el.title              = 'Este campo no se puede modificar';
-    el.onclick            = () => toast('Este campo está bloqueado y no puede modificarse', 'red');
-  });
+  // Campos bloqueados tras el alta — salvo para oficina total (Natalia/Oscar),
+  // que pueden editar TODO sin entrar a Notion.
+  if (soyOficinaTotal()) {
+    _unlockProspFields();
+  } else {
+    const LOCKED = ['np-empresa','np-contacto','np-tel','np-email'];
+    LOCKED.forEach(id => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.readOnly = true;
+      el.style.background   = 'var(--cream)';
+      el.style.color        = 'var(--gray400)';
+      el.style.cursor       = 'not-allowed';
+      el.title              = 'Este campo no se puede modificar';
+      el.onclick            = () => toast('Este campo está bloqueado y no puede modificarse', 'red');
+    });
+  }
 
   const ejec = document.getElementById('np-ejec');
   if (ejec) { for (let i = 0; i < ejec.options.length; i++) if (ejec.options[i].value === p.ejec) ejec.selectedIndex = i; }
@@ -131,7 +134,6 @@ async function saveProspecto() {
     tel:        document.getElementById('np-tel').value || '',
     email:      document.getElementById('np-email').value || '',
     evento:     document.getElementById('np-evento').value || '',
-    estimado:   String(parseFloat(document.getElementById('np-estimado').value) || 0),
     propietario:  document.getElementById('np-propietario').value || '',
     ejecCuenta:   document.getElementById('np-ejeccuenta').value || '',
     ejecAsignado: document.getElementById('np-ejecasignado').value || '',
@@ -142,13 +144,13 @@ async function saveProspecto() {
 
   const editingId = STATE.editingProspId || null;
 
-  if (editingId) {
-    // Strip locked fields — they can never be changed after creation
+  if (editingId && !soyOficinaTotal()) {
+    // Campos bloqueados tras el alta — la oficina total (Natalia/Oscar) sí los edita
     delete data.empresa;
     delete data.contacto;
     delete data.tel;
     delete data.email;
-  } else {
+  } else if (!editingId) {
     // New prospecto: attach the note
     if (notaRaw) data.notas = [notaRaw + ' · ' + new Date().toLocaleDateString('es-MX')];
   }
@@ -174,7 +176,7 @@ async function saveProspecto() {
     STATE.editingProspId = null;
     document.querySelector('#m-nuevo-prospecto .modal-eye').textContent   = 'NUEVO PROSPECTO';
     document.querySelector('#m-nuevo-prospecto .modal-title').textContent = 'Registrar Prospecto';
-    ['np-empresa','np-contacto','np-cargo','np-tel','np-email','np-evento','np-estimado','np-notas','np-fecha']
+    ['np-empresa','np-contacto','np-cargo','np-tel','np-email','np-evento','np-notas','np-fecha']
       .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
     _unlockProspFields();
 
@@ -207,7 +209,6 @@ async function openDetalleProspecto(id) {
     <div class="info-cell"><div class="info-cell-label">EVENTO</div><div class="info-cell-val">${esc(p.evento)}</div></div>
     <div class="info-cell"><div class="info-cell-label">TELÉFONO</div><div class="info-cell-val" style="font-family:'JetBrains Mono',monospace;font-size:12px">${esc(p.tel) || '—'}</div></div>
     <div class="info-cell"><div class="info-cell-label">EMAIL</div><div class="info-cell-val" style="font-size:12px">${esc(p.email) || '—'}</div></div>
-    <div class="info-cell"><div class="info-cell-label">ESTIMADO</div><div class="info-cell-val" style="color:var(--red)">${fmx(p.estimado)}</div></div>
     <div class="info-cell"><div class="info-cell-label">EJECUTIVO</div><div class="info-cell-val">${esc(p.ejec)}</div></div>
     <div class="info-cell"><div class="info-cell-label">FUENTE</div><div class="info-cell-val">${esc(p.fuente) || '—'}</div></div>
     <div class="info-cell"><div class="info-cell-label">SEGUIMIENTO</div><div class="info-cell-val">${esc(p.seguimiento) || '—'}</div></div>`;
@@ -337,14 +338,12 @@ async function renderKanban() {
   const list = await db.prospectos.list();
   board.innerHTML = KANBAN_COLS.map(col => {
     const cards = list.filter(p => p.status === col.id);
-    const total = cards.reduce((a, p) => a + (parseFloat(p.estimado) || 0), 0);
     return `<div style="background:var(--white);border:1px solid var(--border);border-radius:10px;overflow:hidden;flex:0 0 230px">
       <div style="padding:11px 14px;border-bottom:1px solid var(--border);background:var(--cream)">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2px">
           <div style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:.14em;color:${col.col};font-weight:700">${col.icon} ${col.label}</div>
           <div style="background:${col.col};color:var(--white);font-family:'JetBrains Mono',monospace;font-size:9px;padding:2px 7px;border-radius:10px">${cards.length}</div>
         </div>
-        <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--gray400)">${fmx(total)} est.</div>
       </div>
       <div style="padding:10px;display:flex;flex-direction:column;gap:8px;min-height:80px">
         ${cards.map(p => `
@@ -356,7 +355,6 @@ async function renderKanban() {
                 <div class="av" style="width:20px;height:20px;font-size:7px">${esc(p.ejec.split(' ').map(x=>x[0]).join('').slice(0,2))}</div>
                 <span style="font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--gray400)">${esc(p.ejec.split(' ')[0])}</span>
               </div>
-              <span style="font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;color:var(--red)">${fmx(p.estimado)}</span>
             </div>
             <div style="display:flex;justify-content:space-between;margin-top:6px;border-top:1px solid var(--border);padding-top:6px">
               <span style="font-family:'JetBrains Mono',monospace;font-size:8px;color:var(--gray400)">${icoHTML('cal',12)} ${esc(p.seguimiento) || '—'}</span>

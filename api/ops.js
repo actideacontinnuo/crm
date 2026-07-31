@@ -5,7 +5,7 @@ const {
   prop_title, prop_text, prop_number, prop_select, prop_date,
   read_title, read_text, read_number, read_select, read_date,
 } = require('./notion');
-const { filtroRolesNotion, assertRolAccess } = require('./_guard');
+const { filtroRolesNotion, assertRolAccess, esOficinaTotal } = require('./_guard');
 
 function toObj(page) {
   const p = page.properties;
@@ -78,10 +78,13 @@ router.patch('/:id', async (req, res) => {
   try {
     const existing = await notion.pages.retrieve({ page_id: req.params.id });
     if (!assertRolAccess(req, res, toObj(existing))) return;
-    // Los roles (Ejecutivo/Propietario/Ejec.cuenta/Ejec.asignado) se heredan del
-    // cliente al crear la OP y NO se reasignan por edición.
     const body = { ...req.body };
-    delete body.ejec; delete body.propietario; delete body.ejecCuenta; delete body.ejecAsignado;
+    // Solo la oficina total (Dirección/Oscar) puede reasignar roles y renumerar la OP
+    // (p. ej. al cambiar el Ejecutivo asignado). El resto no reasigna por edición.
+    if (!esOficinaTotal(req.user)) {
+      delete body.ejec; delete body.propietario; delete body.ejecCuenta; delete body.ejecAsignado;
+      delete body.numero; delete body.num;
+    }
     const page = await updatePage(req.params.id, toProps(body));
     res.json(toObj(page));
   } catch (err) { res.status(500).json({ error: err.message }); }

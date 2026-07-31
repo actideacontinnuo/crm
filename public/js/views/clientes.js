@@ -207,6 +207,68 @@ async function saveCliente() {
   }
 }
 
+// ── Editar cliente (oficina total: Natalia + Oscar) ──────────
+async function openEditarCliente() {
+  const id = STATE.selCliente;
+  if (!id) return;
+  if (!soyOficinaTotal()) { toast('Solo Dirección y Oscar pueden editar clientes', 'red'); return; }
+  showSpinner();
+  let c;
+  try { c = await db.clientes.get(id); }
+  catch (e) { toast('Error al cargar cliente', 'red'); return; }
+  finally { hideSpinner(); }
+
+  STATE._editCliente = id;
+  const set = (i, v) => { const el = document.getElementById(i); if (el) el.value = v || ''; };
+  set('ec-nombre', c.nombre); set('ec-rfc', c.rfc); set('ec-razon', c.razon); set('ec-dir', c.dir);
+  set('ec-giro', c.giro); set('ec-pago', c.pago); set('ec-contacto', c.contacto); set('ec-cargo', c.cargo);
+  set('ec-tel', c.tel); set('ec-email', c.email); set('ec-status', c.status);
+  document.getElementById('ec-propietario').innerHTML  = personaOptions(c.propietario  || '', PERSONAS_PROPIETARIO);
+  document.getElementById('ec-ejeccuenta').innerHTML   = personaOptions(c.ejecCuenta   || '', PERSONAS_EJECUTIVO);
+  document.getElementById('ec-ejecasignado').innerHTML = personaOptions(c.ejecAsignado || '', PERSONAS_EJECUTIVO);
+  document.getElementById('ec-title').textContent = c.nombre || 'Editar Cliente';
+
+  closeM('detalle-cliente');
+  setTimeout(() => openM('editar-cliente'), 200);
+}
+
+async function saveEditarCliente() {
+  const id = STATE._editCliente;
+  if (!id) return;
+  const g = i => (document.getElementById(i)?.value || '').trim();
+  const nombre = g('ec-nombre');
+  if (!nombre) { toast('El nombre comercial es requerido', 'red'); return; }
+
+  const data = {
+    nombre,
+    rfc:      g('ec-rfc'),
+    razon:    g('ec-razon'),
+    dir:      g('ec-dir'),
+    giro:     g('ec-giro'),
+    pago:     document.getElementById('ec-pago').value,
+    contacto: g('ec-contacto'),
+    cargo:    g('ec-cargo'),
+    tel:      g('ec-tel'),
+    email:    g('ec-email'),
+    status:   document.getElementById('ec-status').value,
+    propietario:  document.getElementById('ec-propietario').value || '',
+    ejecCuenta:   document.getElementById('ec-ejeccuenta').value || '',
+    ejecAsignado: document.getElementById('ec-ejecasignado').value || '',
+  };
+
+  showSpinner();
+  try {
+    await db.clientes.update(id, data);
+    closeM('editar-cliente');
+    STATE._editCliente = null;
+    toast('✓ Cliente actualizado');
+    renderClientes();
+    updateBadges();
+  } catch (e) {
+    toast('Error al guardar: ' + e.message, 'red');
+  } finally { hideSpinner(); }
+}
+
 function _buildCodigo(razon, ejec) {
   const r = (razon || 'XXX').replace(/[^A-Za-z]/g, '').toUpperCase().slice(0, 3);
   const e = (ejec  || 'EJE').replace(/[^A-Za-z]/g, '').toUpperCase().slice(0, 3);
@@ -236,9 +298,13 @@ function _resetClienteForm() {
 
 async function openDetalleCliente(id) {
   showSpinner();
-  let c, allOps;
+  let c, allOps, allCots;
   try {
-    [c, allOps] = await Promise.all([db.clientes.get(id), db.ops.list()]);
+    [c, allOps, allCots] = await Promise.all([
+      db.clientes.get(id),
+      db.ops.list(),
+      db.cotizaciones.list().catch(() => []),
+    ]);
   } catch (e) {
     toast('Error al cargar cliente', 'red');
     return;
@@ -287,6 +353,29 @@ async function openDetalleCliente(id) {
           </div>
         </div>`).join('')
     : '<div style="color:var(--gray400);font-size:12px;padding:8px">Sin OPs registradas</div>';
+
+  // Cotizaciones cargadas del cliente (PDF/Excel en Notion)
+  const clienteCots = (allCots || []).filter(ct => ct.clienteId === id);
+  const opMapById = Object.fromEntries(allOps.map(o => [o.id, o]));
+  const _fileTag = (arr, label, icon) => {
+    const f = (arr || [])[0];
+    if (!f || !f.url) return `<span class="tag" style="opacity:.45">SIN ${label}</span>`;
+    return `<a href="${esc(f.url)}" target="_blank" rel="noopener" class="tag tag-green" style="text-decoration:none" onclick="event.stopPropagation()">${icon} ${label} ↓</a>`;
+  };
+  document.getElementById('dc-cotizaciones').innerHTML = clienteCots.length
+    ? clienteCots.map(ct => {
+        const op = opMapById[ct.opId] || {};
+        const titulo = op.numero || ct.cotId || ('COT-' + ct.id.slice(-4));
+        return `<div class="op-card" onclick="openVerCotizacion('${ct.id}');closeM('detalle-cliente')">
+          <div class="op-num">${esc(titulo)}${ct.version ? ' · ' + esc(ct.version) : ''}</div>
+          <div class="op-name">${esc(ct.fecha) || '—'}</div>
+          <div class="op-meta" style="display:flex;gap:5px;flex-wrap:wrap">
+            ${_fileTag(ct.pdf, 'PDF', icoHTML('file', 12))}
+            ${_fileTag(ct.excel, 'EXCEL', icoHTML('grid', 12))}
+          </div>
+        </div>`;
+      }).join('')
+    : '<div style="color:var(--gray400);font-size:12px;padding:8px">Sin cotizaciones cargadas</div>';
 
   openM('detalle-cliente');
 }

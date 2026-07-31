@@ -22,18 +22,18 @@ beforeEach(() => {
   app = buildApp();
 });
 
-// ── Pagos: solo admin ─────────────────────────────────────
-describe('GET /api/pagos — solo admin', () => {
+// ── Pagos: Dirección + Oscar (oficina total) ──────────────
+describe('GET /api/pagos — oficina total', () => {
   test('admin → 200', async () => {
     const res = await request(app).get('/api/pagos')
       .set('Authorization', `Bearer ${token('admin')}`);
     expect(res.status).toBe(200);
   });
 
-  test('administracion → 403', async () => {
+  test('administracion (oficina total) → 200', async () => {
     const res = await request(app).get('/api/pagos')
       .set('Authorization', `Bearer ${token('administracion')}`);
-    expect(res.status).toBe(403);
+    expect(res.status).toBe(200);
   });
 
   test('ejecutivo → 403', async () => {

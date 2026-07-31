@@ -62,6 +62,15 @@ describe('CRUD de deudas (admin)', () => {
     expect(lista.body.length).toBe(1);
   });
 
+  test('la fecha enviada como fechaAcordada (frontend) se persiste y regresa', async () => {
+    const res = await request(app).post('/api/deudas')
+      .set('Authorization', `Bearer ${adminToken()}`)
+      .send({ concepto: 'Audio', provId: 'p1', opId: 'o1', monto: 1000, fechaAcordada: '2026-08-15', status: 'pendiente' });
+    expect([200, 201]).toContain(res.status);
+    expect(res.body.fechaAcordada).toBe('2026-08-15');
+    expect(res.body.fecha).toBe('2026-08-15'); // alias legado también disponible
+  });
+
   test('marcar deuda como pagada (PATCH)', async () => {
     const creada = await request(app).post('/api/deudas')
       .set('Authorization', `Bearer ${adminToken()}`).send(DEUDA_VALIDA);

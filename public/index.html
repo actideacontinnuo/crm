@@ -211,12 +211,12 @@
   <div class="s-section">
     <div class="s-label">OPERACIONES</div>
     <div class="nav-item" onclick="nav('ops')"><span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-3px"><path d="M21 8l-9-5-9 5 9 5 9-5zM3 8v8l9 5 9-5V8M12 13v8"/></svg></span>OPs<span class="nav-badge am" id="badge-ops">0</span></div>
-    <div class="nav-item role-admin role-administracion" onclick="nav('controlpagos')"><span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-3px"><path d="M3 7a2 2 0 0 1 2-2h13a1 1 0 0 1 1 1v2"/><path d="M3 7v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7a1 1 0 0 0-1-1H5a2 2 0 0 1-2-2z"/><circle cx="16" cy="13" r="1.3" fill="currentColor"/></svg></span>Control de Pagos</div>
+    <div class="nav-item role-oficina" onclick="nav('controlpagos')"><span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-3px"><path d="M3 7a2 2 0 0 1 2-2h13a1 1 0 0 1 1 1v2"/><path d="M3 7v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7a1 1 0 0 0-1-1H5a2 2 0 0 1-2-2z"/><circle cx="16" cy="13" r="1.3" fill="currentColor"/></svg></span>Control de Pagos</div>
     <div class="nav-item" onclick="nav('cotizaciones')"><span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-3px"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h6"/></svg></span>Cotizaciones</div>
   </div>
   <div class="s-section role-admin role-administracion">
     <div class="s-label">FINANZAS</div>
-    <div class="nav-item role-admin" onclick="nav('pagos')"><span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-3px"><path d="M3 7a2 2 0 0 1 2-2h13a1 1 0 0 1 1 1v2"/><path d="M3 7v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7a1 1 0 0 0-1-1H5a2 2 0 0 1-2-2z"/><circle cx="16" cy="13" r="1.3" fill="currentColor"/></svg></span>Pagos<span class="nav-badge" id="badge-pagos">0</span></div>
+    <div class="nav-item role-oficina" onclick="nav('pagos')"><span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-3px"><path d="M3 7a2 2 0 0 1 2-2h13a1 1 0 0 1 1 1v2"/><path d="M3 7v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7a1 1 0 0 0-1-1H5a2 2 0 0 1-2-2z"/><circle cx="16" cy="13" r="1.3" fill="currentColor"/></svg></span>Pagos<span class="nav-badge" id="badge-pagos">0</span></div>
     <div class="nav-item" onclick="nav('proveedores')"><span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-3px"><path d="M3 6a1 1 0 0 1 1-1h10v11H3z"/><path d="M14 8h4l3 3v4h-7z"/><circle cx="7" cy="18" r="2"/><circle cx="17" cy="18" r="2"/></svg></span>Proveedores</div>
   </div>
   <div class="s-section role-admin role-administracion">
@@ -268,7 +268,7 @@
       <table class="tbl">
         <thead><tr>
           <th>EMPRESA</th><th>CONTACTO</th><th>ESTATUS</th><th>EJECUTIVO</th>
-          <th>ESTIMADO</th><th>SEGUIMIENTO</th><th>FUENTE</th><th></th>
+          <th>SEGUIMIENTO</th><th>FUENTE</th><th></th>
         </tr></thead>
         <tbody id="prosp-tbody"></tbody>
       </table>
@@ -629,11 +629,50 @@
     <div class="sect-label">CHECKLIST DE ALTA</div>
     <div id="dc-checklist" style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:14px"></div>
     <div class="sect-label">OPs RELACIONADAS</div>
-    <div id="dc-ops" style="max-height:160px;overflow-y:auto;"></div>
+    <div id="dc-ops" style="max-height:150px;overflow-y:auto;"></div>
+    <div class="sect-label" style="margin-top:14px">COTIZACIONES CARGADAS</div>
+    <div id="dc-cotizaciones" style="max-height:150px;overflow-y:auto;"></div>
   </div>
   <div class="modal-footer">
     <button class="btn btn-ghost" onclick="closeM('detalle-cliente')">Cerrar</button>
+    <button class="btn btn-ghost role-oficina" onclick="openEditarCliente()"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-3px"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4z"/></svg> Editar</button>
     <button class="btn btn-primary" onclick="openNewOPForClient()">+ Nueva OP para este cliente</button>
+  </div>
+</div></div>
+
+<!-- EDITAR CLIENTE (oficina total) -->
+<div class="modal-overlay" id="m-editar-cliente" onclick="closeM('editar-cliente')">
+<div class="modal" onclick="event.stopPropagation()" style="width:560px;max-height:92vh">
+  <div class="modal-hdr"><div><div class="modal-eye">EDICIÓN · OFICINA</div><div class="modal-title" id="ec-title">Editar Cliente</div></div><button class="modal-close" onclick="closeM('editar-cliente')">✕</button></div>
+  <div class="modal-body">
+    <div class="fgrid">
+      <div class="fg"><label class="fl">NOMBRE COMERCIAL</label><input class="fi" id="ec-nombre"></div>
+      <div class="fg"><label class="fl">RFC</label><input class="fi" id="ec-rfc"></div>
+    </div>
+    <div class="fg"><label class="fl">RAZÓN SOCIAL</label><input class="fi" id="ec-razon"></div>
+    <div class="fg"><label class="fl">DIRECCIÓN FISCAL</label><input class="fi" id="ec-dir"></div>
+    <div class="fgrid">
+      <div class="fg"><label class="fl">GIRO</label><input class="fi" id="ec-giro"></div>
+      <div class="fg"><label class="fl">CONDICIONES DE PAGO</label><select class="fsel-full" id="ec-pago"><option>Contado</option><option>15 días</option><option>30 días</option><option>45 días</option><option>60 días</option></select></div>
+    </div>
+    <div class="fgrid">
+      <div class="fg"><label class="fl">CONTACTO</label><input class="fi" id="ec-contacto"></div>
+      <div class="fg"><label class="fl">CARGO</label><input class="fi" id="ec-cargo"></div>
+    </div>
+    <div class="fgrid">
+      <div class="fg"><label class="fl">TELÉFONO</label><input class="fi" id="ec-tel"></div>
+      <div class="fg"><label class="fl">EMAIL</label><input class="fi" id="ec-email"></div>
+    </div>
+    <div class="fgrid3">
+      <div class="fg" style="margin:0"><label class="fl">PROPIETARIO</label><select class="fsel-full" id="ec-propietario"></select></div>
+      <div class="fg" style="margin:0"><label class="fl">EJEC. DE CUENTA</label><select class="fsel-full" id="ec-ejeccuenta"></select></div>
+      <div class="fg" style="margin:0"><label class="fl">EJEC. ASIGNADO</label><select class="fsel-full" id="ec-ejecasignado"></select></div>
+    </div>
+    <div class="fg"><label class="fl">ESTATUS</label><select class="fsel-full" id="ec-status"><option>Activo</option><option>Inactivo</option></select></div>
+  </div>
+  <div class="modal-footer">
+    <button class="btn btn-ghost" onclick="closeM('editar-cliente')">Cancelar</button>
+    <button class="btn btn-primary" onclick="saveEditarCliente()">Guardar cambios</button>
   </div>
 </div></div>
 
@@ -673,8 +712,39 @@
   </div>
   <div class="modal-footer">
     <button class="btn btn-ghost" onclick="closeM('detalle-op')">Cerrar</button>
+    <button class="btn btn-ghost role-oficina" onclick="openEditarOP()"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-3px"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4z"/></svg> Editar OP</button>
     <button class="btn btn-ghost" onclick="openEdRForOP()"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-3px"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg> Estado de Resultados</button>
     <button class="btn btn-primary" onclick="openCotForOP()"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-3px"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h6"/></svg> Abrir Cotizador</button>
+  </div>
+</div></div>
+
+<!-- EDITAR OP (oficina total) -->
+<div class="modal-overlay" id="m-editar-op" onclick="closeM('editar-op')">
+<div class="modal" onclick="event.stopPropagation()" style="width:560px">
+  <div class="modal-hdr"><div><div class="modal-eye">EDICIÓN · OFICINA</div><div class="modal-title">Editar OP</div></div><button class="modal-close" onclick="closeM('editar-op')">✕</button></div>
+  <div class="modal-body">
+    <div class="fg"><label class="fl">DESCRIPCIÓN</label><input class="fi" id="eop-desc"></div>
+    <div class="fgrid">
+      <div class="fg"><label class="fl">FECHA DEL EVENTO</label><input class="fi" id="eop-fecha" type="date"></div>
+      <div class="fg"><label class="fl">ESTATUS</label><select class="fsel-full" id="eop-status"><option>Cotización</option><option>En Producción</option><option>Ejecutado</option></select></div>
+    </div>
+    <div class="fgrid3">
+      <div class="fg" style="margin:0"><label class="fl">PROPIETARIO</label><select class="fsel-full" id="eop-propietario"></select></div>
+      <div class="fg" style="margin:0"><label class="fl">EJEC. DE CUENTA</label><select class="fsel-full" id="eop-ejeccuenta"></select></div>
+      <div class="fg" style="margin:0"><label class="fl">EJEC. ASIGNADO</label><select class="fsel-full" id="eop-ejecasignado" onchange="_previewEditarOPNum()"></select></div>
+    </div>
+    <div class="fgrid">
+      <div class="fg"><label class="fl">VERSIÓN (dígito)</label><input class="fi" id="eop-version" type="number" min="1" max="99" oninput="_previewEditarOPNum()"></div>
+      <div class="fg"><label class="fl">SUBTOTAL COTIZADO (sin IVA)</label><input class="fi" id="eop-monto" type="number"></div>
+    </div>
+    <div class="fg"><label class="fl">NÚMERO OP (se recalcula al cambiar ejecutivo o versión)</label><input class="fi" id="eop-num" style="font-family:'JetBrains Mono',monospace;font-size:12px;background:var(--gray50)"></div>
+    <div style="background:var(--cream);border-radius:7px;padding:9px 13px;font-size:11px;color:var(--gray600);line-height:1.6">
+      El código sigue <strong>RFC-EJEC-DDMMAA-Vxx</strong>. Al cambiar el Ejecutivo asignado se actualizan las iniciales (p. ej. ALE→XIM) y el "dueño" operativo de la OP. Puedes ajustar el dígito de versión manualmente.
+    </div>
+  </div>
+  <div class="modal-footer">
+    <button class="btn btn-ghost" onclick="closeM('editar-op')">Cancelar</button>
+    <button class="btn btn-primary" onclick="saveEditarOP()">Guardar cambios</button>
   </div>
 </div></div>
 

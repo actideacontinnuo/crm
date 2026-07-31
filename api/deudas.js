@@ -8,13 +8,15 @@ const {
 
 function toObj(page) {
   const p = page.properties;
+  const fecha = read_date(p['Fecha Acordada']);
   return {
     id:       page.id,
     concepto: read_title(p['Concepto']),
     provId:   read_text(p['Proveedor ID']),
     opId:     read_text(p['OP ID']),
     monto:    read_number(p['Monto']),
-    fecha:    read_date(p['Fecha Acordada']),
+    fecha,                 // nombre legado
+    fechaAcordada: fecha,  // nombre usado por el frontend (proveedores/control de pagos)
     status:   read_select(p['Status']),
   };
 }
@@ -25,7 +27,9 @@ function toProps(data) {
   if (data.provId   !== undefined) props['Proveedor ID']  = prop_text(data.provId);
   if (data.opId     !== undefined) props['OP ID']         = prop_text(data.opId);
   if (data.monto    !== undefined) props['Monto']         = prop_number(data.monto);
-  if (data.fecha    !== undefined) props['Fecha Acordada'] = prop_date(data.fecha);
+  // El frontend envía 'fechaAcordada'; aceptamos también el alias legado 'fecha'.
+  if (data.fechaAcordada !== undefined) props['Fecha Acordada'] = prop_date(data.fechaAcordada);
+  else if (data.fecha    !== undefined) props['Fecha Acordada'] = prop_date(data.fecha);
   if (data.status   !== undefined) props['Status']        = prop_select(data.status);
   return props;
 }

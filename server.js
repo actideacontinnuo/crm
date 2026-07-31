@@ -9,6 +9,7 @@ const path      = require('path');
 const rateLimit = require('express-rate-limit');
 const { authMiddleware } = require('./middleware/auth');
 const { logAudit, clientIp } = require('./api/_audit');
+const { esOficinaTotal, identidadRol } = require('./api/_guard');
 
 if (!process.env.JWT_SECRET) {
   console.warn('\n⚠️  ADVERTENCIA: JWT_SECRET no está configurada. Configúrala en .env / Railway antes de producción.\n');
@@ -111,9 +112,10 @@ app.use('/api/ops',          rolFilterCliente());
 // Cotizaciones: modelo legado (un solo Ejecutivo dueño)
 app.use('/api/cotizaciones', roleFilter());
 
-// Pagos y comisiones: solo admin
-app.use('/api/pagos',        adminOnly);
-app.use('/api/deudas',       adminOnly);
+// Pagos y control de pagos (deudas a proveedores): Dirección + Oscar (oficina total).
+// Oscar gestiona todo desde el CRM sin entrar a Notion; eliminar sigue siendo solo admin.
+app.use('/api/pagos',        oficinaOnly);
+app.use('/api/deudas',       oficinaOnly);
 
 // Proveedores: cualquiera ve/edita, pero solo Admin puede eliminar
 app.use('/api/proveedores',  deleteAdminOnly);
@@ -181,12 +183,29 @@ function roleFilter() {
 // como Propietario, Ejec. de cuenta o Ejec. asignado. Solo el Admin elimina.
 function rolFilterCliente() {
   return (req, res, next) => {
-    if (req.user.role !== 'admin') {
-      if (req.method === 'DELETE') return res.status(403).json({ error: 'Solo el Admin puede eliminar registros' });
-      req.rolFilter = req.user.ejec; // identidad del usuario (Ejecutivo)
+    // Oficina total (Natalia y Oscar): ven y editan todo; solo el admin elimina.
+    if (esOficinaTotal(req.user)) {
+      if (req.method === 'DELETE' && req.user.role !== 'admin') {
+        return res.status(403).json({ error: 'Solo el Admin puede eliminar registros' });
+      }
+      return next();
     }
+    // Resto (ejecutivos y administracion-especiales): acceso por fila.
+    if (req.method === 'DELETE') return res.status(403).json({ error: 'Solo el Admin puede eliminar registros' });
+    req.rolFilter = identidadRol(req.user); // identidad del usuario en los 3 roles
     next();
   };
+}
+
+// Dirección + Oscar (oficina total). Eliminar sigue restringido al admin.
+function oficinaOnly(req, res, next) {
+  if (esOficinaTotal(req.user)) {
+    if (req.method === 'DELETE' && req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Solo el Admin puede eliminar registros' });
+    }
+    return next();
+  }
+  return res.status(403).json({ error: 'Acceso restringido a Dirección y Administración' });
 }
 
 // Bloquea toda la API si la cuenta tiene una contraseña pendiente de cambiar —

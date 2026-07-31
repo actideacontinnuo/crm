@@ -52,9 +52,16 @@ describe('Control de acceso a /api/pagos', () => {
     expect(res.status).toBe(403);
   });
 
-  test('administración NO puede ver pagos (403)', async () => {
+  test('administración (Oscar, oficina total) SÍ puede ver pagos (200)', async () => {
     const res = await request(app).get('/api/pagos')
       .set('Authorization', `Bearer ${adminisToken()}`);
+    expect(res.status).toBe(200);
+  });
+
+  test('propietario especial (Eduardo, administracion) NO puede ver pagos (403)', async () => {
+    const especial = jwt.sign({ id: 'eduardo', nombre: 'Eduardo Gama', role: 'administracion', ejec: null }, SECRET, { expiresIn: '1h' });
+    const res = await request(app).get('/api/pagos')
+      .set('Authorization', `Bearer ${especial}`);
     expect(res.status).toBe(403);
   });
 

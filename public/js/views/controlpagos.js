@@ -26,7 +26,8 @@ async function renderControlPagos() {
   const totalDebemos = deudas.filter(d => !_esPagado(d.status)).reduce((a, d) => a + (d.monto || 0), 0);
   const totalPagado  = deudas.filter(d => _esPagado(d.status)).reduce((a, d) => a + (d.monto || 0), 0);
   const totalGastos  = deudas.reduce((a, d) => a + (d.monto || 0), 0);
-  const nProv        = new Set(deudas.map(d => d.provId).filter(Boolean)).size;
+  // Proveedores con saldo PENDIENTE (no los ya pagados) — coincide con la etiqueta.
+  const nProv        = new Set(deudas.filter(d => !_esPagado(d.status)).map(d => d.provId).filter(Boolean)).size;
 
   // Agrupar deudas por OP
   const byOp = {};
