@@ -167,3 +167,72 @@ describe('Propietario = Ejecutivo de cuenta SIEMPRE — se re-deriva también al
     expect(patch.body.ejecCuenta).toBe('Natalia Gama');
   });
 });
+
+describe('Número de OP = código del cliente + consecutivo — generado por el servidor', () => {
+  async function crearCliente(rfc) {
+    const res = await request(app).post('/api/clientes')
+      .set('Authorization', `Bearer ${adminToken()}`)
+      .send({
+        nombre: 'Cliente Test', razon: 'Cliente Test SA', rfc,
+        dir: 'CDMX', contacto: 'Juan', cargo: 'Gerente', tel: '5500000000',
+        email: 'juan@test.com', propietario: 'Natalia Gama', pago: '30 días', status: 'Activo',
+      });
+    return res.body; // { id, codigo, ... }
+  }
+
+  test('primera OP del cliente → {codigo}-01', async () => {
+    const cliente = await crearCliente('KTE130814368');
+    const res = await request(app).post('/api/ops')
+      .set('Authorization', `Bearer ${adminToken()}`)
+      .send({ ...OP_VALIDA, clienteId: cliente.id, numero: 'LO-QUE-SEA' }); // se ignora
+    expect(res.body.numero).toBe(`${cliente.codigo}-01`);
+    expect(res.body.numero).not.toBe('LO-QUE-SEA');
+  });
+
+  test('segunda y tercera OP del mismo cliente → -02, -03 (consecutivo real)', async () => {
+    const cliente = await crearCliente('KTE130814368');
+    await request(app).post('/api/ops').set('Authorization', `Bearer ${adminToken()}`)
+      .send({ ...OP_VALIDA, clienteId: cliente.id, desc: 'Casa del Terror' });
+    await request(app).post('/api/ops').set('Authorization', `Bearer ${adminToken()}`)
+      .send({ ...OP_VALIDA, clienteId: cliente.id, desc: 'Reinauguración' });
+    const tercera = await request(app).post('/api/ops').set('Authorization', `Bearer ${adminToken()}`)
+      .send({ ...OP_VALIDA, clienteId: cliente.id, desc: 'Netagg Fest' });
+    expect(tercera.body.numero).toBe(`${cliente.codigo}-03`);
+  });
+
+  test('clientes distintos llevan su propio consecutivo independiente', async () => {
+    const clienteA = await crearCliente('AAA100000000');
+    const clienteB = await crearCliente('BBB200000000');
+    await request(app).post('/api/ops').set('Authorization', `Bearer ${adminToken()}`)
+      .send({ ...OP_VALIDA, clienteId: clienteA.id });
+    const primeraB = await request(app).post('/api/ops').set('Authorization', `Bearer ${adminToken()}`)
+      .send({ ...OP_VALIDA, clienteId: clienteB.id });
+    expect(primeraB.body.numero).toBe(`${clienteB.codigo}-01`); // no arrastra el conteo de A
+  });
+
+  test('OP interna (sin cliente) no se ve afectada — conserva el número enviado', async () => {
+    const res = await request(app).post('/api/ops')
+      .set('Authorization', `Bearer ${adminToken()}`)
+      .send({ ...OP_VALIDA, clienteId: '__interno__', numero: 'OP-INTERNA-01' });
+    expect(res.body.numero).toBe('OP-INTERNA-01');
+  });
+
+  test('PATCH sigue sin poder renumerar la OP salvo oficina total', async () => {
+    const cliente = await crearCliente('KTE130814368');
+    // OP_VALIDA.ejec = 'Natalia Gama' → un ejecutivo con esa misma identidad SÍ
+    // participa en el registro (pasa assertRolAccess), pero no es oficina total.
+    const creada = await request(app).post('/api/ops').set('Authorization', `Bearer ${adminToken()}`)
+      .send({ ...OP_VALIDA, clienteId: cliente.id });
+    const numeroOriginal = creada.body.numero;
+
+    const ejecToken = jwt.sign({ id: 'natalia-ejec', nombre: 'Natalia Gama', role: 'ejecutivo', ejec: 'Natalia Gama' }, SECRET, { expiresIn: '1h' });
+    const patch = await request(app).patch(`/api/ops/${creada.body.id}`)
+      .set('Authorization', `Bearer ${ejecToken}`)
+      .send({ numero: 'INTENTO-DE-CAMBIO', desc: 'Cambio permitido' });
+    expect(patch.status).toBe(200); // el PATCH en sí se permite (participa en la OP)...
+    expect(patch.body.numero).toBe(numeroOriginal); // ...pero el número no se toca
+
+    const get = await request(app).get(`/api/ops/${creada.body.id}`).set('Authorization', `Bearer ${adminToken()}`);
+    expect(get.body.numero).toBe(numeroOriginal);
+  });
+});

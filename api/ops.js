@@ -49,6 +49,28 @@ function toProps(data) {
   return props;
 }
 
+// Número de OP — FIJO al crear, jamás editable por reasignación de ejecutivo.
+// Formato confirmado: {código del cliente}-{consecutivo por cliente, 01/02/03...}
+// Se calcula AQUÍ (autoridad del servidor) a partir del código YA GUARDADO del
+// cliente — nunca se confía en un 'numero'/'num' que mande el cliente al crear,
+// mismo criterio que el código de cliente (api/clientes.js _generarCodigoCliente).
+// Si la OP es interna (sin cliente) se conserva el comportamiento previo — no
+// hay código de cliente del cual derivar un consecutivo.
+async function _generarNumeroOP(clienteId) {
+  if (!clienteId || clienteId === '__interno__') return null;
+  let clientePage;
+  try {
+    clientePage = await notion.pages.retrieve({ page_id: clienteId });
+  } catch (_) {
+    return null; // clienteId inválido/inexistente — no se puede generar, se deja como venga
+  }
+  const codigo = read_text(clientePage.properties['Codigo']);
+  if (!codigo) return null;
+  const opsDelCliente = await queryDB('ops', { property: 'Cliente ID', rich_text: { equals: clienteId } }, null);
+  const consecutivo = String(opsDelCliente.length + 1).padStart(2, '0');
+  return `${codigo}-${consecutivo}`;
+}
+
 // Utilidad = cotizado − costos reales de proveedores (Deudas ligadas a la OP).
 // ÚNICA fuente de verdad para toda la app (Dashboard, Estado de Resultados,
 // Comercial, tabla de OPs, comisión 7.5%) — ya NO se captura a mano ni se
@@ -100,6 +122,11 @@ router.post('/', async (req, res) => {
   try {
     const data = { ...req.body };
     delete data.utilidad; // se calcula siempre en GET, nunca se captura directamente
+    const numeroGenerado = await _generarNumeroOP(data.clienteId);
+    if (numeroGenerado) {
+      data.numero = numeroGenerado;
+      delete data.num; // 'num' tiene prioridad en toProps — no debe pisar el generado
+    }
     const page = await createPage('ops', toProps(data));
     const [enriched] = await withUtilidadReal([toObj(page)]);
     res.json(enriched);

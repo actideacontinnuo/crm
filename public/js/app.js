@@ -118,15 +118,19 @@ function _initRolesModal(prefix) {
   if (prefix === 'nc') _actualizarCodigoCliente();
 }
 
-// Código de cliente en vivo: RFC(3) + Ejec. de cuenta(3) + DDMMAA (Brief §5)
+// Código de cliente — SOLO PREVIEW en pantalla mientras se llena el formulario.
+// La autoridad real es el backend (api/clientes.js _generarCodigoCliente):
+// el servidor SIEMPRE recalcula el código con su propio reloj al crear y
+// descarta cualquier 'codigo' recibido — este preview nunca se envía como
+// dato definitivo. Formato confirmado: RFC(3)-EJEC. DE CUENTA(3)-DDMMAA.
 function codigoCliente(rfc, ejecCuenta, fecha) {
-  const r = (rfc || 'XXX').replace(/[^A-Za-z0-9]/g, '').toUpperCase().slice(0, 3);
-  const e = (ejecCuenta || 'EJE').replace(/[^A-Za-z]/g, '').toUpperCase().slice(0, 3);
+  const r = (rfc || 'XXX').replace(/[^A-Za-z0-9]/g, '').toUpperCase().slice(0, 3) || 'XXX';
+  const e = (ejecCuenta || 'EJE').replace(/[^A-Za-z]/g, '').toUpperCase().slice(0, 3) || 'EJE';
   const d = fecha ? new Date(fecha) : new Date();
   const dd = String(d.getDate()).padStart(2, '0');
   const mm = String(d.getMonth() + 1).padStart(2, '0');
   const yy = String(d.getFullYear()).slice(2);
-  return `${r}${e}${dd}${mm}${yy}`;
+  return `${r}-${e}-${dd}${mm}${yy}`;
 }
 
 function _actualizarCodigoCliente() {
@@ -294,11 +298,12 @@ function genCodigo(cliente) {
   return n + r + dd + mm + yy;
 }
 
-// Build OP number from cliente codigo + date + sequence count
-// Código de OP: RFC(3) - Propietario(3) - ddmmaa - Vxx   ej: APP-NAT-200726-V01
-// Código de OP = código de cliente completo + consecutivo fijo por cliente
-// (-01, -02, -03...). Se asigna UNA vez al crear la OP y ya NO cambia después
-// (no lleva ejecutivo ni versión — eso se ve aparte en pantalla).
+// Número de OP — SOLO PREVIEW en pantalla mientras se llena el formulario.
+// La autoridad real es el backend (api/ops.js _generarNumeroOP): el servidor
+// SIEMPRE recalcula {código del cliente}-{consecutivo real} al crear y
+// descarta cualquier 'numero' recibido — este preview nunca se envía como
+// dato definitivo. Se asigna UNA vez y ya no cambia (no lleva ejecutivo ni
+// versión — eso se ve aparte en pantalla).
 function buildOPNum(cliente, allOps) {
   const cod = cliente?.codigo || (cliente?.rfc || 'XXX').replace(/[^A-Za-z0-9]/g, '').substring(0, 3).toUpperCase() || 'XXX';
   const count = (allOps || []).filter(o => o.clienteId === cliente?.id).length + 1;

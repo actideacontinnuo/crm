@@ -8,6 +8,21 @@ const {
 const { filtroRolesNotion, assertRolAccess } = require('./_guard');
 const { aplicarReglasComision } = require('./_roles');
 
+// Código de cliente — FIJO al crear, jamás editable (ver PATCH: siempre se
+// descarta). Formato confirmado: RFC(3)-EJECUTIVO DE CUENTA(3)-DDMMAA de la
+// fecha de alta en el sistema. Se calcula AQUÍ (autoridad del servidor, con
+// su propio reloj) — nunca se confía en un 'codigo' que mande el cliente,
+// para que sea imposible de falsificar o desincronizar con la fecha real.
+function _generarCodigoCliente(rfc, ejecCuenta) {
+  const r = String(rfc || '').replace(/[^A-Za-z0-9]/g, '').toUpperCase().slice(0, 3) || 'XXX';
+  const e = String(ejecCuenta || '').replace(/[^A-Za-z]/g, '').toUpperCase().slice(0, 3) || 'EJE';
+  const d = new Date();
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const yy = String(d.getFullYear()).slice(2);
+  return `${r}-${e}-${dd}${mm}${yy}`;
+}
+
 function toObj(page) {
   const p = page.properties;
   return {
@@ -92,6 +107,9 @@ router.post('/', async (req, res) => {
       data.ejecCuenta = r2.ejecCuenta;
       if (data.comision === null || data.comision === undefined) data.comision = r2.comision;
     }
+    // Código de cliente: SIEMPRE se calcula aquí, con el ejecCuenta ya
+    // resuelto — cualquier 'codigo' que haya mandado el cliente se ignora.
+    data.codigo = _generarCodigoCliente(data.rfc, data.ejecCuenta);
     const page = await createPage('clientes', toProps(data));
     res.json(toObj(page));
   } catch (err) { res.status(500).json({ error: err.message }); }

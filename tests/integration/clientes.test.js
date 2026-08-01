@@ -69,6 +69,67 @@ describe('POST /api/clientes', () => {
   });
 });
 
+describe('Código de cliente — SIEMPRE RFC(3)-EJEC.CUENTA(3)-DDMMAA, generado por el servidor', () => {
+  function hoyDDMMAA() {
+    const d = new Date();
+    return String(d.getDate()).padStart(2, '0') + String(d.getMonth() + 1).padStart(2, '0') + String(d.getFullYear()).slice(2);
+  }
+
+  test('se genera con el formato exacto RFC(3)-EJEC(3)-DDMMAA, con guiones', async () => {
+    const res = await request(app).post('/api/clientes')
+      .set('Authorization', `Bearer ${adminToken()}`)
+      .send({ ...CLIENTE_VALIDO, rfc: 'KTE130814368', propietario: 'Natalia Gama' });
+    expect(res.body.codigo).toBe(`KTE-NAT-${hoyDDMMAA()}`);
+  });
+
+  test('el código que mande el cliente en el POST se IGNORA por completo (no se puede falsificar)', async () => {
+    const res = await request(app).post('/api/clientes')
+      .set('Authorization', `Bearer ${adminToken()}`)
+      .send({ ...CLIENTE_VALIDO, rfc: 'KTE130814368', propietario: 'Ximena', codigo: 'LO-QUE-SEA-YO-QUIERO' });
+    expect(res.body.codigo).toBe(`KTE-XIM-${hoyDDMMAA()}`);
+    expect(res.body.codigo).not.toBe('LO-QUE-SEA-YO-QUIERO');
+  });
+
+  test('usa el Ejecutivo de cuenta YA DERIVADO del propietario, no uno independiente', async () => {
+    // 'Alexia' como ejecCuenta se ignora — el propietario es Ximena, así que
+    // el ejec. de cuenta real (y las iniciales del código) son de Ximena.
+    const res = await request(app).post('/api/clientes')
+      .set('Authorization', `Bearer ${adminToken()}`)
+      .send({ ...CLIENTE_VALIDO, rfc: 'KTE130814368', propietario: 'Ximena', ejecCuenta: 'Alexia' });
+    expect(res.body.codigo).toBe(`KTE-XIM-${hoyDDMMAA()}`);
+  });
+
+  test('propietario especial (Eduardo) → código usa NAT (Natalia), no ALF/EDU', async () => {
+    const res = await request(app).post('/api/clientes')
+      .set('Authorization', `Bearer ${adminToken()}`)
+      .send({ ...CLIENTE_VALIDO, rfc: 'KTE130814368', propietario: 'Eduardo Gama' });
+    expect(res.body.codigo).toBe(`KTE-NAT-${hoyDDMMAA()}`);
+  });
+
+  test('RFC con guiones/espacios se limpia antes de tomar las 3 letras', async () => {
+    const res = await request(app).post('/api/clientes')
+      .set('Authorization', `Bearer ${adminToken()}`)
+      .send({ ...CLIENTE_VALIDO, rfc: ' kte-130814-368 ', propietario: 'Natalia Gama' });
+    expect(res.body.codigo).toBe(`KTE-NAT-${hoyDDMMAA()}`);
+  });
+
+  test('PATCH JAMÁS puede cambiar el código, ni siquiera el admin', async () => {
+    const creado = await request(app).post('/api/clientes')
+      .set('Authorization', `Bearer ${adminToken()}`)
+      .send({ ...CLIENTE_VALIDO, rfc: 'KTE130814368', propietario: 'Natalia Gama' });
+    const codigoOriginal = creado.body.codigo;
+
+    const patch = await request(app).patch(`/api/clientes/${creado.body.id}`)
+      .set('Authorization', `Bearer ${adminToken()}`)
+      .send({ codigo: 'INTENTO-DE-CAMBIO' });
+    expect(patch.body.codigo).toBe(codigoOriginal);
+
+    const get = await request(app).get(`/api/clientes/${creado.body.id}`)
+      .set('Authorization', `Bearer ${adminToken()}`);
+    expect(get.body.codigo).toBe(codigoOriginal);
+  });
+});
+
 describe('GET /api/clientes — filtro por ejecutivo', () => {
   test('ejecutivo solo ve sus propios clientes', async () => {
     await request(app).post('/api/clientes')
