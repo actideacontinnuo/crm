@@ -176,7 +176,9 @@ function aplicarSesion(user) {
   const rol     = document.getElementById('topbar-rol');
   const avatar  = document.getElementById('topbar-avatar');
   if (nombre) nombre.textContent = user.nombre;
-  if (rol)    rol.textContent    = ROL_LABELS[user.role] || user.role.toUpperCase();
+  // El puesto (Directora General, etc.) ya NO se muestra junto al nombre —
+  // solo el nombre. El elemento se oculta en vez de eliminarlo del layout.
+  if (rol) rol.style.display = 'none';
   if (avatar) avatar.textContent = user.nombre.split(' ').map(x => x[0]).join('').slice(0, 2).toUpperCase();
   _aplicarRolUI(user);
 }

@@ -34,34 +34,74 @@ function personaOptions(sel, roster) {
     list.map(n => `<option value="${esc(n)}"${n === sel ? ' selected' : ''}>${esc(n)}</option>`).join('');
 }
 
-// Comisión según las reglas §3 (espejo del backend, solo para previsualizar)
-function calcComision(propietario, ejecCuenta, esApollo) {
+// Comisión según las reglas §3 (espejo EXACTO de aplicarReglasComision en
+// api/_roles.js — el Ejecutivo de cuenta ya no es una elección independiente,
+// se deriva del Propietario, así que esta función solo necesita 'propietario').
+function calcComision(propietario, esApollo) {
   // Apollo solo fija Natalia como propietaria por default; la comisión sale de las mismas reglas.
   const prop = (esApollo && !propietario) ? NATALIA_ID : propietario;
-  if (prop && ejecCuenta && prop === ejecCuenta)
-    return { comision: 15, texto: 'Regla 2 · Mismo dueño — comisión 15% + bono manual al cierre' };
   if (prop && PROPIETARIOS_ESPECIALES.includes(prop))
     return { comision: 7.5, texto: 'Regla 3 · Propietario especial — Ejec. de cuenta = Natalia, comisión 7.5%' };
-  return { comision: null, texto: 'Regla 4 · Caso general — comisión no gestionada por el sistema' };
+  if (prop && PERSONAS_EJECUTIVO.includes(prop))
+    return { comision: 15, texto: 'Regla 2 · Propietario = Ejecutivo de cuenta — comisión 15% + bono manual al cierre' };
+  return { comision: null, texto: 'Regla 4 · Sin propietario asignado — comisión no gestionada por el sistema' };
 }
 
-// Refresca el preview de comisión de un modal (prefijo 'np' o 'nc')
+// Deriva el Ejecutivo de cuenta a partir del Propietario (arquitectura
+// confirmada: el propietario de la cuenta ES el ejecutivo de cuenta, excepto
+// Eduardo/Alfredo → siempre Natalia). Espejo de aplicarReglasComision.
+function _ejecCuentaDe(propietario) {
+  if (propietario && PROPIETARIOS_ESPECIALES.includes(propietario)) return NATALIA_ID;
+  if (propietario && PERSONAS_EJECUTIVO.includes(propietario)) return propietario;
+  return '';
+}
+
+// Refresca el preview de comisión de un modal (prefijo 'np' o 'nc'). El
+// Ejecutivo de cuenta SIEMPRE se deriva aquí — el select queda bloqueado
+// (nunca es una selección manual independiente, ni siquiera momentáneamente).
 function refrescarComision(prefix) {
-  const prop = document.getElementById(prefix + '-propietario')?.value || '';
-  let ejc  = document.getElementById(prefix + '-ejeccuenta')?.value || '';
-  const esApollo = prefix === 'np' && (document.getElementById('np-fuente')?.value === 'Apollo');
-  const r = calcComision(prop, ejc, esApollo);
-  // Regla 3 impone Ejec. de cuenta = Natalia. En Apollo NO se toca (lo asigna Natalia manual).
-  const impNatalia = (prop && PROPIETARIOS_ESPECIALES.includes(prop) && prop !== ejc);
-  const ejcSel = document.getElementById(prefix + '-ejeccuenta');
-  if (ejcSel && impNatalia) { ejcSel.value = NATALIA_ID; ejc = NATALIA_ID; }
-  // Apollo: Propietario = Natalia por default
   const propSel = document.getElementById(prefix + '-propietario');
-  if (propSel && esApollo) propSel.value = NATALIA_ID;
+  const ejcSel  = document.getElementById(prefix + '-ejeccuenta');
+  const esApollo = prefix === 'np' && (document.getElementById('np-fuente')?.value === 'Apollo');
+
+  // Apollo: Propietario = Natalia por default (si aún no se eligió otro)
+  if (propSel && esApollo && !propSel.value) propSel.value = NATALIA_ID;
+  const prop = propSel?.value || '';
+  const ejc  = _ejecCuentaDe(prop);
+
+  if (ejcSel) {
+    ejcSel.value = ejc;
+    ejcSel.disabled = true;
+    ejcSel.style.background = 'var(--cream)';
+    ejcSel.style.color      = 'var(--gray400)';
+    ejcSel.style.cursor     = 'not-allowed';
+    ejcSel.title = 'Se asigna automáticamente: el Ejecutivo de cuenta es siempre el Propietario (Natalia si el propietario es un socio).';
+  }
+
+  const r = calcComision(prop, esApollo);
   const el = document.getElementById(prefix + '-comision-preview');
   if (el) {
     const pct = r.comision === null ? '—' : r.comision + '%';
     el.innerHTML = `<span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--gray400)">COMISIÓN: <strong style="color:${r.comision ? 'var(--green)' : 'var(--gray400)'}">${pct}</strong> · ${esc(r.texto)}</span>`;
+  }
+  if (prefix === 'nc') _actualizarCodigoCliente();
+}
+
+// Igual que refrescarComision, pero para modales de EDICIÓN (Editar Cliente,
+// Editar OP) que no muestran preview de comisión — solo bloquea/deriva el
+// Ejecutivo de cuenta a partir del Propietario, para no contradecir en la UI
+// lo que el backend ya fuerza al guardar.
+function _refrescarEjecCuentaDerivada(prefix) {
+  const propSel = document.getElementById(prefix + '-propietario');
+  const ejcSel  = document.getElementById(prefix + '-ejeccuenta');
+  const ejc = _ejecCuentaDe(propSel?.value || '');
+  if (ejcSel) {
+    ejcSel.value = ejc;
+    ejcSel.disabled = true;
+    ejcSel.style.background = 'var(--cream)';
+    ejcSel.style.color      = 'var(--gray400)';
+    ejcSel.style.cursor     = 'not-allowed';
+    ejcSel.title = 'Se asigna automáticamente: el Ejecutivo de cuenta es siempre el Propietario (Natalia si el propietario es un socio).';
   }
 }
 

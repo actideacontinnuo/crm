@@ -109,3 +109,52 @@ describe('CRUD de pagos (admin)', () => {
     expect(res.body.monto).toBe(0); // read_number normaliza null → 0
   });
 });
+
+// Fechas relativas a HOY — nunca hardcoded, así el test no se vuelve obsoleto.
+function fechaHace(dias) {
+  const d = new Date(); d.setDate(d.getDate() - dias);
+  return d.toISOString().slice(0, 10);
+}
+function fechaEn(dias) {
+  const d = new Date(); d.setDate(d.getDate() + dias);
+  return d.toISOString().slice(0, 10);
+}
+
+describe('Vencido — se calcula SIEMPRE por fecha, no depende de captura manual', () => {
+  test('Pendiente con fecha acordada YA PASADA → status efectivo "Vencido"', async () => {
+    const creado = await request(app).post('/api/pagos')
+      .set('Authorization', `Bearer ${adminToken()}`)
+      .send({ ...PAGO_VALIDO, status: 'Pendiente', fechaAcordada: fechaHace(3) });
+    expect(creado.body.status).toBe('Vencido');
+
+    // También en el GET de la lista, no solo al crear
+    const lista = await request(app).get('/api/pagos').set('Authorization', `Bearer ${adminToken()}`);
+    expect(lista.body.find(p => p.id === creado.body.id).status).toBe('Vencido');
+  });
+
+  test('Pendiente con fecha acordada FUTURA → sigue "Pendiente", no vencido', async () => {
+    const creado = await request(app).post('/api/pagos')
+      .set('Authorization', `Bearer ${adminToken()}`)
+      .send({ ...PAGO_VALIDO, status: 'Pendiente', fechaAcordada: fechaEn(10) });
+    expect(creado.body.status).toBe('Pendiente');
+  });
+
+  test('Pagado con fecha ya pasada NO se convierte a Vencido (ya se cobró)', async () => {
+    const creado = await request(app).post('/api/pagos')
+      .set('Authorization', `Bearer ${adminToken()}`)
+      .send({ ...PAGO_VALIDO, status: 'Pagado', fechaAcordada: fechaHace(20) });
+    expect(creado.body.status).toBe('Pagado');
+  });
+
+  test('marcar como Pagado un pago que estaba Vencido lo saca de "vencidos"', async () => {
+    const creado = await request(app).post('/api/pagos')
+      .set('Authorization', `Bearer ${adminToken()}`)
+      .send({ ...PAGO_VALIDO, status: 'Pendiente', fechaAcordada: fechaHace(5) });
+    expect(creado.body.status).toBe('Vencido');
+
+    const pagado = await request(app).patch(`/api/pagos/${creado.body.id}`)
+      .set('Authorization', `Bearer ${adminToken()}`)
+      .send({ status: 'Pagado', fechaReal: fechaHace(0) });
+    expect(pagado.body.status).toBe('Pagado');
+  });
+});

@@ -17,6 +17,12 @@ const PROPIETARIOS_ESPECIALES = ['Eduardo Gama', 'Alfredo'];
 // Calcula asignaciones automáticas y comisión FIJA al momento de la asignación.
 // Devuelve los campos que el sistema debe imponer; los 'manual' se respetan tal cual vengan.
 // esApollo: true si el prospecto entró por prospección automática de Apollo (Fuente = 'Apollo').
+//
+// Regla de arquitectura (confirmada): el Propietario de la cuenta (quien la
+// trajo) es SIEMPRE el mismo que el Ejecutivo de cuenta (quien la atiende) —
+// EXCEPTO Eduardo Gama y Alfredo, que son socios/externos, nunca ejecutivos:
+// para ellos el ejec. de cuenta se sigue forzando a Natalia (Regla 3, 7.5%).
+// El Ejecutivo ASIGNADO (quien lleva el evento) es el único que varía libre.
 function aplicarReglasComision(data, { esApollo = false } = {}) {
   const out = {
     propietario:     data.propietario     || '',
@@ -30,14 +36,8 @@ function aplicarReglasComision(data, { esApollo = false } = {}) {
   // se calcula con LAS MISMAS reglas que cualquier otra fuente (2, 3 o 4).
   if (esApollo && !out.propietario) out.propietario = NATALIA;
 
-  // Regla 2 — Propietario == Ejecutivo de cuenta (mismo dueño) → 15% (prioridad sobre R3)
-  if (out.propietario && out.ejecCuenta && out.propietario === out.ejecCuenta) {
-    out.comision = 15;
-    out.regla    = 2;
-    return out;
-  }
-
-  // Regla 3 — Propietario es Eduardo Gama o Alfredo → ejec. de cuenta = Natalia, 7.5%
+  // Regla 3 — Propietario es Eduardo Gama o Alfredo (excepción confirmada,
+  // nunca son ejecutivos) → ejec. de cuenta se fuerza a Natalia, 7.5%.
   if (out.propietario && PROPIETARIOS_ESPECIALES.includes(out.propietario)) {
     out.ejecCuenta = NATALIA;
     out.comision   = 7.5;
@@ -45,7 +45,18 @@ function aplicarReglasComision(data, { esApollo = false } = {}) {
     return out;
   }
 
-  // Regla 4 — Caso general: todo manual, comisión no gestionada por el sistema
+  // Regla 2 — Caso normal: el propietario de la cuenta ES el ejecutivo de
+  // cuenta. Se FUERZA aquí (no se deja como selección independiente) — evita
+  // que quede una combinación inconsistente. Comisión fija 15%.
+  if (out.propietario && PERSONAS_EJECUTIVO.includes(out.propietario)) {
+    out.ejecCuenta = out.propietario;
+    out.comision   = 15;
+    out.regla      = 2;
+    return out;
+  }
+
+  // Regla 4 — Sin propietario asignado todavía (p. ej. prospecto recién
+  // creado): nada que imponer aún, comisión no gestionada por el sistema.
   out.comision = null;
   out.regla    = 4;
   return out;

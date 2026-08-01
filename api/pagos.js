@@ -6,17 +6,28 @@ const {
   read_title, read_text, read_number, read_select, read_date, read_checkbox,
 } = require('./notion');
 
+// "Vencido" se calcula SIEMPRE por fecha, no depende de que alguien lo marque
+// a mano: un cobro/pago "Pendiente" cuya fecha acordada ya pasó es "Vencido".
+// No se sobrescribe lo guardado en Notion — solo el estatus EFECTIVO que ve
+// el resto de la app (Dashboard, notificaciones, pestaña Vencidos de Pagos).
+function _hoyISO() { return new Date().toISOString().slice(0, 10); }
+function _statusEfectivo(status, fechaAcordada) {
+  if (status === 'Pendiente' && fechaAcordada && fechaAcordada < _hoyISO()) return 'Vencido';
+  return status;
+}
+
 function toObj(page) {
   const p = page.properties;
+  const fechaAcordada = read_date(p['Fecha Acordada']);
   return {
     id:            page.id,
     concepto:      read_title(p['Concepto']),
     tipo:          read_select(p['Tipo']),
     opId:          read_text(p['OP ID']),
     monto:         read_number(p['Monto']),
-    fechaAcordada: read_date(p['Fecha Acordada']),
+    fechaAcordada,
     fechaReal:     read_date(p['Fecha Real']),
-    status:        read_select(p['Status']),
+    status:        _statusEfectivo(read_select(p['Status']), fechaAcordada),
     forma:         read_select(p['Forma de Pago']),
     ref:           read_text(p['Referencia']),
     comprobante:   read_checkbox(p['Comprobante']),

@@ -99,3 +99,71 @@ describe('PATCH /api/ops/:id', () => {
     expect(res.status).toBe(200);
   });
 });
+
+describe('Utilidad — ÚNICA fuente de verdad: cotizado − costos reales de proveedores', () => {
+  test('sin costos registrados → utilidad = cotizado completo', async () => {
+    const create = await request(app).post('/api/ops')
+      .set('Authorization', `Bearer ${adminToken()}`)
+      .send({ ...OP_VALIDA, cotizado: 100000 });
+    expect(create.body.utilidad).toBe(100000);
+  });
+
+  test('con costos de proveedores (deudas) registrados → utilidad = cotizado − costos', async () => {
+    const create = await request(app).post('/api/ops')
+      .set('Authorization', `Bearer ${adminToken()}`)
+      .send({ ...OP_VALIDA, cotizado: 100000 });
+    const opId = create.body.id;
+
+    await request(app).post('/api/deudas').set('Authorization', `Bearer ${adminToken()}`)
+      .send({ concepto: 'Audio', provId: 'p1', opId, monto: 20000, status: 'pendiente' });
+    await request(app).post('/api/deudas').set('Authorization', `Bearer ${adminToken()}`)
+      .send({ concepto: 'Catering', provId: 'p2', opId, monto: 15000, status: 'pagado' });
+
+    const get = await request(app).get(`/api/ops/${opId}`).set('Authorization', `Bearer ${adminToken()}`);
+    expect(get.body.utilidad).toBe(100000 - 20000 - 15000); // 65000 — cuenta TODOS los costos, pagados o no
+
+    const lista = await request(app).get('/api/ops').set('Authorization', `Bearer ${adminToken()}`);
+    expect(lista.body.find(o => o.id === opId).utilidad).toBe(65000);
+  });
+
+  test('PATCH ignora cualquier utilidad enviada manualmente — nunca se captura directo', async () => {
+    const create = await request(app).post('/api/ops')
+      .set('Authorization', `Bearer ${adminToken()}`)
+      .send({ ...OP_VALIDA, cotizado: 100000 });
+    const opId = create.body.id;
+
+    const patch = await request(app).patch(`/api/ops/${opId}`)
+      .set('Authorization', `Bearer ${adminToken()}`)
+      .send({ status: 'Ejecutado', utilidad: 999999 }); // intento de inventar un número
+    expect(patch.body.utilidad).toBe(100000); // se ignora el 999999 — se recalcula real (sin costos = cotizado)
+  });
+});
+
+describe('Propietario = Ejecutivo de cuenta SIEMPRE — se re-deriva también al editar la OP', () => {
+  test('oficina total cambia el Propietario → el ejec. de cuenta se deriva, no el que se mande', async () => {
+    const create = await request(app).post('/api/ops')
+      .set('Authorization', `Bearer ${adminToken()}`)
+      .send(OP_VALIDA);
+    const opId = create.body.id;
+
+    const patch = await request(app).patch(`/api/ops/${opId}`)
+      .set('Authorization', `Bearer ${adminToken()}`)
+      .send({ propietario: 'Ximena', ejecCuenta: 'Alexia' }); // 'Alexia' se ignora
+    expect(patch.status).toBe(200);
+    expect(patch.body.propietario).toBe('Ximena');
+    expect(patch.body.ejecCuenta).toBe('Ximena');
+  });
+
+  test('propietario especial (Eduardo) → ejec. de cuenta se fuerza a Natalia también al editar', async () => {
+    const create = await request(app).post('/api/ops')
+      .set('Authorization', `Bearer ${adminToken()}`)
+      .send(OP_VALIDA);
+    const opId = create.body.id;
+
+    const patch = await request(app).patch(`/api/ops/${opId}`)
+      .set('Authorization', `Bearer ${adminToken()}`)
+      .send({ propietario: 'Eduardo Gama' });
+    expect(patch.body.propietario).toBe('Eduardo Gama');
+    expect(patch.body.ejecCuenta).toBe('Natalia Gama');
+  });
+});

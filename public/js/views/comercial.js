@@ -37,16 +37,22 @@ async function renderComercial() {
   const objetivoDe = name => (objIndiv[name] || objetivoDefault) * factor;
   // OPs ejecutadas del periodo (por fecha de evento); si no tiene fecha, cuenta solo en ANUAL
   const enPeriodo = o => periodo === 'anual' ? (!o.fechaEvento || _enRango(o.fechaEvento, rangos.actual)) : _enRango(o.fechaEvento, rangos.actual);
-  const nombres = [...new Set([...ops.map(o => o.ejec), ...prospectos.map(p => p.ejec)].filter(Boolean))];
+  // Prospectos ya NO tienen el campo legado "ejec" (migrado al modelo de 3
+  // roles) — un prospecto "pertenece" a un ejecutivo si aparece en cualquiera
+  // de sus 3 roles, igual que el filtro de acceso por fila del backend.
+  const _prospDe = (p, name) => [p.propietario, p.ejecCuenta, p.ejecAsignado].includes(name);
+  const nombres = [...new Set([
+    ...ops.map(o => o.ejec),
+    ...prospectos.flatMap(p => [p.propietario, p.ejecCuenta, p.ejecAsignado]),
+  ].filter(Boolean))];
   const data = nombres.map(name => {
     const ejs     = ops.filter(o => o.ejec === name);
     const cerrado = ejs.filter(o => o.status === 'Ejecutado' && enPeriodo(o)).reduce((a, o) => a + (o.cotizado || 0), 0);
     const activo  = ejs.filter(o => o.status === 'En Producción').reduce((a, o) => a + (o.cotizado || 0), 0);
     const util    = ejs.filter(o => o.status === 'Ejecutado' && enPeriodo(o)).reduce((a, o) => a + (o.utilidad || 0), 0);
-    const prosp   = prospectos.filter(p => p.ejec === name);
-    const pipe    = prosp.reduce((a, p) => a + (parseFloat(p.estimado) || 0), 0);
+    const prosp   = prospectos.filter(p => _prospDe(p, name));
     const cierre  = ejs.length ? Math.round(ejs.filter(o => o.status === 'Ejecutado').length / ejs.length * 100) : 0;
-    return { name, short: name.split(' ')[0], color: ejecColor(name), cerrado, activo, util, pipe, objetivo: objetivoDe(name), cierre, nProsp: prosp.length };
+    return { name, short: name.split(' ')[0], color: ejecColor(name), cerrado, activo, util, objetivo: objetivoDe(name), cierre, nProsp: prosp.length };
   }).sort((a, b) => (b.cerrado + b.activo) - (a.cerrado + a.activo));
 
   root.innerHTML = phHTML('INTELIGENCIA COMERCIAL', 'Comercial / Reportes', 'Desempeño por ejecutivo · Real vs. objetivo · ' + rangos.label,
@@ -69,14 +75,14 @@ async function renderComercial() {
         return `<div style="margin-bottom:16px"><div style="display:flex;align-items:center;gap:9px;margin-bottom:7px">${avatarHTML(d.name, 28)}<span style="font-weight:600;font-size:13px;flex:1">${esc(d.short)}</span><span class="m" style="font-weight:700;color:${col}">${p}%</span></div><div class="prog" style="height:8px"><div class="prog-fill" style="width:${Math.min(p, 100)}%;background:linear-gradient(90deg,${d.color},${d.color}cc)"></div></div><div style="display:flex;justify-content:space-between;margin-top:4px"><span class="kpi-bar-meta">${fmxK(d.cerrado)} cerrado</span><span class="kpi-bar-meta">obj. ${fmxK(d.objetivo)}</span></div></div>`;
       }).join('')}</div></div>
     </div>
-    <div class="tbl-wrap"><table class="tbl"><thead><tr><th>EJECUTIVO</th><th>CERRADO</th><th>EN PRODUCCIÓN</th><th>PIPELINE</th><th>UTILIDAD</th><th>% CIERRE</th><th>OBJETIVO</th><th>CUMPLIMIENTO</th></tr></thead><tbody>
+    <div class="tbl-wrap"><table class="tbl"><thead><tr><th>EJECUTIVO</th><th>CERRADO</th><th>EN PRODUCCIÓN</th><th>PROSPECTOS</th><th>UTILIDAD</th><th>% CIERRE</th><th>OBJETIVO</th><th>CUMPLIMIENTO</th></tr></thead><tbody>
     ${data.map(d => {
       const cump = Math.round(d.cerrado / d.objetivo * 100);
       return `<tr>
-      <td><div style="display:flex;align-items:center;gap:9px">${avatarHTML(d.name, 30)}<div><div style="font-weight:600">${esc(d.name)}</div><div class="kpi-bar-meta">${d.nProsp} prospectos activos</div></div></div></td>
+      <td><div style="display:flex;align-items:center;gap:9px">${avatarHTML(d.name, 30)}<div><div style="font-weight:600">${esc(d.name)}</div></div></div></td>
       <td class="monto" style="color:var(--green)">${fmxK(d.cerrado)}</td>
       <td class="monto" style="color:var(--amber)">${fmxK(d.activo)}</td>
-      <td class="monto">${fmxK(d.pipe)}</td>
+      <td class="m" style="text-align:center;font-weight:700">${d.nProsp}</td>
       <td class="monto" style="color:var(--green)">${fmxK(d.util)}</td>
       <td class="m" style="font-weight:700">${d.cierre}%</td>
       <td class="m" style="color:var(--gray600)">${fmxK(d.objetivo)}</td>

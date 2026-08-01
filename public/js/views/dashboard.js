@@ -110,13 +110,15 @@ async function renderDashboard() {
   const totalCotizado = opsActivas.reduce((a, o) => a + (o.cotizado || 0), 0);
   const pagosPend     = pagos.filter(p => (p.status === 'Pendiente' || p.status === 'Vencido') && p.tipo === 'Cobro a cliente');
   const totalPend     = pagosPend.reduce((a, p) => a + (p.monto || 0), 0);
-  const pipeline      = prospectos.reduce((a, p) => a + (parseFloat(p.estimado) || 0), 0);
   const ejecutadas    = ops.filter(o => o.status === 'Ejecutado');
   const ejecutado     = ejecutadas.reduce((a, o) => a + (o.cotizado || 0), 0);
   const utilidad      = ejecutadas.reduce((a, o) => a + (o.utilidad || 0), 0);
   const margen        = ejecutado ? Math.round(utilidad / ejecutado * 100) : 0;
   const cliActivos    = clientes.filter(c => c.status === 'Activo').length;
   const vencidos      = pagos.filter(p => p.status === 'Vencido').length;
+  // Pipeline: ya no hay campo "Estimado" en prospectos (se retiró) — se muestra
+  // por CONTEO de oportunidades, no por monto (no hay base real para un $).
+  const prospListos   = prospectos.filter(p => p.status === 'Listo p/ cotizar').length;
   const hoy = new Date().toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).toUpperCase();
 
   // Metas: del módulo de Objetivos (visibles para todo el equipo); defaults si no hay
@@ -127,7 +129,6 @@ async function renderDashboard() {
   const METAS = {
     ventas:     (obj.metaVentas     || 3000000) * factor,
     produccion: (obj.metaProduccion || 8000000),
-    pipeline:   (obj.metaPipeline   || 18000000),
     clientes:   (obj.metaClientes   || 0),
     utilidad:   (obj.metaUtilidad   || 0) * factor,   // Capa 2 · Dirección
     cobranza:   (obj.metaCobranza   || 0) * factor,   // Capa 2 · Dirección
@@ -179,7 +180,7 @@ async function renderDashboard() {
   + `<div class="kpis">
       <div class="kpi" style="--accent:var(--red);--accent-dim:var(--red-dim)"><div class="kpi-top"><div class="kpi-label">VENTAS EJECUTADAS</div><div class="kpi-ico">${icoHTML('chart')}</div></div><div class="kpi-value kv-red">${fmxK(ventasPeriodo)}</div>${deltaHTML}${kpiBar(ventasPeriodo, METAS.ventas, 'red')}</div>
       <div class="kpi" style="--accent:var(--amber);--accent-dim:var(--amber-dim)"><div class="kpi-top"><div class="kpi-label">OPs ACTIVAS</div><div class="kpi-ico">${icoHTML('box')}</div></div><div class="kpi-value kv-amber">${opsActivas.length}</div><div class="kpi-delta">${fmxK(totalCotizado)} en producción</div>${kpiBar(totalCotizado, METAS.produccion, 'amber')}</div>
-      <div class="kpi" style="--accent:var(--green);--accent-dim:var(--green-dim)"><div class="kpi-top"><div class="kpi-label">PIPELINE PROSPECTOS</div><div class="kpi-ico">${icoHTML('target')}</div></div><div class="kpi-value kv-green">${fmxK(pipeline)}</div><div class="kpi-delta up">${prospectos.length} oportunidades</div>${kpiBar(pipeline, METAS.pipeline, 'green')}</div>
+      <div class="kpi" style="--accent:var(--green);--accent-dim:var(--green-dim)"><div class="kpi-top"><div class="kpi-label">PIPELINE PROSPECTOS</div><div class="kpi-ico">${icoHTML('target')}</div></div><div class="kpi-value kv-green">${prospectos.length}</div><div class="kpi-delta up">${prospListos} listos para cotizar</div></div>
     </div>
     <div class="kpis" style="margin-bottom:22px">
       <div class="kpi" style="--accent:var(--red);--accent-dim:var(--red-dim)"><div class="kpi-top"><div class="kpi-label">COBRANZA PENDIENTE</div><div class="kpi-ico" style="background:var(--red-dim);color:var(--red)">${icoHTML('wallet')}</div></div><div class="kpi-value kv-red">${pagosVisibles ? fmxK(totalPend) : '—'}</div><div class="kpi-delta ${vencidos ? 'down' : ''}">${!pagosVisibles ? 'solo Dirección' : vencidos ? icoHTML('alert') + ' ' + vencidos + ' vencidos' : pagosPend.length + ' por cobrar'}</div>${METAS.cobranza ? kpiBar(cobradoMes, METAS.cobranza, cobradoMes >= METAS.cobranza ? 'green' : 'amber') : ''}</div>

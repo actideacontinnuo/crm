@@ -99,7 +99,8 @@ router.post('/', async (req, res) => {
 router.patch('/:id', async (req, res) => {
   try {
     const existing = await notion.pages.retrieve({ page_id: req.params.id });
-    if (!assertRolAccess(req, res, toObj(existing))) return;
+    const existingObj = toObj(existing);
+    if (!assertRolAccess(req, res, existingObj)) return;
 
     const body = { ...req.body };
     // Datos de contacto: inmutables para ejecutivos/administración; el admin sí corrige
@@ -108,6 +109,16 @@ router.patch('/:id', async (req, res) => {
     }
     // §3.1 — la comisión NO se recalcula retroactivamente: se preserva la del alta.
     delete body.comision;
+    // Propietario = Ejecutivo de cuenta SIEMPRE (excepto Eduardo/Alfredo, Regla 3)
+    // — se re-deriva aquí para que editar nunca pueda dejar el registro
+    // inconsistente (p. ej. cambiando ejecCuenta solo, o el propietario sin
+    // arrastrar su ejecutivo de cuenta). No toca la comisión ya fijada.
+    if (body.propietario !== undefined || body.ejecCuenta !== undefined) {
+      const propietarioEfectivo = body.propietario !== undefined ? body.propietario : existingObj.propietario;
+      const r = aplicarReglasComision({ propietario: propietarioEfectivo });
+      body.propietario = r.propietario;
+      body.ejecCuenta   = r.ejecCuenta;
+    }
     const page = await updatePage(req.params.id, toProps(body));
     res.json(toObj(page));
   } catch (err) { res.status(500).json({ error: err.message }); }

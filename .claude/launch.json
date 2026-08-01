@@ -6,7 +6,7 @@
       "runtimeExecutable": "bash",
       "runtimeArgs": [
         "-c",
-        "cd '/Users/santiago/Desktop/Claude/PlainWork /Actidea Continnuo/CRM' && npm start"
+        "cd '/Users/santiago/Desktop/Claude/PlainWork Projects /Actidea Continnuo/CRM' && npm start"
       ],
       "port": 3000
     }

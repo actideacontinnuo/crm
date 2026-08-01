@@ -126,6 +126,45 @@ describe('PATCH /api/clientes/:id — ownership', () => {
   });
 });
 
+describe('PATCH /api/clientes/:id — Propietario = Ejecutivo de cuenta SIEMPRE', () => {
+  test('cambiar el propietario re-deriva el ejec. de cuenta (ignora el que se mande)', async () => {
+    const creado = await request(app).post('/api/clientes')
+      .set('Authorization', `Bearer ${adminToken()}`)
+      .send({ ...CLIENTE_VALIDO, propietario: 'Natalia Gama', ejecCuenta: 'Natalia Gama' });
+
+    const res = await request(app).patch(`/api/clientes/${creado.body.id}`)
+      .set('Authorization', `Bearer ${adminToken()}`)
+      .send({ propietario: 'Ximena', ejecCuenta: 'Alexia' }); // 'Alexia' se ignora
+    expect(res.status).toBe(200);
+    expect(res.body.propietario).toBe('Ximena');
+    expect(res.body.ejecCuenta).toBe('Ximena');
+  });
+
+  test('propietario especial (Alfredo) → ejec. de cuenta se fuerza a Natalia también al editar', async () => {
+    const creado = await request(app).post('/api/clientes')
+      .set('Authorization', `Bearer ${adminToken()}`)
+      .send({ ...CLIENTE_VALIDO, propietario: 'Natalia Gama', ejecCuenta: 'Natalia Gama' });
+
+    const res = await request(app).patch(`/api/clientes/${creado.body.id}`)
+      .set('Authorization', `Bearer ${adminToken()}`)
+      .send({ propietario: 'Alfredo' });
+    expect(res.body.propietario).toBe('Alfredo');
+    expect(res.body.ejecCuenta).toBe('Natalia Gama');
+  });
+
+  test('editar SOLO el ejec. de cuenta (sin tocar propietario) no puede dejarlo inconsistente', async () => {
+    const creado = await request(app).post('/api/clientes')
+      .set('Authorization', `Bearer ${adminToken()}`)
+      .send({ ...CLIENTE_VALIDO, propietario: 'Ximena', ejecCuenta: 'Ximena' });
+
+    const res = await request(app).patch(`/api/clientes/${creado.body.id}`)
+      .set('Authorization', `Bearer ${adminToken()}`)
+      .send({ ejecCuenta: 'Alexia' }); // intento de romper la regla
+    expect(res.body.propietario).toBe('Ximena'); // no cambió
+    expect(res.body.ejecCuenta).toBe('Ximena');  // se re-derivó del propietario existente, no 'Alexia'
+  });
+});
+
 describe('DELETE /api/clientes/:id — roles', () => {
   test('ejecutivo NO puede eliminar (403)', async () => {
     const creado = await request(app).post('/api/clientes')

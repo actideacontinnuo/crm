@@ -628,10 +628,12 @@
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px" id="dc-stats"></div>
     <div class="sect-label">CHECKLIST DE ALTA</div>
     <div id="dc-checklist" style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:14px"></div>
-    <div class="sect-label">OPs RELACIONADAS</div>
-    <div id="dc-ops" style="max-height:150px;overflow-y:auto;"></div>
-    <div class="sect-label" style="margin-top:14px">COTIZACIONES CARGADAS</div>
-    <div id="dc-cotizaciones" style="max-height:150px;overflow-y:auto;"></div>
+    <div class="sect-label">OPs (EVENTOS) Y SUS COTIZACIONES</div>
+    <div id="dc-ops" style="max-height:220px;overflow-y:auto;"></div>
+    <div id="dc-cotizaciones-wrap" style="display:none">
+      <div class="sect-label" style="margin-top:14px">COTIZACIONES SIN OP ASIGNADA</div>
+      <div id="dc-cotizaciones" style="max-height:100px;overflow-y:auto;"></div>
+    </div>
   </div>
   <div class="modal-footer">
     <button class="btn btn-ghost" onclick="closeM('detalle-cliente')">Cerrar</button>
@@ -664,7 +666,7 @@
       <div class="fg"><label class="fl">EMAIL</label><input class="fi" id="ec-email"></div>
     </div>
     <div class="fgrid3">
-      <div class="fg" style="margin:0"><label class="fl">PROPIETARIO</label><select class="fsel-full" id="ec-propietario"></select></div>
+      <div class="fg" style="margin:0"><label class="fl">PROPIETARIO</label><select class="fsel-full" id="ec-propietario" onchange="_refrescarEjecCuentaDerivada('ec')"></select></div>
       <div class="fg" style="margin:0"><label class="fl">EJEC. DE CUENTA</label><select class="fsel-full" id="ec-ejeccuenta"></select></div>
       <div class="fg" style="margin:0"><label class="fl">EJEC. ASIGNADO</label><select class="fsel-full" id="ec-ejecasignado"></select></div>
     </div>
@@ -707,6 +709,7 @@
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px" id="dop-montos"></div>
     <div class="sect-label">PLAN DE COBROS</div>
     <div id="dop-cobros" style="margin-bottom:14px"></div>
+    <div id="dop-bono-wrap"></div>
     <div class="sect-label">COTIZACIONES CARGADAS (TODAS LAS VERSIONES)</div>
     <div id="dop-cotizaciones" style="margin-bottom:14px"></div>
     <div class="sect-label">CAMBIAR ESTATUS</div>
@@ -731,7 +734,7 @@
       <div class="fg"><label class="fl">ESTATUS</label><select class="fsel-full" id="eop-status"><option>Cotización</option><option>En Producción</option><option>Ejecutado</option></select></div>
     </div>
     <div class="fgrid3">
-      <div class="fg" style="margin:0"><label class="fl">PROPIETARIO</label><select class="fsel-full" id="eop-propietario"></select></div>
+      <div class="fg" style="margin:0"><label class="fl">PROPIETARIO</label><select class="fsel-full" id="eop-propietario" onchange="_refrescarEjecCuentaDerivada('eop')"></select></div>
       <div class="fg" style="margin:0"><label class="fl">EJEC. DE CUENTA</label><select class="fsel-full" id="eop-ejeccuenta"></select></div>
       <div class="fg" style="margin:0"><label class="fl">EJEC. ASIGNADO</label><select class="fsel-full" id="eop-ejecasignado"></select></div>
     </div>

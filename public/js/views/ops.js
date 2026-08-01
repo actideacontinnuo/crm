@@ -160,23 +160,29 @@ const _sub = o.cotizado || 0, _iva = _sub * 0.16, _totIva = _sub + _iva;
         </div>`).join('')
     : `<div style="color:var(--gray400);font-size:12px">Sin pagos registrados. <span style="color:var(--red);cursor:pointer" onclick="closeM('detalle-op');openM('nuevo-pago')">Registrar pago →</span></div>`;
 
-  // Bono en la OP: SIEMPRE manual y SOLO aplica a Alexia y Ximena.
-  // Lo captura Dirección (admin). No está atado a la comisión ni al estatus.
+  // Bono en la OP: SIEMPRE manual y SOLO aplica al Ejecutivo asignado (quien
+  // lleva el evento), y solo si está en BONO_ELEGIBLES. Lo captura Dirección.
+  // Un único campo — se renderiza en #dop-bono-wrap, un contenedor dedicado
+  // que SIEMPRE se limpia primero (nunca insertAdjacentHTML sobre un hermano,
+  // que apilaba una caja de bono nueva cada vez que se reabría la misma OP).
   const user = sesionActual();
-  const bonoHost = document.getElementById('dop-cobros');
+  const bonoWrap = document.getElementById('dop-bono-wrap');
   const aplicaBono = BONO_ELEGIBLES.includes(o.ejec);
-  if (aplicaBono) {
-    const puedeEditar = user?.role === 'admin';
-    const bonoHTML = `<div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border)">
-        <div class="info-cell-label" style="margin-bottom:6px">BONO · ${esc(o.ejec)} (CAPTURA MANUAL)</div>
-        ${puedeEditar
-          ? `<div style="display:flex;gap:8px;align-items:center">
-               <input class="fi" id="dop-bono" style="flex:1" placeholder="Monto o % del bono" value="${esc(o.bono) || ''}">
-               <button class="btn btn-primary btn-sm" onclick="guardarBonoOP('${o.id}')">Guardar bono</button>
-             </div>`
-          : `<div class="info-cell-val">${esc(o.bono) || '—'}</div><div style="font-size:11px;color:var(--gray400)">Solo Dirección captura el bono</div>`}
-      </div>`;
-    bonoHost.insertAdjacentHTML('afterend', bonoHTML);
+  if (bonoWrap) {
+    if (aplicaBono) {
+      const puedeEditar = user?.role === 'admin';
+      bonoWrap.innerHTML = `<div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border)">
+          <div class="info-cell-label" style="margin-bottom:6px">BONO · ${esc(o.ejec)} (CAPTURA MANUAL)</div>
+          ${puedeEditar
+            ? `<div style="display:flex;gap:8px;align-items:center">
+                 <input class="fi" id="dop-bono" style="flex:1" placeholder="Monto o % del bono" value="${esc(o.bono) || ''}">
+                 <button class="btn btn-primary btn-sm" onclick="guardarBonoOP('${o.id}')">Guardar bono</button>
+               </div>`
+            : `<div class="info-cell-val">${esc(o.bono) || '—'}</div><div style="font-size:11px;color:var(--gray400)">Solo Dirección captura el bono</div>`}
+        </div>`;
+    } else {
+      bonoWrap.innerHTML = '';
+    }
   }
 
   // Todas las versiones de cotización (PDF/Excel) cargadas para esta OP.
@@ -207,11 +213,10 @@ const _sub = o.cotizado || 0, _iva = _sub * 0.16, _totIva = _sub + _iva;
 }
 
 async function changeOPStatus(id, status) {
-  const o = await db.ops.get(id);
+  // La Utilidad ya NO se captura ni se autocompleta aquí — el backend la
+  // calcula siempre como cotizado − costos reales de proveedores (ver
+  // api/ops.js withUtilidadReal). Solo cambiamos el estatus.
   const update = { status };
-  if (status === 'Ejecutado' && !o.utilidad) {
-    update.utilidad = Math.round((o.cotizado || 0) * 0.3);
-  }
   showSpinner();
   try {
     await db.ops.update(id, update);
@@ -351,6 +356,7 @@ async function openEditarOP() {
   document.getElementById('eop-propietario').innerHTML  = personaOptions(o.propietario  || cli?.propietario  || '', PERSONAS_PROPIETARIO);
   document.getElementById('eop-ejeccuenta').innerHTML   = personaOptions(o.ejecCuenta   || cli?.ejecCuenta   || '', PERSONAS_EJECUTIVO);
   document.getElementById('eop-ejecasignado').innerHTML = personaOptions(o.ejecAsignado || o.ejec || cli?.ejecAsignado || '', PERSONAS_EJECUTIVO);
+  _refrescarEjecCuentaDerivada('eop');
 
   closeM('detalle-op');
   setTimeout(() => openM('editar-op'), 200);

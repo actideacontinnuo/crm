@@ -137,6 +137,33 @@ describe('PATCH /api/prospectos/:id — campos inmutables', () => {
   });
 });
 
+describe('PATCH /api/prospectos/:id — Propietario = Ejecutivo de cuenta SIEMPRE', () => {
+  test('cambiar el propietario re-deriva el ejec. de cuenta (ignora el que se mande)', async () => {
+    const creado = await request(app).post('/api/prospectos')
+      .set('Authorization', `Bearer ${adminToken()}`)
+      .send({ ...PROSPECTO_VALIDO, propietario: 'Natalia Gama' });
+
+    const res = await request(app).patch(`/api/prospectos/${creado.body.id}`)
+      .set('Authorization', `Bearer ${adminToken()}`)
+      .send({ propietario: 'Alexia', ejecCuenta: 'Ximena' }); // 'Ximena' se ignora
+    expect(res.status).toBe(200);
+    expect(res.body.propietario).toBe('Alexia');
+    expect(res.body.ejecCuenta).toBe('Alexia');
+  });
+
+  test('propietario especial (Eduardo) → ejec. de cuenta se fuerza a Natalia también al editar', async () => {
+    const creado = await request(app).post('/api/prospectos')
+      .set('Authorization', `Bearer ${adminToken()}`)
+      .send({ ...PROSPECTO_VALIDO, propietario: 'Natalia Gama' });
+
+    const res = await request(app).patch(`/api/prospectos/${creado.body.id}`)
+      .set('Authorization', `Bearer ${adminToken()}`)
+      .send({ propietario: 'Eduardo Gama' });
+    expect(res.body.propietario).toBe('Eduardo Gama');
+    expect(res.body.ejecCuenta).toBe('Natalia Gama');
+  });
+});
+
 // ── Seguridad: XSS en campos de texto ────────────────────
 describe('Seguridad — XSS en prospectos', () => {
   test('guarda el string XSS como texto plano (no ejecuta)', async () => {

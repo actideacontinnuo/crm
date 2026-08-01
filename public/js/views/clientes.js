@@ -226,6 +226,7 @@ async function openEditarCliente() {
   document.getElementById('ec-propietario').innerHTML  = personaOptions(c.propietario  || '', PERSONAS_PROPIETARIO);
   document.getElementById('ec-ejeccuenta').innerHTML   = personaOptions(c.ejecCuenta   || '', PERSONAS_EJECUTIVO);
   document.getElementById('ec-ejecasignado').innerHTML = personaOptions(c.ejecAsignado || '', PERSONAS_EJECUTIVO);
+  _refrescarEjecCuentaDerivada('ec');
   document.getElementById('ec-title').textContent = c.nombre || 'Editar Cliente';
 
   closeM('detalle-cliente');
@@ -342,40 +343,47 @@ async function openDetalleCliente(id) {
       <span style="font-size:12px">${d.label}</span>
     </div>`).join('');
 
-  document.getElementById('dc-ops').innerHTML = clienteOps.length
-    ? clienteOps.map(o => `
-        <div class="op-card" onclick="openDetalleOP('${o.id}');closeM('detalle-cliente')">
-          <div class="op-num">${esc(o.numero)}</div>
-          <div class="op-name">${esc(o.desc)}</div>
-          <div class="op-meta">
-            <div class="op-meta-item">${pillHTML(o.status)}</div>
-            <div class="op-meta-item">${fmx(o.cotizado)}</div>
-          </div>
-        </div>`).join('')
-    : '<div style="color:var(--gray400);font-size:12px;padding:8px">Sin OPs registradas</div>';
-
-  // Cotizaciones cargadas del cliente (PDF/Excel en Notion)
+  // Una OP = un evento (salvo OPs internas). Cada OP puede tener varias
+  // cotizaciones (versiones). Se muestran ANIDADAS bajo su OP para que quede
+  // claro que son versiones del mismo evento, no registros sueltos.
   const clienteCots = (allCots || []).filter(ct => ct.clienteId === id);
-  const opMapById = Object.fromEntries(allOps.map(o => [o.id, o]));
+  const cotsPorOP = {};
+  clienteCots.forEach(ct => { const k = ct.opId || '__sin_op__'; (cotsPorOP[k] = cotsPorOP[k] || []).push(ct); });
   const _fileTag = (arr, label, icon) => {
     const f = (arr || [])[0];
     if (!f || !f.url) return `<span class="tag" style="opacity:.45">SIN ${label}</span>`;
     return `<a href="${esc(f.url)}" target="_blank" rel="noopener" class="tag tag-green" style="text-decoration:none" onclick="event.stopPropagation()">${icon} ${label} ↓</a>`;
   };
-  document.getElementById('dc-cotizaciones').innerHTML = clienteCots.length
-    ? clienteCots.map(ct => {
-        const op = opMapById[ct.opId] || {};
-        const titulo = (typeof _etiquetaCot === 'function') ? _etiquetaCot(ct, op) : (op.numero || ct.cotId || ('COT-' + ct.id.slice(-4)));
-        return `<div class="op-card" onclick="openVerCotizacion('${ct.id}');closeM('detalle-cliente')">
-          <div class="op-num">${esc(titulo)}</div>
-          <div class="op-name">${esc(ct.fecha) || '—'}</div>
-          <div class="op-meta" style="display:flex;gap:5px;flex-wrap:wrap">
-            ${_fileTag(ct.pdf, 'PDF', icoHTML('file', 12))}
-            ${_fileTag(ct.excel, 'EXCEL', icoHTML('grid', 12))}
+  const _cotRow = (ct, op) => {
+    const titulo = (typeof _etiquetaCot === 'function') ? _etiquetaCot(ct, op) : (ct.cotId || ('COT-' + ct.id.slice(-4)));
+    return `<div onclick="event.stopPropagation();openVerCotizacion('${ct.id}');closeM('detalle-cliente')" style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 0;border-top:1px solid var(--border);cursor:pointer">
+      <div style="font-size:11.5px;color:var(--gray600)">${esc(titulo)}${ct.fecha ? ' · ' + esc(ct.fecha) : ''}</div>
+      <div style="display:flex;gap:5px;flex-wrap:wrap">${_fileTag(ct.pdf, 'PDF', icoHTML('file', 11))}${_fileTag(ct.excel, 'EXCEL', icoHTML('grid', 11))}</div>
+    </div>`;
+  };
+
+  document.getElementById('dc-ops').innerHTML = clienteOps.length
+    ? clienteOps.map(o => {
+        const cots = cotsPorOP[o.id] || [];
+        return `<div class="op-card" style="cursor:default">
+          <div onclick="openDetalleOP('${o.id}');closeM('detalle-cliente')" style="cursor:pointer">
+            <div class="op-num">${esc(o.numero)}</div>
+            <div class="op-name">${esc(o.desc)}</div>
+            <div class="op-meta">
+              <div class="op-meta-item">${pillHTML(o.status)}</div>
+              <div class="op-meta-item">${fmx(o.cotizado)}</div>
+            </div>
           </div>
+          ${cots.length ? cots.map(ct => _cotRow(ct, o)).join('') : '<div style="font-size:11px;color:var(--gray400);padding-top:6px;border-top:1px solid var(--border)">Sin cotizaciones cargadas para esta OP</div>'}
         </div>`;
       }).join('')
-    : '<div style="color:var(--gray400);font-size:12px;padding:8px">Sin cotizaciones cargadas</div>';
+    : '<div style="color:var(--gray400);font-size:12px;padding:8px">Sin OPs registradas</div>';
+
+  // Cotizaciones sin OP asignada (caso raro, pero no deben quedar ocultas)
+  const cotsSinOP = cotsPorOP['__sin_op__'] || [];
+  const cotsSinOPWrap = document.getElementById('dc-cotizaciones-wrap');
+  if (cotsSinOPWrap) cotsSinOPWrap.style.display = cotsSinOP.length ? '' : 'none';
+  document.getElementById('dc-cotizaciones').innerHTML = cotsSinOP.map(ct => `<div class="op-card">${_cotRow(ct, {})}</div>`).join('');
 
   openM('detalle-cliente');
 }
