@@ -3,21 +3,25 @@ const router  = express.Router();
 const { authMiddleware } = require('../middleware/auth');
 const { queryDB, createPage, updatePage, prop_title, prop_number, prop_text, read_number, read_text } = require('./notion');
 
-// Objetivos mensuales de Actidea en 3 CAPAS:
+// Objetivos ANUALES de Actidea en 3 CAPAS — un solo registro por año (no por
+// mes). Dirección los captura/revisa cuando quiere (típicamente enero y a
+// medio año), pero el número siempre representa la meta del AÑO COMPLETO.
+// El Dashboard y Comercial/Reportes dividen ese anual entre 12 (mensual) o
+// entre 4 (trimestral) para comparar contra lo real de cada periodo.
 //
 //   CAPA 1 · EMPRESA (qué quiere lograr Actidea) → KPIs del Dashboard
-//     metaVentas      → KPI "Ventas Ejecutadas" + línea Meta de la gráfica
-//     metaProduccion  → KPI "OPs Activas"
+//     metaVentas      → KPI "Ventas Ejecutadas" + línea Meta de la gráfica (ANUAL)
+//     metaProduccion  → KPI "OPs Activas" (no se divide: es un estado actual)
 //     metaPipeline    → KPI "Pipeline Prospectos"
-//     metaClientes    → KPI "Clientes Activos"
+//     metaClientes    → KPI "Clientes Activos" (no se divide: es un estado actual)
 //
 //   CAPA 2 · DIRECCIÓN / NATALIA (que el negocio funcione) → KPIs del Dashboard
-//     metaUtilidad    → KPI "Utilidad Generada"
-//     metaCobranza    → KPI "Cobranza Pendiente" (objetivo de cobro del mes)
+//     metaUtilidad    → KPI "Utilidad Generada" (ANUAL)
+//     metaCobranza    → KPI "Cobranza Pendiente" (ANUAL)
 //
 //   CAPA 3 · INDIVIDUALES (cada ejecutiva contribuye a la empresa) → Comercial/Reportes
-//     objetivoEjecutivo   → objetivo por defecto para quien no tenga uno propio
-//     objetivosIndividuales → { "Ximena": 1500000, "Alexia": 1000000, ... } (JSON)
+//     objetivoEjecutivo   → objetivo ANUAL por defecto para quien no tenga uno propio
+//     objetivosIndividuales → { "Ximena": 18000000, "Alexia": 12000000, ... } (JSON, ANUAL)
 function toObj(page) {
   const p = page.properties;
   let individuales = {};
@@ -51,21 +55,24 @@ const CAMPOS_NUM = {
   objetivoEjecutivo: 'ObjetivoEjecutivo',
 };
 
-function validarMes(mes) { return /^\d{4}-(0[1-9]|1[0-2])$/.test(mes); }
+// El periodo de un objetivo es SIEMPRE un año completo: "2026". Se guarda en
+// la misma columna Notion 'Mes' (título) que antes usaba "YYYY-MM" — solo
+// cambia el formato validado, no el esquema.
+function validarPeriodo(periodo) { return /^\d{4}$/.test(periodo); }
 
-// GET /api/objetivos/:mes — cualquier usuario autenticado puede VER las metas
-router.get('/:mes', authMiddleware, async (req, res) => {
-  if (!validarMes(req.params.mes)) return res.status(400).json({ error: 'Mes inválido. Formato: YYYY-MM' });
+// GET /api/objetivos/:anio — cualquier usuario autenticado puede VER las metas
+router.get('/:anio', authMiddleware, async (req, res) => {
+  if (!validarPeriodo(req.params.anio)) return res.status(400).json({ error: 'Año inválido. Formato: YYYY' });
   try {
-    const pages = await queryDB('objetivos', { property: 'Mes', title: { equals: req.params.mes } });
+    const pages = await queryDB('objetivos', { property: 'Mes', title: { equals: req.params.anio } });
     res.json(pages.length ? toObj(pages[0]) : {});
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// PUT /api/objetivos/:mes — solo el Admin (Dirección) define los objetivos
-router.put('/:mes', authMiddleware, async (req, res) => {
+// PUT /api/objetivos/:anio — solo el Admin (Dirección) define los objetivos
+router.put('/:anio', authMiddleware, async (req, res) => {
   if (req.user.role !== 'admin') return res.status(403).json({ error: 'Solo el Admin puede modificar los objetivos' });
-  if (!validarMes(req.params.mes)) return res.status(400).json({ error: 'Mes inválido. Formato: YYYY-MM' });
+  if (!validarPeriodo(req.params.anio)) return res.status(400).json({ error: 'Año inválido. Formato: YYYY' });
   try {
     const props = {};
     for (const [campo, columna] of Object.entries(CAMPOS_NUM)) {
@@ -89,14 +96,14 @@ router.put('/:mes', authMiddleware, async (req, res) => {
       props['ObjetivosIndividuales'] = prop_text(JSON.stringify(limpio));
     }
 
-    const pages = await queryDB('objetivos', { property: 'Mes', title: { equals: req.params.mes } });
+    const pages = await queryDB('objetivos', { property: 'Mes', title: { equals: req.params.anio } });
     let page;
     if (pages.length) {
       page = await updatePage(pages[0].id, props);
     } else {
-      page = await createPage('objetivos', { 'Mes': prop_title(req.params.mes), ...props });
+      page = await createPage('objetivos', { 'Mes': prop_title(req.params.anio), ...props });
     }
-    res.json({ ok: true, mes: req.params.mes, objetivos: toObj(page) });
+    res.json({ ok: true, anio: req.params.anio, objetivos: toObj(page) });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 

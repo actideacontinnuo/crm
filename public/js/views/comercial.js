@@ -22,10 +22,11 @@ async function renderComercial() {
     hideSpinner();
   }
 
-  // Objetivos: capa 3 individual por ejecutiva; capa 1 meta de ventas empresa
-  let objetivoDefault = 2500000, objIndiv = {}, metaEmpresa = 0;
+  // Objetivos: SIEMPRE anuales — capa 3 individual por ejecutiva; capa 1 meta
+  // de ventas empresa. Aquí se DIVIDEN según el periodo (mes=/12, tri=/4).
+  let objetivoDefault = 30000000, objIndiv = {}, metaEmpresa = 0;
   try {
-    const obj = await ObjetivosStore.load(ObjetivosStore.mesActual());
+    const obj = await ObjetivosStore.load(ObjetivosStore.anioActual());
     if (obj?.objetivoEjecutivo) objetivoDefault = obj.objetivoEjecutivo;
     objIndiv = obj?.objetivosIndividuales || {};
     metaEmpresa = obj?.metaVentas || 0;
@@ -33,7 +34,7 @@ async function renderComercial() {
 
   const periodo = window._comPeriodo;
   const rangos  = _rangosPeriodo(periodo);
-  const factor  = { mes: 1, tri: 3, anual: 12 }[periodo];
+  const factor  = { mes: 1 / 12, tri: 1 / 4, anual: 1 }[periodo];
   const objetivoDe = name => (objIndiv[name] || objetivoDefault) * factor;
   // OPs ejecutadas del periodo (por fecha de evento); si no tiene fecha, cuenta solo en ANUAL
   const enPeriodo = o => periodo === 'anual' ? (!o.fechaEvento || _enRango(o.fechaEvento, rangos.actual)) : _enRango(o.fechaEvento, rangos.actual);

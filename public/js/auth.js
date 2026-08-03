@@ -302,12 +302,11 @@ async function cambiarPassword() {
 // OBJETIVOS (solo admin)
 // ══════════════════════════════════════
 const OBJ_CAMPOS = ['metaVentas', 'metaProduccion', 'metaPipeline', 'metaClientes', 'metaUtilidad', 'metaCobranza'];
-let _objIndividuales = {}; // { nombre: monto } cargado del mes
+let _objIndividuales = {}; // { nombre: monto } cargado del año
 
 async function abrirObjetivos() {
-  const hoy = new Date();
-  document.getElementById('obj-mes').value = `${hoy.getFullYear()}-${String(hoy.getMonth()+1).padStart(2,'0')}`;
-  await cargarObjetivosMes();
+  document.getElementById('obj-anio').value = new Date().getFullYear();
+  await cargarObjetivosAnio();
   openM('objetivos');
 }
 
@@ -322,13 +321,13 @@ async function _ejecutivasActivas() {
   return (typeof EJEC_LIST !== 'undefined') ? EJEC_LIST.filter(n => n !== 'Natalia Gama') : [];
 }
 
-async function cargarObjetivosMes() {
-  const mes = document.getElementById('obj-mes').value;
-  if (!mes) return;
+async function cargarObjetivosAnio() {
+  const anio = document.getElementById('obj-anio').value;
+  if (!anio) return;
   OBJ_CAMPOS.forEach(k => { const el = document.getElementById('obj-' + k); if (el) el.value = ''; });
 
   let obj = {};
-  try { obj = await ObjetivosStore.load(mes); } catch {}
+  try { obj = await ObjetivosStore.load(anio); } catch {}
   OBJ_CAMPOS.forEach(k => { const el = document.getElementById('obj-' + k); if (el && obj[k]) el.value = obj[k]; });
 
   // Capa 3 — construir una fila por ejecutiva
@@ -343,7 +342,7 @@ async function cargarObjetivosMes() {
       <div style="display:flex;align-items:center;gap:10px">
         ${avatarHTML(n, 28)}
         <span style="flex:1;font-size:13px;font-weight:600">${esc(n)}</span>
-        <input class="fi" style="width:170px" type="number" min="0" placeholder="objetivo MXN"
+        <input class="fi" style="width:170px" type="number" min="0" placeholder="objetivo anual MXN"
           data-ejec="${esc(n)}" value="${_objIndividuales[n] || ''}" oninput="_recalcCoherencia()">
       </div>`).join('')
     : '<div class="kpi-bar-meta">No hay ejecutivas activas registradas todavía.</div>';
@@ -367,8 +366,8 @@ function _recalcCoherencia() {
 }
 
 async function guardarObjetivos() {
-  const mes = document.getElementById('obj-mes').value;
-  if (!mes) { toast('Selecciona el mes', 'red'); return; }
+  const anio = document.getElementById('obj-anio').value;
+  if (!anio) { toast('Selecciona el año', 'red'); return; }
   const body = {};
   for (const k of OBJ_CAMPOS) {
     const raw = document.getElementById('obj-' + k)?.value;
@@ -388,7 +387,7 @@ async function guardarObjetivos() {
   if (!Object.keys(body).length) { toast('Captura al menos un objetivo', 'red'); return; }
 
   try {
-    const r = await fetch(`/api/objetivos/${mes}`, {
+    const r = await fetch(`/api/objetivos/${anio}`, {
       method: 'PUT',
       headers: _authHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify(body),
@@ -397,7 +396,7 @@ async function guardarObjetivos() {
     const j = await r.json();
     toast('✓ Objetivos guardados — sincronizados en toda la plataforma');
     closeM('objetivos');
-    ObjetivosStore.set(mes, j.objetivos);
+    ObjetivosStore.set(anio, j.objetivos);
   } catch {
     toast('Error al guardar objetivos', 'red');
   }

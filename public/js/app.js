@@ -742,39 +742,44 @@ window.addEventListener('focus', _checarVersion);
 // modal, otra pestaña, otro usuario) se propaga automáticamente a todas las
 // vistas que los usan (Dashboard, Comercial/Reportes) sin recargar.
 // ══════════════════════════════════════
+// Objetivos SIEMPRE anuales — un solo registro por año (Capa 1/2/3 completas).
+// Dirección los captura o revisa cuando quiere (típicamente enero y a medio
+// año), pero el número que guarda siempre es la meta del AÑO COMPLETO; el
+// Dashboard y Comercial/Reportes dividen ese anual entre 12 o entre 4 para
+// comparar contra lo real de cada periodo (ver dashboard.js/comercial.js).
 const ObjetivosStore = {
   _cache: {},
   _subs: [],
-  mesActual() { return new Date().toISOString().slice(0, 7); },
+  anioActual() { return String(new Date().getFullYear()); },
   subscribe(fn) { this._subs.push(fn); },
-  _emit(mes) { this._subs.forEach(fn => { try { fn(mes, this._cache[mes]); } catch {} }); },
+  _emit(anio) { this._subs.forEach(fn => { try { fn(anio, this._cache[anio]); } catch {} }); },
 
   // Lee (con caché). Las vistas siempre pasan por aquí — nunca por la API directo.
-  async load(mes) {
-    if (this._cache[mes]) return this._cache[mes];
-    try { this._cache[mes] = await API.get('/objetivos/' + mes) || {}; }
-    catch { this._cache[mes] = this._cache[mes] || {}; }
-    return this._cache[mes];
+  async load(anio) {
+    if (this._cache[anio]) return this._cache[anio];
+    try { this._cache[anio] = await API.get('/objetivos/' + anio) || {}; }
+    catch { this._cache[anio] = this._cache[anio] || {}; }
+    return this._cache[anio];
   },
 
   // Escribe en el store y avisa a todos (vistas de esta pestaña + otras pestañas)
-  set(mes, data, opts = {}) {
-    const habia = mes in this._cache;
-    const antes = JSON.stringify(this._cache[mes] || null);
-    this._cache[mes] = data || {};
-    if (!habia || antes === JSON.stringify(this._cache[mes])) return; // sin cambio real
-    this._emit(mes);
+  set(anio, data, opts = {}) {
+    const habia = anio in this._cache;
+    const antes = JSON.stringify(this._cache[anio] || null);
+    this._cache[anio] = data || {};
+    if (!habia || antes === JSON.stringify(this._cache[anio])) return; // sin cambio real
+    this._emit(anio);
     if (opts.broadcast !== false) {
-      try { localStorage.setItem('crm_obj_sync', JSON.stringify({ mes, data: this._cache[mes], t: Date.now() })); } catch {}
+      try { localStorage.setItem('crm_obj_sync', JSON.stringify({ anio, data: this._cache[anio], t: Date.now() })); } catch {}
     }
   },
 
   // Re-consulta el servidor (cambios hechos por OTROS usuarios)
-  async refresh(mes) {
-    mes = mes || this.mesActual();
+  async refresh(anio) {
+    anio = anio || this.anioActual();
     try {
-      const nuevo = await API.get('/objetivos/' + mes) || {};
-      this.set(mes, nuevo, { broadcast: false });
+      const nuevo = await API.get('/objetivos/' + anio) || {};
+      this.set(anio, nuevo, { broadcast: false });
     } catch {}
   },
 };
@@ -782,7 +787,7 @@ const ObjetivosStore = {
 // Sincronización entre pestañas del mismo navegador (instantánea)
 window.addEventListener('storage', e => {
   if (e.key === 'crm_obj_sync' && e.newValue) {
-    try { const { mes, data } = JSON.parse(e.newValue); ObjetivosStore.set(mes, data, { broadcast: false }); } catch {}
+    try { const { anio, data } = JSON.parse(e.newValue); ObjetivosStore.set(anio, data, { broadcast: false }); } catch {}
   }
 });
 

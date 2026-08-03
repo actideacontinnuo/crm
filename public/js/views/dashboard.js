@@ -118,13 +118,15 @@ async function renderDashboard() {
   const prospListos   = prospectos.filter(p => p.status === 'Listo p/ cotizar').length;
   const hoy = new Date().toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).toUpperCase();
 
-  // Metas: del módulo de Objetivos (visibles para todo el equipo); defaults si no hay
+  // Metas: del módulo de Objetivos (visibles para todo el equipo); defaults si no hay.
+  // Los objetivos son SIEMPRE anuales — aquí se DIVIDEN según el periodo elegido
+  // (mensual = /12, trimestral = /4, anual = tal cual), nunca se multiplican.
   let obj = {};
   const user = sesionActual();
-  try { obj = await ObjetivosStore.load(ObjetivosStore.mesActual()); } catch {}
-  const factor = { mes: 1, tri: 3, anual: 12 }[window._dashPeriodo];
+  try { obj = await ObjetivosStore.load(ObjetivosStore.anioActual()); } catch {}
+  const factor = { mes: 1 / 12, tri: 1 / 4, anual: 1 }[window._dashPeriodo];
   const METAS = {
-    ventas:     (obj.metaVentas     || 3000000) * factor,
+    ventas:     (obj.metaVentas     || 36000000) * factor,
     produccion: (obj.metaProduccion || 8000000),
     clientes:   (obj.metaClientes   || 0),
     utilidad:   (obj.metaUtilidad   || 0) * factor,   // Capa 2 · Dirección
@@ -228,7 +230,7 @@ async function renderDashboard() {
       </div>
     </div>`;
 
-  drawTrend(ejecutadas, (obj.metaVentas || 3000000), periodo);
+  drawTrend(ejecutadas, (obj.metaVentas || 36000000), periodo);
 }
 
 // 'cerrado' se calcula SOLO sobre las OPs ejecutadas del periodo seleccionado
@@ -247,7 +249,7 @@ function rankingHTML(ops, ejecutadasPeriodo) {
   return data.map((d, i) => `<div class="rank-row"><div class="rank-pos ${i === 0 ? 'top' : ''}">${i + 1}</div>${avatarHTML(d.name, 34)}<div style="flex:1"><div style="display:flex;justify-content:space-between;margin-bottom:5px"><span style="font-size:13px;font-weight:600">${esc(d.short)}</span><span class="mono" style="font-size:12px;font-weight:700;color:${d.color}">${fmxK(d.total)}</span></div><div class="prog"><div class="prog-fill" style="width:${Math.round(d.total / max * 100)}%;background:linear-gradient(90deg,${d.color},${d.color}cc)"></div></div></div></div>`).join('');
 }
 
-function drawTrend(ejecutadas, metaMensual, periodo) {
+function drawTrend(ejecutadas, metaAnual, periodo) {
   const ctx = document.getElementById('ch-trend');
   if (!ctx || !window.Chart) return;
   if (window._acCharts.trend) window._acCharts.trend.destroy();
@@ -259,19 +261,19 @@ function drawTrend(ejecutadas, metaMensual, periodo) {
   if (periodo === 'anual') {
     labels = [anio - 2, anio - 1, anio].map(String);
     ventas = labels.map(y => suma(`${y}-01-01`, `${+y + 1}-01-01`));
-    metaVal = metaMensual * 12 / 1e6;
+    metaVal = metaAnual / 1e6;
   } else if (periodo === 'tri') {
     labels = ['Q1', 'Q2', 'Q3', 'Q4'];
     ventas = [0, 3, 6, 9].map(m0 => suma(
       `${anio}-${String(m0 + 1).padStart(2, '0')}-01`,
       m0 + 4 > 12 ? `${anio + 1}-01-01` : `${anio}-${String(m0 + 4).padStart(2, '0')}-01`));
-    metaVal = metaMensual * 3 / 1e6;
+    metaVal = metaAnual / 4 / 1e6;
   } else {
     labels = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'];
     ventas = labels.map((_, i) => suma(
       `${anio}-${String(i + 1).padStart(2, '0')}-01`,
       i + 2 > 12 ? `${anio + 1}-01-01` : `${anio}-${String(i + 2).padStart(2, '0')}-01`));
-    metaVal = metaMensual / 1e6;
+    metaVal = metaAnual / 12 / 1e6;
   }
   const meta = labels.map(() => metaVal);
   const g = ctx.getContext('2d');
