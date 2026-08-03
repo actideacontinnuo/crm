@@ -111,9 +111,6 @@ async function renderDashboard() {
   const pagosPend     = pagos.filter(p => (p.status === 'Pendiente' || p.status === 'Vencido') && p.tipo === 'Cobro a cliente');
   const totalPend     = pagosPend.reduce((a, p) => a + (p.monto || 0), 0);
   const ejecutadas    = ops.filter(o => o.status === 'Ejecutado');
-  const ejecutado     = ejecutadas.reduce((a, o) => a + (o.cotizado || 0), 0);
-  const utilidad      = ejecutadas.reduce((a, o) => a + (o.utilidad || 0), 0);
-  const margen        = ejecutado ? Math.round(utilidad / ejecutado * 100) : 0;
   const cliActivos    = clientes.filter(c => c.status === 'Activo').length;
   const vencidos      = pagos.filter(p => p.status === 'Vencido').length;
   // Pipeline: ya no hay campo "Estimado" en prospectos (se retiró) — se muestra
@@ -133,9 +130,6 @@ async function renderDashboard() {
     utilidad:   (obj.metaUtilidad   || 0) * factor,   // Capa 2 · Dirección
     cobranza:   (obj.metaCobranza   || 0) * factor,   // Capa 2 · Dirección
   };
-  // Cobrado del mes (para la meta de cobranza de Dirección)
-  const cobradoMes = pagos.filter(p => p.tipo === 'Cobro a cliente' && p.status === 'Pagado')
-    .reduce((a, p) => a + (p.monto || 0), 0);
 
   // Ventas ejecutadas del PERIODO seleccionado (mes/tri/anual) y comparativa vs periodo anterior
   const periodo = window._dashPeriodo;
@@ -150,6 +144,16 @@ async function renderDashboard() {
   const deltaHTML = delta === null
     ? `<div class="kpi-delta up">${ejecPeriodo.length} OPs en el periodo${sinFecha ? ' · ' + sinFecha + ' sin fecha' : ''}</div>`
     : `<div class="kpi-delta ${delta >= 0 ? 'up' : 'down'}">${icoHTML('arrowup')} ${delta >= 0 ? '+' : ''}${delta}% vs periodo anterior</div>`;
+
+  // Utilidad y cobranza — SIEMPRE del periodo seleccionado, igual que Ventas
+  // Ejecutadas (antes eran acumulados de toda la vida, comparados contra una
+  // meta mensual/trimestral — daban lecturas engañosas, p. ej. 100% de
+  // cumplimiento de una meta nueva sin ninguna venta real en el periodo).
+  const utilidad = ejecPeriodo.reduce((a, o) => a + (o.utilidad || 0), 0);
+  const margen   = ventasPeriodo ? Math.round(utilidad / ventasPeriodo * 100) : 0;
+  const cobradoMes = pagos.filter(p => p.tipo === 'Cobro a cliente' && p.status === 'Pagado'
+      && _enRango(p.fechaReal || p.fechaAcordada, rangos.actual))
+    .reduce((a, p) => a + (p.monto || 0), 0);
 
   const kpiBar = (a, b, col) => {
     const p = Math.min(Math.round(a / b * 100), 100);
@@ -205,8 +209,8 @@ async function renderDashboard() {
       </div>
       <div class="col-stack">
         <div class="panel">
-          <div class="panel-hdr"><div class="panel-title"><span class="dot"></span>RANKING EJECUTIVOS</div><span class="kpi-bar-meta">ESTE MES</span></div>
-          <div class="panel-body">${rankingHTML(ops)}</div>
+          <div class="panel-hdr"><div class="panel-title"><span class="dot"></span>RANKING EJECUTIVOS</div><span class="kpi-bar-meta">${esc(rangos.label)}</span></div>
+          <div class="panel-body">${rankingHTML(ops, ejecPeriodo)}</div>
         </div>
         <div class="panel">
           <div class="panel-hdr"><div class="panel-title"><span class="dot" style="background:var(--red)"></span>COBROS URGENTES</div><span class="tag ${!pagosVisibles ? '' : vencidos ? 'tag-red' : 'tag-green'}">${!pagosVisibles ? 'SOLO DIRECCIÓN' : vencidos ? vencidos + ' VENCIDOS' : 'AL DÍA'}</span></div>
@@ -227,10 +231,14 @@ async function renderDashboard() {
   drawTrend(ejecutadas, (obj.metaVentas || 3000000), periodo);
 }
 
-function rankingHTML(ops) {
+// 'cerrado' se calcula SOLO sobre las OPs ejecutadas del periodo seleccionado
+// (ejecutadasPeriodo); 'activo' es un estado actual (En Producción), no un
+// acumulado histórico, así que no se filtra por periodo — igual que el resto
+// del Dashboard trata "OPs Activas".
+function rankingHTML(ops, ejecutadasPeriodo) {
   const nombres = [...new Set(ops.map(o => o.ejec).filter(Boolean))];
   const data = nombres.map(name => {
-    const cerrado = ops.filter(o => o.ejec === name && o.status === 'Ejecutado').reduce((a, o) => a + (o.cotizado || 0), 0);
+    const cerrado = (ejecutadasPeriodo || []).filter(o => o.ejec === name).reduce((a, o) => a + (o.cotizado || 0), 0);
     const activo  = ops.filter(o => o.ejec === name && o.status === 'En Producción').reduce((a, o) => a + (o.cotizado || 0), 0);
     return { name, short: name.split(' ')[0], color: ejecColor(name), cerrado, activo, total: cerrado + activo };
   }).sort((a, b) => b.total - a.total);
