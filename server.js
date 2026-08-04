@@ -109,8 +109,8 @@ app.use('/api/prospectos',   rolFilterCliente());
 app.use('/api/clientes',     rolFilterCliente());
 // OPs: heredan los 3 roles del cliente (jerarquía Propietario/Ejec.cuenta/Ejec.asignado)
 app.use('/api/ops',          rolFilterCliente());
-// Cotizaciones: modelo legado (un solo Ejecutivo dueño)
-app.use('/api/cotizaciones', roleFilter());
+// Cotizaciones: heredan los 3 roles de la OP (o del cliente si no tiene OP)
+app.use('/api/cotizaciones', rolFilterCliente());
 
 // Pagos y control de pagos (deudas a proveedores): Dirección + Oscar (oficina total).
 // Oscar gestiona todo desde el CRM sin entrar a Notion; eliminar sigue siendo solo admin.
@@ -163,19 +163,6 @@ function deleteAdminOnly(req, res, next) {
     return res.status(403).json({ error: 'Solo el Admin puede eliminar registros' });
   }
   next();
-}
-
-function roleFilter() {
-  return (req, res, next) => {
-    if (req.user.role === 'ejecutivo') {
-      if (req.method === 'DELETE') return res.status(403).json({ error: 'No tienes permiso para eliminar registros' });
-      req.ejecFilter = req.user.ejec;
-    }
-    if (req.user.role === 'administracion' && req.method === 'DELETE') {
-      return res.status(403).json({ error: 'Solo el Admin puede eliminar registros' });
-    }
-    next();
-  };
 }
 
 // Acceso por registro (3 roles) para Prospectos y Clientes. Ejecutivos y

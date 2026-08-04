@@ -112,7 +112,7 @@ describe('Prospectos — detalle, propiedad y notas', () => {
   });
 });
 
-describe('Cotizaciones — archivos y propiedad', () => {
+describe('Cotizaciones — archivos, herencia de roles y propiedad', () => {
   // Helper multipart con un PDF adjunto
   function postCot(token, fields) {
     const req = request(app).post('/api/cotizaciones').set('Authorization', `Bearer ${token}`);
@@ -122,7 +122,7 @@ describe('Cotizaciones — archivos y propiedad', () => {
   }
 
   test('GET /:id devuelve la cotización con la URL del PDF', async () => {
-    const creada = await postCot(adminToken(), { cotId: 'COT-1', ejec: 'Natalia Gama' });
+    const creada = await postCot(adminToken(), { cotId: 'COT-1' });
     const res = await request(app).get(`/api/cotizaciones/${creada.body.id}`).set('Authorization', `Bearer ${adminToken()}`);
     expect(res.status).toBe(200);
     expect(res.body.pdf[0].url).toMatch(/^https?:\/\//);
@@ -130,7 +130,8 @@ describe('Cotizaciones — archivos y propiedad', () => {
   });
 
   test('un ejecutivo no ve ni edita cotizaciones ajenas (403)', async () => {
-    const cot = await postCot(adminToken(), { cotId: 'COT-3', ejec: 'Natalia Gama' });
+    const op = await crear('/api/ops', { numero: 'OP-COT-1', desc: 'Evento', ejec: 'Natalia Gama' });
+    const cot = await postCot(adminToken(), { cotId: 'COT-3', opId: op.id });
     const get = await request(app).get(`/api/cotizaciones/${cot.body.id}`).set('Authorization', `Bearer ${ejecToken()}`);
     expect(get.status).toBe(403);
     const patch = await request(app).patch(`/api/cotizaciones/${cot.body.id}`)
@@ -138,18 +139,21 @@ describe('Cotizaciones — archivos y propiedad', () => {
     expect(patch.status).toBe(403);
   });
 
-  test('al crear, el ejecutivo queda como dueño aunque mande otro nombre', async () => {
-    const res = await postCot(ejecToken(), { cotId: 'COT-4', ejec: 'Natalia Gama' });
+  test('al crear, hereda el ejecutivo de la OP — lo que mande el uploader se ignora', async () => {
+    const op = await crear('/api/ops', { numero: 'OP-COT-2', desc: 'Evento', ejec: 'Alexia' });
+    const res = await postCot(ejecToken(), { cotId: 'COT-4', opId: op.id, ejec: 'Natalia Gama' });
     expect(res.status).toBe(200);
-    expect(res.body.ejec).toBe('Alexia');
+    expect(res.body.ejec).toBe('Alexia'); // heredado de la OP, no de quien manda el campo
   });
 
-  test('el ejecutivo puede editar la suya y el campo ejec se ignora', async () => {
-    const creada = await postCot(ejecToken(), { cotId: 'COT-5' });
+  test('el ejecutivo puede editar la suya (OP propia) y los roles heredados no cambian', async () => {
+    const op = await crear('/api/ops', { numero: 'OP-COT-3', desc: 'Evento', ejec: 'Alexia' });
+    const creada = await postCot(ejecToken(), { cotId: 'COT-5', opId: op.id });
+    expect(creada.status).toBe(200);
     const patch = await request(app).patch(`/api/cotizaciones/${creada.body.id}`)
       .set('Authorization', `Bearer ${ejecToken()}`).field('status', 'Aprobada').field('ejec', 'Otro');
     expect(patch.status).toBe(200);
-    expect(patch.body.ejec).toBe('Alexia');
+    expect(patch.body.ejec).toBe('Alexia'); // no se toca en PATCH, sigue heredado
     expect(patch.body.status).toBe('Aprobada');
   });
 });

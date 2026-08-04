@@ -411,7 +411,7 @@ async function exportEDR() {
 
   const pagado   = opPagos.reduce((a, p) => a + (p.monto || 0), 0);
   const costos   = opDeudas.reduce((a, d) => a + (d.monto || 0), 0);
-  const utilidad = (o.cotizado || 0) - costos;
+  const utilidad = o.utilidad || 0; // única fuente de verdad: la calcula el servidor (withUtilidadReal en api/ops.js)
 
   const filas = opDeudas.map(d => `
     <tr>

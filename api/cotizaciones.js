@@ -7,7 +7,7 @@ const {
   read_title, read_text, read_select, read_date, read_files,
   uploadFileToNotion,
 } = require('./notion');
-const { assertOwnership, forceOwnerOnCreate } = require('./_guard');
+const { filtroRolesNotion, assertRolAccess } = require('./_guard');
 
 // Cotizaciones: SOLO archivos. Cada cotización es un PDF + un Excel guardados en
 // Notion. No hay cotizador, secciones ni cálculos: el documento es la fuente.
@@ -35,7 +35,10 @@ function toObj(page) {
     version:   read_text(p['Versión']),
     fecha:     read_date(p['Fecha']),
     status:    read_select(p['Status']),
-    ejec:      read_select(p['Ejecutivo']),
+    ejec:      read_select(p['Ejecutivo']),          // legado (compatibilidad)
+    propietario:  read_select(p['Propietario']),      // heredados de la OP (o del cliente)
+    ejecCuenta:   read_select(p['EjecutivoCuenta']),
+    ejecAsignado: read_select(p['EjecutivoAsignado']),
     pdf:       read_files(p['PDF']),   // [{ name, url }]
     excel:     read_files(p['Excel']),
   };
@@ -49,17 +52,53 @@ function toProps(data) {
   if (data.version   !== undefined) props['Versión']    = prop_text(data.version);
   if (data.fecha     !== undefined) props['Fecha']      = prop_date(data.fecha);
   if (data.status    !== undefined) props['Status']     = prop_select(data.status);
-  if (data.ejec      !== undefined) props['Ejecutivo']  = prop_select(data.ejec);
+  if (data.ejec         !== undefined) props['Ejecutivo']         = prop_select(data.ejec);
+  if (data.propietario  !== undefined) props['Propietario']       = prop_select(data.propietario);
+  if (data.ejecCuenta   !== undefined) props['EjecutivoCuenta']   = prop_select(data.ejecCuenta);
+  if (data.ejecAsignado !== undefined) props['EjecutivoAsignado'] = prop_select(data.ejecAsignado);
   if (data.pdfFiles   !== undefined) props['PDF']   = prop_files(data.pdfFiles);
   if (data.excelFiles !== undefined) props['Excel'] = prop_files(data.excelFiles);
   return props;
 }
 
+// Los 3 roles de una cotización se HEREDAN — nunca se capturan a mano ni se
+// confía en lo que mande el cliente. Si tiene OP, vienen de la OP (que a su
+// vez los heredó del cliente); si no tiene OP pero sí cliente, vienen del
+// cliente directo. Mismo criterio que "OP hereda de Cliente" — Propietario/
+// Ejec. de cuenta/Ejec. asignado SIEMPRE reflejan al dueño real del proyecto,
+// para que el acceso por fila (filtroRolesNotion) nunca deje una cotización
+// invisible para quien sí debería verla.
+async function _heredarRoles(opId, clienteId) {
+  const vacio = { propietario: '', ejecCuenta: '', ejecAsignado: '', ejec: '' };
+  try {
+    if (opId) {
+      const op = await notion.pages.retrieve({ page_id: opId });
+      const p = op.properties;
+      return {
+        propietario:  read_select(p['Propietario']),
+        ejecCuenta:   read_select(p['EjecutivoCuenta']),
+        ejecAsignado: read_select(p['EjecutivoAsignado']),
+        ejec:         read_select(p['Ejecutivo']),
+      };
+    }
+    if (clienteId) {
+      const cli = await notion.pages.retrieve({ page_id: clienteId });
+      const p = cli.properties;
+      const ejecAsignado = read_select(p['EjecutivoAsignado']);
+      return {
+        propietario:  read_select(p['Propietario']),
+        ejecCuenta:   read_select(p['EjecutivoCuenta']),
+        ejecAsignado,
+        ejec:         ejecAsignado,
+      };
+    }
+  } catch (_) { /* OP/cliente inválido — se deja vacío, no se puede heredar */ }
+  return vacio;
+}
+
 router.get('/', async (req, res) => {
   try {
-    const filter = req.ejecFilter
-      ? { property: 'Ejecutivo', select: { equals: req.ejecFilter } }
-      : null;
+    const filter = req.rolFilter ? filtroRolesNotion(req.rolFilter) : null;
     const pages = await queryDB('cotizaciones', filter, [{ property: 'Fecha', direction: 'descending' }]);
     res.json(pages.map(toObj));
   } catch (err) { res.status(500).json({ error: err.message }); }
@@ -69,7 +108,7 @@ router.get('/:id', async (req, res) => {
   try {
     const page = await notion.pages.retrieve({ page_id: req.params.id });
     const obj = toObj(page);
-    if (!assertOwnership(req, res, obj.ejec)) return;
+    if (!assertRolAccess(req, res, obj)) return;
     res.json(obj);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -83,23 +122,33 @@ router.post('/', upload.fields([{ name: 'pdf', maxCount: 1 }, { name: 'excel', m
       return res.status(400).json({ error: 'Sube al menos un archivo (PDF o Excel)' });
     }
 
+    const opId      = req.body.opId || '';
+    const clienteId = req.body.clienteId || '';
+    const roles = await _heredarRoles(opId, clienteId);
+    // Fuera de oficina total: si no participa en los 3 roles heredados, no
+    // puede subir la cotización — mismo criterio de acceso que el resto.
+    if (req.rolFilter) {
+      const pertenece = [roles.propietario, roles.ejecCuenta, roles.ejecAsignado, roles.ejec].includes(req.rolFilter);
+      if (!pertenece) return res.status(403).json({ error: 'No tienes permiso para subir cotizaciones a esta OP/cliente' });
+    }
+
     // Subir cada archivo a Notion en paralelo
     const [pdfId, excelId] = await Promise.all([
       pdfFile   ? uploadFileToNotion(pdfFile.buffer, pdfFile.originalname, pdfFile.mimetype)     : null,
       excelFile ? uploadFileToNotion(excelFile.buffer, excelFile.originalname, excelFile.mimetype) : null,
     ]);
 
-    const data = forceOwnerOnCreate(req, {
+    const data = {
       cotId:     req.body.cotId || '',
-      opId:      req.body.opId || '',
-      clienteId: req.body.clienteId || '',
+      opId,
+      clienteId,
       version:   req.body.version || '',
       fecha:     req.body.fecha || new Date().toISOString().split('T')[0],
       status:    req.body.status || 'Enviada',
-      ejec:      req.body.ejec,
+      ...roles,
       pdfFiles:   pdfId   ? [{ id: pdfId,   name: pdfFile.originalname }]   : [],
       excelFiles: excelId ? [{ id: excelId, name: excelFile.originalname }] : [],
-    });
+    };
 
     const page = await createPage('cotizaciones', toProps(data));
     res.json(toObj(page));
@@ -107,13 +156,16 @@ router.post('/', upload.fields([{ name: 'pdf', maxCount: 1 }, { name: 'excel', m
 });
 
 // Editar metadatos (status, versión). Los archivos se reemplazan re-subiendo.
+// Los 3 roles NUNCA se tocan aquí — se heredaron al crear y son fijos, igual
+// que en la OP de la que vienen.
 router.patch('/:id', upload.fields([{ name: 'pdf', maxCount: 1 }, { name: 'excel', maxCount: 1 }]), async (req, res) => {
   try {
     const existing = await notion.pages.retrieve({ page_id: req.params.id });
-    if (!assertOwnership(req, res, toObj(existing).ejec)) return;
+    const obj = toObj(existing);
+    if (!assertRolAccess(req, res, obj)) return;
 
     const body = { ...req.body };
-    if (req.ejecFilter) delete body.ejec;
+    delete body.propietario; delete body.ejecCuenta; delete body.ejecAsignado; delete body.ejec;
 
     const pdfFile   = req.files?.pdf?.[0];
     const excelFile = req.files?.excel?.[0];

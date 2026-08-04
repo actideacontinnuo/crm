@@ -59,10 +59,11 @@ describe('Listados filtrados por ejecutivo', () => {
   });
 
   test('ops y cotizaciones: el ejecutivo solo ve las suyas', async () => {
-    await crear('/api/ops', { numero: 'OP-N', ejec: 'Natalia Gama' });
-    await crear('/api/ops', { numero: 'OP-A', ejec: 'Alexia' });
-    await crearCot({ cotId: 'COT-N', ejec: 'Natalia Gama' });
-    await crearCot({ cotId: 'COT-A', ejec: 'Alexia' }, ejecToken());
+    const opN = await crear('/api/ops', { numero: 'OP-N', ejec: 'Natalia Gama' });
+    const opA = await crear('/api/ops', { numero: 'OP-A', ejec: 'Alexia' });
+    // Cotizaciones heredan sus roles de la OP a la que se ligan.
+    await crearCot({ cotId: 'COT-N', opId: opN.id });
+    await crearCot({ cotId: 'COT-A', opId: opA.id }, ejecToken());
     const ops = await request(app).get('/api/ops').set('Authorization', `Bearer ${ejecToken()}`);
     expect(ops.body.map(o => o.numero)).toEqual(['OP-A']);
     const cots = await request(app).get('/api/cotizaciones').set('Authorization', `Bearer ${ejecToken()}`);

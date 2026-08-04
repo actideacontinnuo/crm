@@ -47,19 +47,6 @@ function buildApp() {
     if (req.user.role === 'admin') return next();
     return res.status(403).json({ error: 'Acceso restringido a Dirección' });
   }
-  function roleFilter() {
-    return (req, res, next) => {
-      if (req.user.role === 'ejecutivo') {
-        if (req.method === 'DELETE') return res.status(403).json({ error: 'Sin permiso' });
-        req.ejecFilter = req.user.ejec;
-      }
-      if (req.user.role === 'administracion' && req.method === 'DELETE') {
-        return res.status(403).json({ error: 'Sin permiso' });
-      }
-      next();
-    };
-  }
-
   function deleteAdminOnly(req, res, next) {
     if (req.method === 'DELETE' && req.user.role !== 'admin') {
       return res.status(403).json({ error: 'Solo el Admin puede eliminar registros' });
@@ -93,7 +80,7 @@ function buildApp() {
   app.use('/api/prospectos',   rolFilterCliente());
   app.use('/api/clientes',     rolFilterCliente());
   app.use('/api/ops',          rolFilterCliente());
-  app.use('/api/cotizaciones', roleFilter());
+  app.use('/api/cotizaciones', rolFilterCliente());
   app.use('/api/pagos',        oficinaOnly);
   app.use('/api/deudas',       oficinaOnly);
   app.use('/api/proveedores',  deleteAdminOnly);

@@ -168,6 +168,50 @@ describe('Propietario = Ejecutivo de cuenta SIEMPRE — se re-deriva también al
   });
 });
 
+describe('Roles (Propietario/EjecCuenta/EjecAsignado) — SIEMPRE heredados del cliente al crear la OP', () => {
+  async function crearCliente(rfc, propietario, ejecAsignado) {
+    const res = await request(app).post('/api/clientes')
+      .set('Authorization', `Bearer ${adminToken()}`)
+      .send({
+        nombre: 'Cliente Test', razon: 'Cliente Test SA', rfc,
+        dir: 'CDMX', contacto: 'Juan', cargo: 'Gerente', tel: '5500000000',
+        email: 'juan@test.com', propietario, ejecAsignado, pago: '30 días', status: 'Activo',
+      });
+    return res.body;
+  }
+
+  test('la OP hereda propietario/ejecCuenta/ejecAsignado del cliente — no de lo que mande el request', async () => {
+    const cliente = await crearCliente('HER130814368', 'Ximena', 'Alexia');
+    const res = await request(app).post('/api/ops')
+      .set('Authorization', `Bearer ${adminToken()}`)
+      .send({ ...OP_VALIDA, clienteId: cliente.id, propietario: 'Inventado', ejecCuenta: 'Otro', ejecAsignado: 'Otro Más', ejec: 'Otro Más' });
+    expect(res.status).toBe(200);
+    expect(res.body.propietario).toBe('Ximena');
+    expect(res.body.ejecCuenta).toBe('Ximena'); // propietario = ejec.cuenta siempre
+    expect(res.body.ejecAsignado).toBe('Alexia');
+    expect(res.body.ejec).toBe('Alexia'); // 'ejec' operativo = ejec. asignado heredado
+  });
+
+  test('OP interna (sin cliente) NO hereda nada — conserva el ejec enviado a mano', async () => {
+    const res = await request(app).post('/api/ops')
+      .set('Authorization', `Bearer ${adminToken()}`)
+      .send({ ...OP_VALIDA, clienteId: '__interno__', ejec: 'Natalia Gama' });
+    expect(res.status).toBe(200);
+    expect(res.body.ejec).toBe('Natalia Gama');
+    expect(res.body.propietario).toBe('');
+  });
+
+  test('un ejecutivo con acceso a la OP (por asignación) la ve, aunque no la haya creado', async () => {
+    const cliente = await crearCliente('HER230814368', 'Natalia Gama', 'Alexia');
+    const creada = await request(app).post('/api/ops')
+      .set('Authorization', `Bearer ${adminToken()}`)
+      .send({ ...OP_VALIDA, clienteId: cliente.id });
+    const ejecToken = jwt.sign({ id: 'alexia', nombre: 'Alexia', role: 'ejecutivo', ejec: 'Alexia' }, SECRET, { expiresIn: '1h' });
+    const res = await request(app).get(`/api/ops/${creada.body.id}`).set('Authorization', `Bearer ${ejecToken}`);
+    expect(res.status).toBe(200); // participa como Ejecutivo asignado, aunque Natalia la haya creado
+  });
+});
+
 describe('Número de OP = código del cliente + consecutivo — generado por el servidor', () => {
   async function crearCliente(rfc) {
     const res = await request(app).post('/api/clientes')

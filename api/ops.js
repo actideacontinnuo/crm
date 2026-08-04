@@ -49,26 +49,36 @@ function toProps(data) {
   return props;
 }
 
+// Datos del cliente que la OP necesita HEREDAR al crearse — código (para el
+// número) y los 3 roles comerciales. Una sola lectura a Notion, autoridad del
+// servidor: nunca se confía en lo que mande el cliente HTTP para ninguno de
+// estos campos (mismo criterio que api/clientes.js _generarCodigoCliente).
+async function _datosClienteParaOP(clienteId) {
+  const vacio = { codigo: '', propietario: '', ejecCuenta: '', ejecAsignado: '' };
+  if (!clienteId || clienteId === '__interno__') return vacio;
+  try {
+    const clientePage = await notion.pages.retrieve({ page_id: clienteId });
+    const p = clientePage.properties;
+    return {
+      codigo:       read_text(p['Codigo']),
+      propietario:  read_select(p['Propietario']),
+      ejecCuenta:   read_select(p['EjecutivoCuenta']),
+      ejecAsignado: read_select(p['EjecutivoAsignado']),
+    };
+  } catch (_) {
+    return vacio; // clienteId inválido/inexistente — no se puede heredar nada
+  }
+}
+
 // Número de OP — FIJO al crear, jamás editable por reasignación de ejecutivo.
 // Formato confirmado: {código del cliente}-{consecutivo por cliente, 01/02/03...}
-// Se calcula AQUÍ (autoridad del servidor) a partir del código YA GUARDADO del
-// cliente — nunca se confía en un 'numero'/'num' que mande el cliente al crear,
-// mismo criterio que el código de cliente (api/clientes.js _generarCodigoCliente).
-// Si la OP es interna (sin cliente) se conserva el comportamiento previo — no
-// hay código de cliente del cual derivar un consecutivo.
-async function _generarNumeroOP(clienteId) {
-  if (!clienteId || clienteId === '__interno__') return null;
-  let clientePage;
-  try {
-    clientePage = await notion.pages.retrieve({ page_id: clienteId });
-  } catch (_) {
-    return null; // clienteId inválido/inexistente — no se puede generar, se deja como venga
-  }
-  const codigo = read_text(clientePage.properties['Codigo']);
-  if (!codigo) return null;
+// Si la OP es interna (sin cliente) o el cliente no tiene código aún, se
+// conserva el comportamiento previo — no hay de dónde derivar un consecutivo.
+async function _generarNumeroOP(clienteId, codigoCliente) {
+  if (!clienteId || clienteId === '__interno__' || !codigoCliente) return null;
   const opsDelCliente = await queryDB('ops', { property: 'Cliente ID', rich_text: { equals: clienteId } }, null);
   const consecutivo = String(opsDelCliente.length + 1).padStart(2, '0');
-  return `${codigo}-${consecutivo}`;
+  return `${codigoCliente}-${consecutivo}`;
 }
 
 // Utilidad = cotizado − costos reales de proveedores (Deudas ligadas a la OP).
@@ -122,11 +132,27 @@ router.post('/', async (req, res) => {
   try {
     const data = { ...req.body };
     delete data.utilidad; // se calcula siempre en GET, nunca se captura directamente
-    const numeroGenerado = await _generarNumeroOP(data.clienteId);
+
+    const cli = await _datosClienteParaOP(data.clienteId);
+    const numeroGenerado = await _generarNumeroOP(data.clienteId, cli.codigo);
     if (numeroGenerado) {
       data.numero = numeroGenerado;
       delete data.num; // 'num' tiene prioridad en toProps — no debe pisar el generado
     }
+    // Los 3 roles SIEMPRE se heredan del cliente aquí — nunca se confía en lo
+    // que mande el frontend (mismo criterio que el número/código: si hubiera
+    // un bug o alguien llamara a la API directo, antes la OP podía quedar con
+    // roles vacíos e invisible para su propio equipo). El "dueño operativo"
+    // (Ejecutivo) de la OP es SIEMPRE el Ejecutivo asignado del cliente. Una
+    // OP interna (sin cliente) no tiene de dónde heredar — se deja el 'ejec'
+    // que haya mandado el formulario (selección manual para gasto interno).
+    if (data.clienteId && data.clienteId !== '__interno__') {
+      data.propietario  = cli.propietario;
+      data.ejecCuenta    = cli.ejecCuenta;
+      data.ejecAsignado = cli.ejecAsignado;
+      data.ejec         = cli.ejecAsignado || data.ejec || '';
+    }
+
     const page = await createPage('ops', toProps(data));
     const [enriched] = await withUtilidadReal([toObj(page)]);
     res.json(enriched);
