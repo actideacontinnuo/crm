@@ -76,7 +76,7 @@ test.describe('Topbar', () => {
     await page.locator('#topbar-avatar').click();
     await expect(page.locator('#avatar-menu-admin')).toBeVisible();
     const menu = page.locator('#avatar-menu');
-    await expect(menu.locator('text=Objetivos del Mes')).toBeVisible();
+    await expect(menu.locator('text=Objetivos del Año')).toBeVisible();
     await expect(menu.locator('text=Usuarios y Accesos')).toBeVisible();
     await expect(menu.locator('text=Auditoría')).toBeVisible();
     await expect(menu.locator('text=Respaldo de Datos')).toBeVisible();
