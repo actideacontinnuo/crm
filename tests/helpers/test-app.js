@@ -81,6 +81,8 @@ function buildApp() {
   app.use('/api/clientes',     rolFilterCliente());
   app.use('/api/ops',          rolFilterCliente());
   app.use('/api/cotizaciones', rolFilterCliente());
+  app.use('/api/casos',        rolFilterCliente());
+  app.use('/api/tickets',      rolFilterCliente());
   app.use('/api/pagos',        oficinaOnly);
   app.use('/api/deudas',       oficinaOnly);
   app.use('/api/proveedores',  deleteAdminOnly);

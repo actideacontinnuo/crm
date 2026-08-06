@@ -107,12 +107,9 @@ async function savePago() {
   showSpinner();
   try {
     await db.pagos.create(data);
-
-    // If paid cobro, update OP.cobrado
-    if (opId && status === 'Pagado' && data.tipo === 'Cobro a cliente') {
-      const op = await db.ops.get(opId);
-      await db.ops.update(opId, { cobrado: (op.cobrado || 0) + monto });
-    }
+    // El "cobrado" de la OP ya no se actualiza aquí: el servidor lo calcula
+    // siempre sumando los Pagos "Cobro a cliente" con status "Pagado" (única
+    // fuente de verdad, ver withCobradoReal en api/ops.js).
 
     closeM('nuevo-pago');
     ['pg-concepto','pg-monto','pg-fecha','pg-ref'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
@@ -193,11 +190,7 @@ async function marcarPagado() {
       comprobante: true,
     });
 
-    // Update OP.cobrado if cobro a cliente
-    if (p.opId && p.tipo === 'Cobro a cliente') {
-      const op = await db.ops.get(p.opId);
-      await db.ops.update(p.opId, { cobrado: (op.cobrado || 0) + (p.monto || 0) });
-    }
+    // El "cobrado" de la OP se recalcula solo, en el servidor (ver arriba).
 
     closeM('detalle-pago');
     toast('✓ Pago confirmado');

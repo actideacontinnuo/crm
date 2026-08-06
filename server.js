@@ -111,6 +111,10 @@ app.use('/api/clientes',     rolFilterCliente());
 app.use('/api/ops',          rolFilterCliente());
 // Cotizaciones: heredan los 3 roles de la OP (o del cliente si no tiene OP)
 app.use('/api/cotizaciones', rolFilterCliente());
+// Casos y Tickets: heredan los roles del cliente/OP/cotización al que están ligados
+// (se resuelve dentro de cada router, ya que Casos/Tickets no tienen columnas de rol propias)
+app.use('/api/casos',        rolFilterCliente());
+app.use('/api/tickets',      rolFilterCliente());
 
 // Pagos y control de pagos (deudas a proveedores): Dirección + Oscar (oficina total).
 // Oscar gestiona todo desde el CRM sin entrar a Notion; eliminar sigue siendo solo admin.

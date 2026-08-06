@@ -108,13 +108,37 @@ async function withUtilidadReal(objs) {
   }));
 }
 
+// Cobrado = suma de los Pagos tipo "Cobro a cliente" con status "Pagado" ligados
+// a la OP. ÚNICA fuente de verdad — antes lo calculaba el frontend con una
+// lectura-modifica-escritura (op.cobrado + monto) en public/js/views/pagos.js,
+// vulnerable a condición de carrera entre pagos casi simultáneos y confiando en
+// la aritmética del navegador para un número que alimenta Utilidad y Dashboard.
+async function withCobradoReal(objs) {
+  let pagos;
+  try {
+    pagos = await queryDB('pagos', null, null);
+  } catch (_) {
+    return objs; // si Notion falla, se conserva el valor bruto ya guardado (respaldo)
+  }
+  const cobradoPorOP = {};
+  pagos.forEach(page => {
+    const p = page.properties;
+    if (read_select(p['Tipo']) !== 'Cobro a cliente') return;
+    if (read_select(p['Status']) !== 'Pagado') return;
+    const opId = read_text(p['OP ID']);
+    if (!opId) return;
+    cobradoPorOP[opId] = (cobradoPorOP[opId] || 0) + read_number(p['Monto']);
+  });
+  return objs.map(o => ({ ...o, cobrado: Math.round(cobradoPorOP[o.id] || 0) }));
+}
+
 router.get('/', async (req, res) => {
   try {
     // Acceso por jerarquía: la OP hereda los 3 roles del cliente (Propietario /
     // Ejec. de cuenta / Ejec. asignado). Non-admin ve solo donde participa.
     const filter = req.rolFilter ? filtroRolesNotion(req.rolFilter) : null;
     const pages = await queryDB('ops', filter, [{ property: 'Fecha Evento', direction: 'descending' }]);
-    res.json(await withUtilidadReal(pages.map(toObj)));
+    res.json(await withCobradoReal(await withUtilidadReal(pages.map(toObj))));
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -123,7 +147,7 @@ router.get('/:id', async (req, res) => {
     const page = await notion.pages.retrieve({ page_id: req.params.id });
     const obj = toObj(page);
     if (!assertRolAccess(req, res, obj)) return;
-    const [enriched] = await withUtilidadReal([obj]);
+    const [enriched] = await withCobradoReal(await withUtilidadReal([obj]));
     res.json(enriched);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -132,6 +156,7 @@ router.post('/', async (req, res) => {
   try {
     const data = { ...req.body };
     delete data.utilidad; // se calcula siempre en GET, nunca se captura directamente
+    delete data.cobrado;  // ídem — se calcula siempre a partir de Pagos reales
 
     const cli = await _datosClienteParaOP(data.clienteId);
     const numeroGenerado = await _generarNumeroOP(data.clienteId, cli.codigo);
@@ -154,7 +179,7 @@ router.post('/', async (req, res) => {
     }
 
     const page = await createPage('ops', toProps(data));
-    const [enriched] = await withUtilidadReal([toObj(page)]);
+    const [enriched] = await withCobradoReal(await withUtilidadReal([toObj(page)]));
     res.json(enriched);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -165,10 +190,11 @@ router.patch('/:id', async (req, res) => {
     const existingObj = toObj(existing);
     if (!assertRolAccess(req, res, existingObj)) return;
     const body = { ...req.body };
-    // La Utilidad ya NO se captura a mano ni se autocompleta: se calcula siempre
-    // en GET como cotizado − costos reales de proveedores (única fuente de verdad,
-    // ver GET '/' abajo). Cualquier valor recibido aquí se ignora.
+    // La Utilidad y el Cobrado ya NO se capturan a mano: se calculan siempre en
+    // GET (cotizado − costos reales de proveedores; suma de Pagos "Pagado" —
+    // única fuente de verdad, ver arriba). Cualquier valor recibido aquí se ignora.
     delete body.utilidad;
+    delete body.cobrado;
     // Solo la oficina total (Dirección/Oscar) puede reasignar roles y renumerar la OP
     // (p. ej. al cambiar el Ejecutivo asignado). El resto no reasigna por edición.
     if (!esOficinaTotal(req.user)) {
@@ -183,7 +209,7 @@ router.patch('/:id', async (req, res) => {
       body.ejecCuenta   = r.ejecCuenta;
     }
     const page = await updatePage(req.params.id, toProps(body));
-    const [enriched] = await withUtilidadReal([toObj(page)]);
+    const [enriched] = await withCobradoReal(await withUtilidadReal([toObj(page)]));
     res.json(enriched);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });

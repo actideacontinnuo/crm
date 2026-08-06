@@ -168,6 +168,44 @@ describe('Propietario = Ejecutivo de cuenta SIEMPRE — se re-deriva también al
   });
 });
 
+describe('Cobrado — ÚNICA fuente de verdad: suma de Pagos "Cobro a cliente" con status "Pagado"', () => {
+  test('sin pagos registrados → cobrado = 0', async () => {
+    const create = await request(app).post('/api/ops')
+      .set('Authorization', `Bearer ${adminToken()}`)
+      .send(OP_VALIDA);
+    expect(create.body.cobrado).toBe(0);
+  });
+
+  test('cuenta solo los pagos tipo Cobro a cliente con status Pagado, ignora pendientes y pagos a proveedor', async () => {
+    const create = await request(app).post('/api/ops')
+      .set('Authorization', `Bearer ${adminToken()}`)
+      .send(OP_VALIDA);
+    const opId = create.body.id;
+
+    await request(app).post('/api/pagos').set('Authorization', `Bearer ${adminToken()}`)
+      .send({ concepto: 'Anticipo', tipo: 'Cobro a cliente', opId, monto: 50000, status: 'Pagado', fechaAcordada: '2026-01-01' });
+    await request(app).post('/api/pagos').set('Authorization', `Bearer ${adminToken()}`)
+      .send({ concepto: 'Finiquito', tipo: 'Cobro a cliente', opId, monto: 30000, status: 'Pendiente', fechaAcordada: '2026-01-01' });
+    await request(app).post('/api/pagos').set('Authorization', `Bearer ${adminToken()}`)
+      .send({ concepto: 'Pago a proveedor', tipo: 'Pago a proveedor', opId, monto: 99999, status: 'Pagado', fechaAcordada: '2026-01-01' });
+
+    const get = await request(app).get(`/api/ops/${opId}`).set('Authorization', `Bearer ${adminToken()}`);
+    expect(get.body.cobrado).toBe(50000); // solo el cobro pagado — no el pendiente ni el pago a proveedor
+  });
+
+  test('PATCH ignora cualquier cobrado enviado manualmente — nunca se captura directo', async () => {
+    const create = await request(app).post('/api/ops')
+      .set('Authorization', `Bearer ${adminToken()}`)
+      .send(OP_VALIDA);
+    const opId = create.body.id;
+
+    const patch = await request(app).patch(`/api/ops/${opId}`)
+      .set('Authorization', `Bearer ${adminToken()}`)
+      .send({ status: 'Ejecutado', cobrado: 999999 }); // intento de inventar un número
+    expect(patch.body.cobrado).toBe(0); // se ignora — se recalcula real (sin pagos = 0)
+  });
+});
+
 describe('Roles (Propietario/EjecCuenta/EjecAsignado) — SIEMPRE heredados del cliente al crear la OP', () => {
   async function crearCliente(rfc, propietario, ejecAsignado) {
     const res = await request(app).post('/api/clientes')
