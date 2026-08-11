@@ -53,7 +53,25 @@ function assertRolAccess(req, res, obj) {
   return true;
 }
 
+// Acceso exclusivo de Natalia (Marketing / Prospección) — a propósito NO usa
+// esOficinaTotal: el candado es su cuenta específica, no el rol 'admin' en
+// general, para que un futuro segundo admin no herede acceso automáticamente.
+function esNatalia(user) {
+  if (!user) return false;
+  if (user.role !== 'admin') return false;
+  const ident = user.ejec || user.nombre || '';
+  return ident === 'Natalia Gama';
+}
+
+function soloNatalia(req, res, next) {
+  if (!esNatalia(req.user)) {
+    return res.status(403).json({ error: 'Sección restringida' });
+  }
+  next();
+}
+
 module.exports = {
   esOficinaTotal, identidadRol,
   filtroRolesNotion, perteneceAlRegistro, assertRolAccess,
+  esNatalia, soloNatalia,
 };

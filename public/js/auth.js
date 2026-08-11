@@ -197,6 +197,11 @@ function _aplicarRolUI(user) {
     el.style.display = oficina ? '' : 'none';
   });
   document.body.classList.toggle('is-oficina-total', !!oficina);
+  // Marketing / Prospección: exclusivo de la cuenta de Natalia, no de todo el rol admin.
+  const natalia = (typeof esNatalia === 'function') ? esNatalia(user) : false;
+  document.querySelectorAll('.role-natalia').forEach(el => {
+    el.style.display = natalia ? '' : 'none';
+  });
 }
 
 function cerrarSesion() {

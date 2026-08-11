@@ -18,7 +18,7 @@ const helmet  = require('helmet');
 const rateLimit = require('express-rate-limit');
 const { authMiddleware } = require('../../middleware/auth');
 const { logAudit, clientIp } = require('../../api/_audit');
-const { esOficinaTotal, identidadRol } = require('../../api/_guard');
+const { esOficinaTotal, identidadRol, soloNatalia } = require('../../api/_guard');
 
 function buildApp() {
   const app = express();
@@ -30,6 +30,9 @@ function buildApp() {
   // Rutas públicas
   app.get('/api/health', (_req, res) => res.json({ ok: true }));
   app.use('/api/auth', require('../../api/auth'));
+
+  // Callback de OAuth de Meta — público, igual que en server.js
+  app.use('/api/marketing', require('../../api/marketing').publicRouter);
 
   // Auth middleware
   app.use('/api', authMiddleware);
@@ -88,6 +91,8 @@ function buildApp() {
   app.use('/api/proveedores',  deleteAdminOnly);
   app.use('/api/auditoria',    adminOnly);
   app.use('/api/backup',       adminOnly);
+  app.use('/api/marketing',    soloNatalia);
+  app.use('/api/prospeccion',  soloNatalia);
 
   // Rutas API
   app.use('/api/prospectos',   require('../../api/prospectos'));
@@ -103,6 +108,8 @@ function buildApp() {
   app.use('/api/objetivos',    require('../../api/objetivos'));
   app.use('/api/auditoria',    require('../../api/auditoria'));
   app.use('/api/backup',       require('../../api/backup'));
+  app.use('/api/marketing',    require('../../api/marketing').router);
+  app.use('/api/prospeccion',  require('../../api/prospeccion'));
 
   app.get('*', (_req, res) => res.sendFile(path.join(__dirname, '../../public/index.html')));
 

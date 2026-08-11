@@ -9,7 +9,7 @@ const path      = require('path');
 const rateLimit = require('express-rate-limit');
 const { authMiddleware } = require('./middleware/auth');
 const { logAudit, clientIp } = require('./api/_audit');
-const { esOficinaTotal, identidadRol } = require('./api/_guard');
+const { esOficinaTotal, identidadRol, soloNatalia } = require('./api/_guard');
 
 if (!process.env.JWT_SECRET) {
   console.warn('\n⚠️  ADVERTENCIA: JWT_SECRET no está configurada. Configúrala en .env / Railway antes de producción.\n');
@@ -32,7 +32,11 @@ app.use(helmet({
       scriptSrcAttr: ["'unsafe-inline'"], // el CRM usa onclick="" en cientos de botones — Helmet lo bloquea por defecto
       styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
       fontSrc: ["'self'", 'https://fonts.gstatic.com'],
-      imgSrc: ["'self'", 'data:', 'blob:'],
+      // https: cubre el CDN de Higgsfield (cambia de dominio entre cuentas/regiones)
+      // para el arte generado en Marketing — mismo criterio que el resto del CSP,
+      // restringido a imágenes/video, no a scripts ni conexiones.
+      imgSrc: ["'self'", 'data:', 'blob:', 'https:'],
+      mediaSrc: ["'self'", 'https:'],
       connectSrc: ["'self'"],
       frameAncestors: ["'none'"], // nadie puede incrustar el CRM en un iframe (clickjacking)
     },
@@ -92,6 +96,11 @@ app.use('/api/auth/olvide-password', loginLimiter);
 app.use('/api/auth/verify-2fa', loginLimiter);
 app.use('/api/auth', require('./api/auth'));
 
+// ── Callback de OAuth de Meta — público por diseño (Facebook redirige aquí
+//    directo desde el navegador, sin poder mandar nuestro JWT). El botón que
+//    INICIA la conexión (/api/marketing/meta/auth) sí queda protegido abajo. ──
+app.use('/api/marketing', require('./api/marketing').publicRouter);
+
 // ── Middleware de autenticación (todo lo demás requiere token) ──
 app.use('/api', authMiddleware);
 
@@ -128,6 +137,12 @@ app.use('/api/proveedores',  deleteAdminOnly);
 app.use('/api/auditoria',    adminOnly);
 app.use('/api/backup',       adminOnly);
 
+// Marketing y Prospección: EXCLUSIVO de la cuenta de Natalia (no todo el rol
+// admin — ver soloNatalia en api/_guard.js), heredadas de herramientas que
+// vivían fuera del CRM y ahora comparten el mismo servidor/sesión/login.
+app.use('/api/marketing',    soloNatalia);
+app.use('/api/prospeccion',  soloNatalia);
+
 // ── Rutas API ────────────────────────────
 app.use('/api/prospectos',   require('./api/prospectos'));
 app.use('/api/clientes',     require('./api/clientes'));
@@ -142,6 +157,8 @@ app.use('/api/vision',       require('./api/vision'));
 app.use('/api/objetivos',    require('./api/objetivos'));
 app.use('/api/auditoria',    require('./api/auditoria'));
 app.use('/api/backup',       require('./api/backup'));
+app.use('/api/marketing',    require('./api/marketing').router);
+app.use('/api/prospeccion',  require('./api/prospeccion'));
 
 // ── SPA fallback ─────────────────────────
 app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));

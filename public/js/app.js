@@ -27,6 +27,15 @@ function esOficinaTotal(user) {
 }
 function soyOficinaTotal() { return esOficinaTotal(typeof sesionActual === 'function' ? sesionActual() : null); }
 
+// Marketing y Prospección: SOLO la cuenta de Natalia (espeja esNatalia del
+// backend, api/_guard.js) — a propósito no es "todo el rol admin".
+function esNatalia(user) {
+  if (!user) return false;
+  if (user.role !== 'admin') return false;
+  const ident = user.ejec || user.nombre || '';
+  return ident === 'Natalia Gama';
+}
+
 // Opciones <option> para un <select> a partir de un roster
 function personaOptions(sel, roster) {
   const list = roster || PERSONAS_PROPIETARIO;
