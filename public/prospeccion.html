@@ -1,532 +1,157 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Actidea Continnuo · Prospección</title>
-<style>
-:root{
-  --red:#D42B2B;--red-dark:#A81E1E;--red-dim:rgba(212,43,43,.12);--red-glow:rgba(212,43,43,.28);
-  --bg:#0c0c0c;--bg2:#141414;--bg3:#1c1c1c;--bg4:#242424;
-  --border:rgba(255,255,255,.07);--border2:rgba(255,255,255,.13);
-  --text:#f0f0f0;--muted:#666;--muted2:#8a8a8a;
-  --green:#3ecf8e;--green-dim:rgba(62,207,142,.10);
-  --amber:#f5a623;--amber-dim:rgba(245,166,35,.10);
-  --blue:#5b9cf6;--blue-dim:rgba(91,156,246,.10);
-  --purple:#c084fc;--purple-dim:rgba(192,132,252,.10);
-  --r:10px;--rs:7px;
-}
-*{box-sizing:border-box;margin:0;padding:0;}
-body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:14px;min-height:100vh;}
-.shell{display:grid;grid-template-columns:224px 1fr;min-height:100vh;}
-
-/* SIDEBAR */
-.sb{background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;}
-.sb-brand{padding:20px 18px 18px;border-bottom:1px solid var(--border);}
-.sb-logo{display:flex;align-items:center;gap:10px;}
-.logo-svg{width:34px;height:34px;flex-shrink:0;}
-.logo-txt strong{display:block;font-size:13px;font-weight:800;color:#fff;letter-spacing:-.2px;}
-.logo-txt strong em{color:var(--red);font-style:normal;}
-.logo-txt span{display:block;font-size:9px;color:var(--muted2);letter-spacing:1.1px;text-transform:uppercase;margin-top:1px;}
-.sb-nav{flex:1;padding:10px 0;}
-.sb-sec{padding:12px 18px 4px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1.1px;color:var(--muted);}
-.ni{display:flex;align-items:center;gap:9px;padding:9px 18px;cursor:pointer;color:var(--muted2);font-size:12.5px;transition:all .12s;position:relative;}
-.ni:hover{background:var(--bg3);color:var(--text);}
-.ni.active{background:var(--red-dim);color:var(--red);font-weight:500;}
-.ni.active::before{content:'';position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--red);}
-.ni-ico{font-size:14px;width:18px;text-align:center;flex-shrink:0;}
-.npill{margin-left:auto;font-size:9px;font-weight:700;padding:2px 7px;border-radius:20px;}
-.np-r{background:var(--red-dim);color:var(--red);border:1px solid rgba(212,43,43,.3);}
-.np-g{background:var(--green-dim);color:var(--green);}
-.np-m{background:var(--bg4);color:var(--muted2);border:1px solid var(--border2);}
-.np-a{background:var(--amber-dim);color:var(--amber);}
-.sb-foot{padding:14px 18px;border-top:1px solid var(--border);}
-.sff{display:flex;align-items:center;gap:7px;font-size:11px;color:var(--muted2);margin-bottom:4px;}
-.sff:last-child{margin-bottom:0;}
-.don{width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 5px var(--green);flex-shrink:0;}
-
-/* MAIN */
-.main{overflow-y:auto;}
-.page{display:none;padding:28px 30px;max-width:980px;}
-.page.active{display:block;}
-.ph{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:22px;}
-.ph h2{font-size:20px;font-weight:800;letter-spacing:-.5px;color:#fff;}
-.ph p{color:var(--muted2);margin-top:4px;font-size:12.5px;line-height:1.5;}
-
-/* BUTTONS */
-.cta{display:inline-flex;align-items:center;gap:9px;padding:13px 24px;background:var(--red);color:#fff;border:none;border-radius:var(--rs);font-size:14px;font-weight:700;cursor:pointer;transition:all .15s;font-family:inherit;letter-spacing:-.1px;}
-.cta:hover{background:var(--red-dark);transform:translateY(-1px);box-shadow:0 6px 22px var(--red-glow);}
-.cta:disabled{opacity:.4;cursor:not-allowed;transform:none;box-shadow:none;}
-.cta.ok{background:#0e2e1e;color:var(--green);border:1px solid rgba(62,207,142,.3);}
-.ghost{display:inline-flex;align-items:center;gap:7px;padding:9px 16px;background:transparent;color:var(--muted2);border:1px solid var(--border2);border-radius:var(--rs);font-size:12.5px;font-weight:500;cursor:pointer;transition:all .15s;font-family:inherit;}
-.ghost:hover{color:var(--text);background:var(--bg3);}
-.brow{display:flex;gap:8px;margin-top:16px;flex-wrap:wrap;align-items:center;}
-
-/* CARDS */
-.card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:20px;}
-.gap{margin-top:12px;}
-.ct{font-size:11.5px;font-weight:700;color:var(--text);margin-bottom:14px;display:flex;align-items:center;gap:8px;}
-
-/* CHIPS */
-.chip{display:inline-flex;align-items:center;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;}
-.cr{background:var(--red-dim);color:var(--red);border:1px solid rgba(212,43,43,.25);}
-.cg{background:var(--green-dim);color:var(--green);}
-.ca{background:var(--amber-dim);color:var(--amber);}
-.cb{background:var(--blue-dim);color:var(--blue);}
-.cp{background:var(--purple-dim);color:var(--purple);}
-.cm{background:var(--bg4);color:var(--muted2);border:1px solid var(--border2);}
-
-/* STATS */
-.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px;}
-.stat{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:16px 18px;}
-.sl{font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);}
-.sv{font-size:32px;font-weight:900;margin-top:6px;letter-spacing:-2px;line-height:1;}
-.ss{font-size:11px;color:var(--muted);margin-top:5px;}
-.pr{height:3px;background:var(--bg4);border-radius:3px;margin-top:10px;overflow:hidden;}
-.pf{height:100%;border-radius:3px;transition:width .5s;}
-
-/* WEEK TRACK */
-.wt{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;}
-.wc{background:var(--bg3);border:1px solid var(--border);border-radius:var(--rs);padding:12px;text-align:center;}
-.wc.wd{border-color:rgba(62,207,142,.3);background:rgba(62,207,142,.06);}
-.wc.wt2{border-color:rgba(212,43,43,.4);background:rgba(212,43,43,.08);}
-.wc.wo{opacity:.3;}
-.wn{font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.9px;color:var(--muted);}
-.wc.wd .wn{color:var(--green);}
-.wc.wt2 .wn{color:var(--red);}
-.wnum{font-size:26px;font-weight:900;letter-spacing:-1.5px;margin-top:4px;}
-.wc.wd .wnum{color:var(--green);}
-.wc.wt2 .wnum{color:var(--red);}
-.wlbl{font-size:9px;color:var(--muted);margin-top:3px;}
-
-/* SECTOR GRID */
-.sg{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;}
-.sc{background:var(--bg3);border:1px solid var(--border);border-radius:var(--rs);padding:12px 10px;}
-.sc.srun{border-color:rgba(212,43,43,.5);background:rgba(212,43,43,.08);}
-.sc.sdn{border-color:rgba(62,207,142,.3);background:rgba(62,207,142,.06);}
-.sc-i{font-size:18px;margin-bottom:4px;}
-.sc-n{font-size:10px;font-weight:700;color:var(--text);line-height:1.3;}
-.sc-c{font-size:20px;font-weight:900;letter-spacing:-1px;margin-top:3px;color:var(--muted);}
-.sc.srun .sc-c{color:var(--red);}
-.sc.sdn .sc-c{color:var(--green);}
-.sc-s{font-size:9px;color:var(--muted);margin-top:2px;}
-.sc.srun .sc-s{color:var(--red);}
-.sc.sdn .sc-s{color:var(--green);}
-
-/* LOG */
-.log{background:var(--bg);border:1px solid var(--border);border-radius:var(--rs);padding:13px 15px;font-family:'JetBrains Mono','Fira Code',monospace;font-size:11.5px;max-height:200px;overflow-y:auto;line-height:1.9;}
-.log::-webkit-scrollbar{width:3px;}
-.log::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px;}
-.lt{color:var(--muted);}
-.li{color:var(--blue);}
-.ls{color:var(--green);}
-.lw{color:var(--amber);}
-.la{color:var(--purple);}
-
-/* TABLE */
-.tw{overflow-x:auto;}
-table{width:100%;border-collapse:collapse;font-size:12px;}
-th{text-align:left;padding:8px 12px;font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:var(--muted);border-bottom:1px solid var(--border);}
-td{padding:9px 12px;border-bottom:1px solid var(--border);color:var(--text);vertical-align:middle;}
-tr:last-child td{border-bottom:none;}
-tr:hover td{background:var(--bg3);}
-
-/* FORM */
-.fg{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
-.fgg{display:flex;flex-direction:column;gap:5px;}
-.fgg.sp2{grid-column:1/-1;}
-label{font-size:9.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;}
-input,select,textarea{background:var(--bg3);border:1px solid var(--border2);border-radius:var(--rs);color:var(--text);font-size:13px;padding:9px 12px;width:100%;outline:none;transition:border-color .15s;font-family:inherit;}
-input:focus,select:focus,textarea:focus{border-color:var(--red);}
-select option{background:var(--bg3);}
-textarea{resize:vertical;min-height:90px;}
-
-/* TOGGLE */
-.tr2{display:flex;align-items:center;justify-content:space-between;padding:11px 0;border-bottom:1px solid var(--border);}
-.tr2:last-child{border-bottom:none;}
-.ti h4{font-size:13px;font-weight:500;}
-.ti p{font-size:11px;color:var(--muted);margin-top:2px;}
-.tog{position:relative;width:36px;height:20px;flex-shrink:0;}
-.tog input{opacity:0;width:0;height:0;}
-.tsl{position:absolute;inset:0;background:var(--bg4);border:1px solid var(--border2);border-radius:20px;cursor:pointer;transition:.2s;}
-.tsl:before{content:'';position:absolute;width:14px;height:14px;left:2px;top:2px;background:var(--muted);border-radius:50%;transition:.2s;}
-.tog input:checked+.tsl{background:var(--red);border-color:var(--red);}
-.tog input:checked+.tsl:before{background:#fff;transform:translateX(16px);}
-
-/* EMAIL PREVIEW */
-.ep{background:var(--bg3);border:1px solid var(--border2);border-radius:var(--rs);padding:16px;}
-.epf{display:flex;gap:10px;margin-bottom:7px;font-size:12px;}
-.epl{color:var(--muted);min-width:52px;font-weight:700;font-size:9.5px;text-transform:uppercase;letter-spacing:.5px;padding-top:1px;}
-.epv{color:var(--text);}
-.epb{margin-top:12px;padding-top:12px;border-top:1px solid var(--border);font-size:13px;line-height:1.7;color:var(--text);white-space:pre-line;}
-
-/* OUTLOOK */
-.oc{background:var(--bg3);border:1px solid var(--border2);border-radius:var(--rs);padding:14px 16px;display:flex;align-items:center;gap:14px;}
-.oi{width:38px;height:38px;background:#0078d4;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;}
-.oin h4{font-size:13px;font-weight:600;}
-.oin p{font-size:11px;color:var(--muted);margin-top:2px;}
-.ost{margin-left:auto;display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700;color:var(--green);}
-
-/* INFO BOX */
-.ib{background:rgba(212,43,43,.07);border:1px solid rgba(212,43,43,.18);border-radius:var(--rs);padding:12px 14px;display:flex;gap:10px;font-size:12px;color:#f0a0a0;line-height:1.6;}
-
-/* TABS */
-.tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;}
-.tab{padding:5px 13px;border-radius:20px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid var(--border2);color:var(--muted2);background:var(--bg3);transition:all .15s;}
-.tab:hover{color:var(--text);}
-.tab.active{background:var(--red-dim);color:var(--red);border-color:rgba(212,43,43,.35);}
-
-/* STEP PILLS */
-.steps{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:16px;}
-.step{display:inline-flex;align-items:center;gap:5px;background:var(--bg3);border:1px solid var(--border2);border-radius:20px;padding:5px 14px;font-size:11px;color:var(--muted2);}
-.step.sd{border-color:rgba(62,207,142,.3);color:var(--green);background:rgba(62,207,142,.06);}
-.step.sa{border-color:rgba(212,43,43,.4);color:var(--red);background:rgba(212,43,43,.08);}
-
-/* HERO CTA */
-.hero{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:28px 24px;text-align:center;position:relative;overflow:hidden;}
-.hero::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 50% 110%,rgba(212,43,43,.09) 0%,transparent 65%);pointer-events:none;}
-.htag{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;color:var(--red);margin-bottom:9px;}
-.htitle{font-size:22px;font-weight:900;letter-spacing:-.5px;color:#fff;margin-bottom:6px;}
-.hsub{font-size:12.5px;color:var(--muted2);margin-bottom:20px;line-height:1.6;}
-.hfooter{font-size:11px;color:var(--muted);margin-top:12px;}
-
-.div{height:1px;background:var(--border);margin:14px 0;}
-
-@keyframes spin{to{transform:rotate(360deg);}}
-.sp{width:14px;height:14px;border:2px solid rgba(255,255,255,.25);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;}
-</style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Actidea CRM · Prospección</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/main.css?v=2">
 </head>
 <body>
-<div class="shell">
 
-<!-- SIDEBAR -->
-<aside class="sb">
-  <div class="sb-brand">
-    <div class="sb-logo">
-      <svg class="logo-svg" viewBox="0 0 34 34" fill="none">
-        <rect width="34" height="34" rx="8" fill="#1a0505"/>
-        <path d="M17 5L27 27L17 22L7 27Z" fill="none" stroke="#D42B2B" stroke-width="2" stroke-linejoin="round"/>
-        <path d="M12 19Q17 7 22 19" fill="none" stroke="#D42B2B" stroke-width="1.5"/>
-        <ellipse cx="17" cy="16" rx="5.5" ry="2.8" fill="none" stroke="#D42B2B" stroke-width="1.1" opacity=".55"/>
-      </svg>
-      <div class="logo-txt">
-        <strong><em>Actidea</em> Continnuo</strong>
-        <span>Eventos que conectan</span>
-      </div>
+<div class="topbar">
+  <div class="t-logo" onclick="window.location.href='/'" style="cursor:pointer">
+    <img src="/assets/logo-dark.png" alt="Actidea Continnuo" style="height:34px;width:auto;display:block">
+  </div>
+  <div class="t-sep"></div>
+  <div class="t-tag">PROSPECCIÓN</div>
+  <div class="t-right" style="margin-left:auto;gap:12px">
+    <div style="text-align:right">
+      <div class="u-name" id="topbar-nombre">—</div>
+      <div class="u-role" id="topbar-rol">CRECIMIENTO</div>
     </div>
+    <div class="u-avatar" id="topbar-avatar">—</div>
   </div>
+</div>
 
-  <nav class="sb-nav">
-    <div class="sb-sec">Panel</div>
-    <div class="ni active" data-page="dashboard"><span class="ni-ico">⬛</span>Dashboard<span class="npill np-g">Activo</span></div>
-
-    <div class="sb-sec">Flujo semanal</div>
-    <div class="ni" data-page="prospect"><span class="ni-ico">🔍</span>Prospectar hoy<span class="npill np-r" id="pill-p">Pendiente</span></div>
-    <div class="ni" data-page="notion"><span class="ni-ico">📋</span>Subir a Notion<span class="npill np-m" id="pill-n">Viernes</span></div>
-    <div class="ni" data-page="emails"><span class="ni-ico">✉️</span>Enviar correos<span class="npill np-m" id="pill-e">Lunes</span></div>
-
-    <div class="sb-sec">Config</div>
-    <div class="ni" data-page="templates"><span class="ni-ico">📝</span>Templates</div>
-    <div class="ni" data-page="config"><span class="ni-ico">⚙️</span>Ajustes</div>
-  </nav>
-
-  <div class="sb-foot">
-    <div class="sff"><div class="don"></div>Outlook conectado</div>
-    <div class="sff"><div class="don"></div>Notion conectado</div>
-    <div class="sff"><div class="don"></div>Vibe · Apollo activos</div>
+<div class="layout">
+<nav class="sidebar">
+  <div class="s-section">
+    <div class="s-label">PRINCIPAL</div>
+    <div class="nav-item" onclick="window.location.href='/'"><span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></span>Dashboard</div>
   </div>
-</aside>
+  <div class="s-section">
+    <div class="s-label">CRECIMIENTO</div>
+    <div class="nav-item" onclick="window.location.href='/marketing.html'"><span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l18-8-8 18-2-8-8-2z"/></svg></span>Marketing</div>
+    <div class="nav-item active" onclick="window.location.href='/prospeccion.html'"><span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg></span>Prospección</div>
+  </div>
+  <div class="s-bottom">
+    <div>PLAINWORK · ACTIDEA V1.0</div>
+  </div>
+</nav>
 
-<!-- MAIN -->
 <main class="main">
 
-<!-- ▌DASHBOARD ▌-->
-<div class="page active" id="page-dashboard">
   <div class="ph">
-    <div><h2>Panel semanal</h2><p>3 clics esta semana · 20 prospectos diarios · Rotación automática de sectores</p></div>
-    <button class="cta" onclick="goPage('prospect')">🔍 Prospectar hoy</button>
-  </div>
-
-  <div class="stats">
-    <div class="stat"><div class="sl">Prospectos semana</div><div class="sv" style="color:var(--red)" id="sw">60</div><div class="ss">/ 100 objetivo</div><div class="pr"><div class="pf" style="background:var(--red);width:60%" id="sp2"></div></div></div>
-    <div class="stat"><div class="sl">En Notion</div><div class="sv" style="color:var(--blue)" id="sn">60</div><div class="ss">Buffer acumulado</div></div>
-    <div class="stat"><div class="sl">Cola Outlook</div><div class="sv" style="color:var(--amber)" id="sq">0</div><div class="ss">1 correo c/5 min</div></div>
-    <div class="stat"><div class="sl">Enviados</div><div class="sv" style="color:var(--green)" id="se">0</div><div class="ss">Esta semana</div></div>
-  </div>
-
-  <div class="card">
-    <div class="ct">Avance de la semana</div>
-    <div class="wt">
-      <div class="wc wd"><div class="wn">Lun</div><div class="wnum">20</div><div class="wlbl">✓ Listo</div></div>
-      <div class="wc wd"><div class="wn">Mar</div><div class="wnum">20</div><div class="wlbl">✓ Listo</div></div>
-      <div class="wc wd"><div class="wn">Mié</div><div class="wnum">20</div><div class="wlbl">✓ Listo</div></div>
-      <div class="wc wt2"><div class="wn">Jue</div><div class="wnum" id="d4n">0</div><div class="wlbl" id="d4l">Toca hoy</div></div>
-      <div class="wc wo"><div class="wn">Vie</div><div class="wnum">—</div><div class="wlbl">Notion</div></div>
+    <div>
+      <div class="ph-eye">CRECIMIENTO</div>
+      <div class="ph-title">Prospección</div>
+      <div class="ph-sub">Apollo busca contactos B2B · Claude verifica y redacta · se cargan como Prospectos reales del CRM</div>
     </div>
-  </div>
-
-  <div class="card gap">
-    <div class="ct">Los 3 clics de esta semana</div>
-    <div class="steps">
-      <div class="step sd" id="st1">✓ Lun · 20 prospectos</div>
-      <div class="step sd" id="st2">✓ Mar · 20 prospectos</div>
-      <div class="step sd" id="st3">✓ Mié · 20 prospectos</div>
-      <div class="step sa" id="st4">⟳ Jue · Prospectar hoy</div>
-      <div class="step" id="st5">📋 Vie · Subir a Notion</div>
-      <div class="step" id="st6">✉️ Lun sig · 100 correos</div>
-    </div>
-    <div class="brow" style="margin-top:0">
-      <button class="cta" onclick="goPage('prospect')">🔍 Prospectar hoy — clic 1</button>
-      <button class="ghost" onclick="goPage('notion')">📋 Subir a Notion — clic 2</button>
-      <button class="ghost" onclick="goPage('emails')">✉️ Enviar correos — clic 3</button>
-    </div>
-  </div>
-
-  <div class="card gap">
-    <div class="ct">Actividad reciente</div>
-    <div class="log" id="dlog">
-      <div><span class="lt">[09:14]</span> <span class="ls">✓</span> Lunes: 20 prospectos · Automotriz · Farmacéutica · Tecnología · Corporativo</div>
-      <div><span class="lt">[09:29]</span> <span class="li">→</span> Apollo verificó 18/20 emails como válidos</div>
-      <div><span class="lt">[10:51]</span> <span class="ls">✓</span> Martes: 20 prospectos · Financiero · Retail · Gobierno · Medios</div>
-      <div><span class="lt">[11:08]</span> <span class="ls">✓</span> Miércoles: 20 prospectos · Logística · Salud · Educación · Manufactura</div>
-      <div><span class="lt">[12:00]</span> <span class="lw">⚠</span> Jueves pendiente — presiona "Prospectar hoy"</div>
-    </div>
-  </div>
-</div>
-
-<!-- ▌PROSPECTAR▌-->
-<div class="page" id="page-prospect">
-  <div class="ph"><div><h2>Prospectar hoy</h2><p>1 clic · 20 contactos nuevos · distribución automática por sector · México</p></div></div>
-
-  <div class="hero">
-    <div class="htag">Clic 1 de 3 esta semana</div>
-    <div class="htitle">20 prospectos nuevos para Actidea</div>
-    <div class="hsub">Vibe Prospecting + Apollo encuentran los mejores contactos en México,<br>distribuidos entre todos los sectores disponibles. Sin configuración.</div>
-    <button class="cta" id="btn-p" onclick="runProspect()">
-      <span id="spp" class="sp" style="display:none"></span>
-      🔍 Ejecutar prospección de hoy
-    </button>
-    <div class="hfooter">~2 minutos · Detecta duplicados · Solo emails verificados</div>
-  </div>
-
-  <div class="card gap">
-    <div class="ct">Sectores del día <span class="chip cr">Rotación automática</span></div>
-    <div class="sg" id="sgrid"></div>
-    <div class="ib gap">
-      <span style="font-size:14px;flex-shrink:0">🔄</span>
-      <span>Los sectores rotan cada día para cubrir todos los mercados disponibles: desde automotriz, farmacéutica y tecnología hasta gobierno, entretenimiento y agroindustria. Actidea Continnuo llega a todos sus mercados potenciales en menos de 2 semanas.</span>
-    </div>
-  </div>
-
-  <div class="card gap" id="rcard" style="display:none">
-    <div class="ct">Resultados del día <span class="chip cg" id="rchip">20 contactos</span></div>
-    <div class="tw"><table>
-      <thead><tr><th>Nombre</th><th>Puesto</th><th>Empresa</th><th>Sector</th><th>Email</th><th>Estado</th></tr></thead>
-      <tbody id="rbody"></tbody>
-    </table></div>
-    <div class="brow">
-      <button class="cta ok" onclick="addBuffer()">✓ Añadir al buffer semanal</button>
-      <button class="ghost">⬇ Exportar CSV</button>
-    </div>
-  </div>
-
-  <div class="card gap"><div class="ct">Log de ejecución</div>
-    <div class="log" id="plog"><div><span class="lt">[--:--]</span> <span class="lw">Esperando...</span></div></div>
-  </div>
-</div>
-
-<!-- ▌NOTION▌-->
-<div class="page" id="page-notion">
-  <div class="ph"><div><h2>Subir a Notion — Viernes</h2><p>Clic 2 de 3 · Los 100 prospectos de la semana se cargan a tu base de datos</p></div></div>
-
-  <div class="hero">
-    <div class="htag">Clic 2 de 3 esta semana — Viernes</div>
-    <div class="htitle">100 prospectos → Notion</div>
-    <div class="hsub">El agente consolida toda la semana, elimina duplicados<br>y crea 100 filas nuevas en tu base de datos con 1 clic.</div>
-    <button class="cta" id="btn-n" onclick="runNotion()">
-      <span id="spn" class="sp" style="display:none"></span>
-      📋 Subir 100 prospectos a Notion
-    </button>
-    <div class="hfooter">~1 minuto · Elimina duplicados · Status inicial: "Prospectado"</div>
-  </div>
-
-  <div class="card gap">
-    <div class="ct">Buffer de la semana</div>
-    <div class="wt" style="margin-bottom:14px">
-      <div class="wc wd"><div class="wn">Lun</div><div class="wnum" style="font-size:20px">20</div></div>
-      <div class="wc wd"><div class="wn">Mar</div><div class="wnum" style="font-size:20px">20</div></div>
-      <div class="wc wd"><div class="wn">Mié</div><div class="wnum" style="font-size:20px">20</div></div>
-      <div class="wc wd"><div class="wn">Jue</div><div class="wnum" style="font-size:20px">20</div></div>
-      <div class="wc wt2"><div class="wn">Vie</div><div class="wnum" style="font-size:20px">→</div><div class="wlbl">Subir hoy</div></div>
-    </div>
-    <div class="fg" style="grid-template-columns:1fr">
-      <div class="fgg"><label>Status inicial al subir</label><select><option>Prospectado</option><option>Pendiente envío</option><option>Calificado</option></select></div>
-    </div>
-  </div>
-
-  <div class="card gap"><div class="ct">Log de Notion</div>
-    <div class="log" id="nlog"><div><span class="lt">[--:--]</span> <span class="lw">Esperando el viernes...</span></div></div>
-  </div>
-</div>
-
-<!-- ▌EMAILS▌-->
-<div class="page" id="page-emails">
-  <div class="ph"><div><h2>Enviar correos — Lunes</h2><p>Clic 3 de 3 · Claude personaliza 100 correos y los programa en Outlook · 1 cada 5 min</p></div></div>
-
-  <div class="hero">
-    <div class="htag">Clic 3 de 3 esta semana — Lunes siguiente</div>
-    <div class="htitle">100 correos personalizados por sector</div>
-    <div class="hsub">Claude lee Notion, genera un correo único para cada contacto según su industria<br>y los programa en Outlook comenzando a las 9:00 am.</div>
-    <button class="cta" id="btn-e" onclick="runEmails()">
-      <span id="spe" class="sp" style="display:none"></span>
-      ✉️ Programar 100 correos en Outlook
-    </button>
-    <div class="hfooter">1 correo c/5 min · Lunes 9:00 am – 5:20 pm · Anti-spam</div>
-  </div>
-
-  <div class="card gap">
-    <div class="ct">Cuenta de envío</div>
-    <div class="oc">
-      <div class="oi">📧</div>
-      <div class="oin"><h4>Microsoft Outlook</h4><p>contacto@actideacontinnuo.com · Exchange Online</p></div>
-      <div class="ost"><div class="don"></div>Conectado</div>
-    </div>
-    <div class="fg" style="margin-top:14px;grid-template-columns:1fr">
-      <div class="fgg"><label>Hora de inicio de envío</label><select><option>Lunes 9:00 am</option><option>Lunes 8:00 am</option><option>Lunes 10:00 am</option></select></div>
-    </div>
-  </div>
-
-  <div class="card gap">
-    <div class="ct">Vista previa por sector</div>
-    <div class="tabs" id="ptabs">
-      <div class="tab active" onclick="prvw('corp',this)">🏢 Corporativo</div>
-      <div class="tab" onclick="prvw('auto',this)">🚗 Automotriz</div>
-      <div class="tab" onclick="prvw('pharma',this)">💊 Farmacéutica</div>
-      <div class="tab" onclick="prvw('fin',this)">💳 Financiero</div>
-      <div class="tab" onclick="prvw('tech',this)">💻 Tecnología</div>
-      <div class="tab" onclick="prvw('gov',this)">🏛 Gobierno</div>
-      <div class="tab" onclick="prvw('media',this)">📺 Medios</div>
-      <div class="tab" onclick="prvw('retail',this)">🛒 Retail</div>
-    </div>
-    <div class="ep">
-      <div class="epf"><span class="epl">Para</span><span class="epv" id="pto">ana.torres@grupobimbo.com</span></div>
-      <div class="epf" style="align-items:flex-start">
-        <span class="epl" style="padding-top:8px">Asunto</span>
-        <input id="psub" value="El evento que Grupo Bimbo no ha producido todavía" style="background:transparent;border:1px solid var(--border2);border-radius:5px;color:var(--text);font-size:13px;padding:5px 10px;flex:1;font-family:inherit;outline:none;" onfocus="this.style.borderColor='var(--red)'" onblur="this.style.borderColor='var(--border2)'"/>
-      </div>
-      <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
-        <textarea id="pbody" style="background:transparent;border:1px solid transparent;border-radius:5px;color:var(--text);font-size:13px;line-height:1.7;padding:6px 8px;width:100%;min-height:180px;font-family:inherit;resize:vertical;outline:none;transition:border-color .15s;" onfocus="this.style.borderColor='var(--red)'" onblur="this.style.borderColor='transparent'">Ana, hola.
-
-Vi que Grupo Bimbo tiene una agenda importante de eventos este año — convenciones de distribuidores, lanzamientos regionales, experiencias de marca a nivel nacional.
-
-En Actidea Continnuo llevamos 25 años produciendo exactamente ese tipo de eventos. Hemos trabajado con Danone, Colgate y Kimberly Clark en México, entre otros.
-
-¿Tienes 20 minutos esta semana para explorar si hay fit?
-
-Actidea Continnuo · Eventos que conectan
-contacto@actideacontinnuo.com</textarea>
-      </div>
-      <div style="font-size:10px;color:var(--muted);margin-top:6px">✏️ Puedes editar el asunto y el cuerpo directamente — los cambios se aplican a todos los correos de este sector</div>
-    </div>
-    <div class="brow">
-      <button class="ghost" id="btn-regen" onclick="regenClaude()">
-        <span id="sp-regen" class="sp" style="display:none;border-top-color:var(--muted2)"></span>
-        🔄 Regenerar con Claude
+    <div class="ph-actions">
+      <button class="btn btn-primary" id="btn-p" onclick="runProspect()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        Buscar y verificar hoy
+        <span id="spp" class="spinner-ring" style="display:none;width:13px;height:13px;border-width:2px;position:static;margin-left:2px"></span>
       </button>
-      <span style="font-size:11px;color:var(--muted)" id="regen-status"></span>
     </div>
   </div>
 
-  <div class="card gap"><div class="ct">Log de correos</div>
-    <div class="log" id="elog"><div><span class="lt">[--:--]</span> <span class="lw">Campaña aún no programada...</span></div></div>
+  <div class="kpis" style="grid-template-columns:repeat(4,1fr)">
+    <div class="kpi"><div class="kpi-top"><div class="kpi-label">SECTORES DEL DÍA</div></div><div class="kpi-value" style="font-size:20px;line-height:1.2">Corp · Auto · Farma · Tech</div></div>
+    <div class="kpi"><div class="kpi-top"><div class="kpi-label">CONTACTOS ENCONTRADOS</div></div><div class="kpi-value" id="kpi-total">0</div></div>
+    <div class="kpi"><div class="kpi-top"><div class="kpi-label">ALTA CONFIANZA (≥7/10)</div></div><div class="kpi-value" id="kpi-conf">0</div></div>
+    <div class="kpi"><div class="kpi-top"><div class="kpi-label">BUFFER ACUMULADO</div></div><div class="kpi-value" id="sn">0</div></div>
   </div>
-</div>
 
-<!-- ▌TEMPLATES▌-->
-<div class="page" id="page-templates">
-  <div class="ph"><div><h2>Templates por sector</h2><p>Claude usa estos prompts para generar correos únicos según la industria del prospecto</p></div></div>
-  <div class="card">
-    <div class="ct">Sector</div>
-    <div class="tabs">
-      <div class="tab active" onclick="loadT('corp',this)">🏢 Corporativo</div>
-      <div class="tab" onclick="loadT('auto',this)">🚗 Automotriz</div>
-      <div class="tab" onclick="loadT('pharma',this)">💊 Farmacéutica</div>
-      <div class="tab" onclick="loadT('fin',this)">💳 Financiero</div>
-      <div class="tab" onclick="loadT('tech',this)">💻 Tecnología</div>
-      <div class="tab" onclick="loadT('gov',this)">🏛 Gobierno</div>
-      <div class="tab" onclick="loadT('media',this)">📺 Medios / Ent.</div>
-      <div class="tab" onclick="loadT('retail',this)">🛒 Retail</div>
-      <div class="tab" onclick="loadT('logis',this)">🚚 Logística</div>
-      <div class="tab" onclick="loadT('salud',this)">🏥 Salud</div>
-      <div class="tab" onclick="loadT('edu',this)">🎓 Educación</div>
-      <div class="tab" onclick="loadT('constr',this)">🏗 Construcción</div>
-      <div class="tab" onclick="loadT('mfg',this)">🏭 Manufactura</div>
-      <div class="tab" onclick="loadT('hosp',this)">🏨 Hospitalidad</div>
-      <div class="tab" onclick="loadT('agro',this)">🌱 Agroindustria</div>
-      <div class="tab" onclick="loadT('energia',this)">⚡ Energía</div>
-      <div class="tab" onclick="loadT('deporte',this)">⚽ Deportivo</div>
-      <div class="tab" onclick="loadT('ong',this)">🤝 ONG / Asoc.</div>
+  <div class="grid2" style="align-items:start">
+    <div class="col-stack">
+      <div class="panel">
+        <div class="panel-hdr"><div class="panel-title"><span class="dot"></span>ACTIVIDAD</div></div>
+        <div class="panel-body" id="plog" style="font-family:'JetBrains Mono',monospace;font-size:11px;max-height:180px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;color:var(--gray600)"></div>
+      </div>
+
+      <div class="panel" id="rcard" style="display:none">
+        <div class="panel-hdr">
+          <div class="panel-title"><span class="dot"></span>RESULTADOS</div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <span class="tag tag-gray" id="rchip">0 contactos</span>
+            <button class="btn btn-ghost btn-sm" onclick="addBuffer()">+ Añadir al buffer</button>
+          </div>
+        </div>
+        <div class="tbl-wrap" style="border:none;border-radius:0;box-shadow:none">
+          <table class="tbl">
+            <thead><tr><th>NOMBRE</th><th>PUESTO</th><th>EMPRESA</th><th>SECTOR</th><th>EMAIL</th><th>VERIFICACIÓN</th></tr></thead>
+            <tbody id="rbody"></tbody>
+          </table>
+        </div>
+      </div>
     </div>
-    <div class="fgg" style="margin-bottom:12px"><label>Instrucción del sistema para Claude</label>
-      <textarea id="tsys" style="min-height:100px">Eres el equipo de ventas de Actidea Continnuo, empresa mexicana con 25 años produciendo eventos corporativos e institucionales de alto nivel. Conecta con directores de eventos, marketing o comunicación de grandes empresas. Tono profesional, directo y con credibilidad. Menciona clientes relevantes del mismo sector cuando aplique (Danone, Bimbo, Colgate, HSBC, Microsoft, Porsche, GSK, Disney, etc.).</textarea></div>
-    <div class="fgg"><label>Prompt de usuario</label>
-      <textarea id="tusr" style="min-height:130px">Escribe un email frío para:
-- Nombre: {{nombre}} · Puesto: {{puesto}}
-- Empresa: {{empresa}} · Sector: Corporativo / FMCG · País: México
 
-El email debe incluir:
-1. Asunto personalizado impactante (máx 9 palabras, sin emojis)
-2. Apertura con referencia específica a la empresa o sector
-3. Credencial de Actidea: cliente similar que hayamos producido
-4. Propuesta de valor en 2 líneas para eventos corporativos
-5. CTA directo preguntando por 20 minutos esta semana
-6. Firma: "Actidea Continnuo · Eventos que conectan"
-7. Máximo 160 palabras
+    <div class="col-stack">
+      <div class="panel">
+        <div class="panel-hdr">
+          <div class="panel-title"><span class="dot"></span>SUBIR A NOTION</div>
+        </div>
+        <div class="panel-body">
+          <div class="fg">
+            <label class="fl">STATUS DEL PROSPECTO</label>
+            <select class="fsel-full" id="notion-status">
+              <option value="Nuevo">Nuevo</option>
+              <option value="Contactado">Contactado</option>
+              <option value="En conversación">En conversación</option>
+            </select>
+          </div>
+          <button class="btn btn-primary" id="btn-n" onclick="runNotion()" style="width:100%;justify-content:center">
+            Subir buffer a Notion
+            <span id="spn" class="spinner-ring" style="display:none;width:13px;height:13px;border-width:2px;position:static;margin-left:2px"></span>
+          </button>
+          <div id="nlog" style="font-family:'JetBrains Mono',monospace;font-size:10.5px;margin-top:12px;display:flex;flex-direction:column;gap:5px;color:var(--gray600)"></div>
+        </div>
+      </div>
 
-Responde SOLO en JSON: {"asunto":"...","cuerpo":"..."}</textarea></div>
-    <div class="brow">
-      <button class="cta" onclick="alog('dlog','ls','Template actualizado y guardado ✓');alert('✅ Guardado')">💾 Guardar template</button>
-      <button class="ghost" onclick="alog('dlog','la','Probando template con Claude...')">🧪 Probar con Claude</button>
+      <div class="panel">
+        <div class="panel-hdr"><div class="panel-title"><span class="dot"></span>REDACTAR EMAIL DE PROSPECCIÓN</div></div>
+        <div class="panel-body">
+          <div class="fg">
+            <label class="fl">SECTOR</label>
+            <select class="fsel-full" onchange="loadT(this.value,this)">
+              <option value="corp">Corporativo / FMCG</option>
+              <option value="auto">Automotriz</option>
+              <option value="pharma">Farmacéutica</option>
+              <option value="tech">Tecnología</option>
+            </select>
+          </div>
+          <div class="fg">
+            <label class="fl">PARA</label>
+            <input class="fi" id="pto" value="contacto@empresa.com">
+          </div>
+          <div class="fg">
+            <label class="fl">ASUNTO</label>
+            <input class="fi" id="psub" value="">
+          </div>
+          <div class="fg">
+            <label class="fl">CUERPO</label>
+            <textarea class="fta" id="pbody" style="min-height:160px"></textarea>
+          </div>
+          <button class="btn btn-ghost" id="btn-regen" onclick="regenClaude()" style="width:100%;justify-content:center">
+            ✦ Regenerar con Claude
+            <span id="sp-regen" class="spinner-ring" style="display:none;width:13px;height:13px;border-width:2px;position:static;margin-left:2px"></span>
+          </button>
+          <div id="regen-status" style="font-size:11px;text-align:center;margin-top:8px;min-height:14px"></div>
+          <textarea id="tsys" style="display:none"></textarea>
+          <textarea id="tusr" style="display:none"></textarea>
+        </div>
+      </div>
     </div>
   </div>
-</div>
-
-<!-- ▌CONFIG▌-->
-<div class="page" id="page-config">
-  <div class="ph"><div><h2>Ajustes</h2><p>Integraciones y comportamiento del agente</p></div></div>
-
-  <div class="card">
-    <div class="ct">📧 Microsoft Outlook</div>
-    <div class="oc">
-      <div class="oi">📧</div>
-      <div class="oin"><h4>Microsoft Outlook</h4><p>contacto@actideacontinnuo.com · Exchange Online</p></div>
-      <div class="ost"><div class="don"></div>Conectado</div>
-    </div>
-    <div class="fg" style="margin-top:14px">
-      <div class="fgg"><label>Cuenta remitente</label><input value="contacto@actideacontinnuo.com"/></div>
-      <div class="fgg"><label>Nombre del remitente</label><input value="Actidea Continnuo · Eventos"/></div>
-    </div>
-  </div>
-
-  <div class="card gap">
-    <div class="ct">📋 Notion</div>
-    <div class="fgg"><label>URL de la base de datos</label><input value="https://notion.so/actidea/Prospectos-2025..."/></div>
-  </div>
-
-  <div class="card gap">
-    <div class="ct">⚙️ Comportamiento</div>
-    <div class="tr2"><div class="ti"><h4>Rotación automática de sectores</h4><p>20 contactos distribuidos entre todos los sectores disponibles cada día</p></div><label class="tog"><input type="checkbox" checked/><span class="tsl"></span></label></div>
-    <div class="tr2"><div class="ti"><h4>Verificación de emails (Apollo)</h4><p>Solo incluye contactos con email válido y entregable</p></div><label class="tog"><input type="checkbox" checked/><span class="tsl"></span></label></div>
-    <div class="tr2"><div class="ti"><h4>Personalización por sector con Claude</h4><p>Genera asunto y cuerpo únicos según la industria del prospecto</p></div><label class="tog"><input type="checkbox" checked/><span class="tsl"></span></label></div>
-    <div class="tr2"><div class="ti"><h4>Actualizar Notion post-envío</h4><p>Cambia el status a "Enviado" automáticamente con fecha y hora</p></div><label class="tog"><input type="checkbox" checked/><span class="tsl"></span></label></div>
-    <div class="tr2"><div class="ti"><h4>Evitar duplicados</h4><p>Verifica contra Notion antes de agregar un prospecto nuevo</p></div><label class="tog"><input type="checkbox" checked/><span class="tsl"></span></label></div>
-    <div class="tr2"><div class="ti"><h4>1 correo cada 5 min (default)</h4><p>Protege la reputación del dominio de Actidea Continnuo</p></div><label class="tog"><input type="checkbox" checked/><span class="tsl"></span></label></div>
-  </div>
-  <div class="brow"><button class="cta" onclick="alog('dlog','ls','Ajustes guardados ✓');goPage('dashboard')">💾 Guardar ajustes</button></div>
-</div>
 
 </main>
 </div>
+
+<div class="toast" id="toast"></div>
 
 <script>
 // ── SESIÓN — misma sesión/login que el CRM (localStorage crm_token/crm_user).
@@ -534,13 +159,14 @@ Responde SOLO en JSON: {"asunto":"...","cuerpo":"..."}</textarea></div>
 // app aparte — pero el backend solo la deja usar a la cuenta de Natalia
 // (soloNatalia en api/_guard.js). Aquí se refleja lo mismo en la UI: si no hay
 // sesión, o la sesión no es la de Natalia, se manda de regreso al login.
-(function(){
-  let user=null;
-  try{ user=JSON.parse(localStorage.getItem('crm_user')||'null'); }catch(_){}
-  const token=localStorage.getItem('crm_token');
-  const esNatalia=user && user.role==='admin' && (user.ejec||user.nombre)==='Natalia Gama';
-  if(!token || !user || !esNatalia){ window.location.href='/'; }
-})();
+let _user=null;
+try{ _user=JSON.parse(localStorage.getItem('crm_user')||'null'); }catch(_){}
+const _token=localStorage.getItem('crm_token');
+const _esNatalia=_user && _user.role==='admin' && (_user.ejec||_user.nombre)==='Natalia Gama';
+if(!_token || !_user || !_esNatalia){ window.location.href='/'; }
+document.getElementById('topbar-nombre').textContent=_user?.nombre||'—';
+document.getElementById('topbar-avatar').textContent=(_user?.nombre||'—').split(' ').map(x=>x[0]).join('').slice(0,2).toUpperCase();
+
 // Todas las llamadas a /api/* de esta página necesitan el mismo token Bearer
 // que usa el resto del CRM — se inyecta automáticamente en cada fetch.
 (function(){
@@ -554,91 +180,22 @@ Responde SOLO en JSON: {"asunto":"...","cuerpo":"..."}</textarea></div>
   };
 })();
 
-// NAV
-document.querySelectorAll('.ni[data-page]').forEach(el=>el.addEventListener('click',function(){goPage(this.dataset.page);}));
-function goPage(p){
-  document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));
-  document.querySelectorAll('.ni').forEach(x=>x.classList.remove('active'));
-  document.getElementById('page-'+p).classList.add('active');
-  document.querySelector(`.ni[data-page="${p}"]`)?.classList.add('active');
+function toast(msg,type='ok'){
+  const t=document.getElementById('toast');
+  t.textContent=msg;
+  t.className='toast show'+(type==='red'?' err':'');
+  setTimeout(()=>t.classList.remove('show'),3200);
 }
 
-// SECTORS
-const SECTORS=[
-  {id:'corp',  i:'🏢',n:'Corporativo'},
-  {id:'auto',  i:'🚗',n:'Automotriz'},
-  {id:'pharma',i:'💊',n:'Farmacéutica'},
-  {id:'tech',  i:'💻',n:'Tecnología'},
-  {id:'fin',   i:'💳',n:'Financiero'},
-  {id:'retail',i:'🛒',n:'Retail'},
-  {id:'gov',   i:'🏛',n:'Gobierno'},
-  {id:'media', i:'📺',n:'Medios'},
-  {id:'logis', i:'🚚',n:'Logística'},
-  {id:'salud', i:'🏥',n:'Salud'},
-  {id:'edu',   i:'🎓',n:'Educación'},
-  {id:'constr',i:'🏗',n:'Construcción'},
-  {id:'mfg',   i:'🏭',n:'Manufactura'},
-  {id:'hosp',  i:'🏨',n:'Hospitalidad'},
-  {id:'agro',  i:'🌱',n:'Agroindustria'},
-  {id:'energia',i:'⚡',n:'Energía'},
-  {id:'deporte',i:'⚽',n:'Deportivo'},
-  {id:'ong',   i:'🤝',n:'ONG / Asoc.'},
-  {id:'food',  i:'🍽',n:'Alimentos y beb.'},
-  {id:'law',   i:'⚖️',n:'Legal'},
-];
-const TODAY=[0,1,2,3]; // indices del día (rotan)
-
-function renderSGrid(runIdx=-1){
-  const g=document.getElementById('sgrid'); g.innerHTML='';
-  SECTORS.forEach((s,i)=>{
-    const isToday=TODAY.includes(i);
-    const cls=isToday&&i<runIdx?'sc sdn':isToday&&i===runIdx?'sc srun':'sc';
-    const cnt=isToday&&i<runIdx?'5':isToday&&i===runIdx?'⟳':'—';
-    const st =isToday&&i<runIdx?'✓ Completo':isToday&&i===runIdx?'Buscando...':isToday?'Pendiente':'En rotación';
-    const op =!isToday?'opacity:.3;':'';
-    g.innerHTML+=`<div class="${cls}" id="sc${i}" style="${op}">
-      <div class="sc-i">${s.i}</div>
-      <div class="sc-n">${s.n}</div>
-      <div class="sc-c">${cnt}</div>
-      <div class="sc-s">${st}</div>
-    </div>`;
-  });
-}
-renderSGrid();
-
-// MOCK DATA
-const MOCK={
-  corp:[{n:'Ana Torres',t:'Dir. Eventos',e:'Grupo Bimbo',m:'a.torres@grupobimbo.com'},
-        {n:'Carlos Ríos',t:'VP Marketing',e:'Colgate México',m:'c.rios@colgate.com'},
-        {n:'Sofía Mendez',t:'Gerente Eventos',e:'Kimberly Clark',m:'s.mendez@kcc.com'},
-        {n:'Luis Vargas',t:'Dir. Comunicación',e:'FEMSA',m:'l.vargas@femsa.com'},
-        {n:'Mariana Cruz',t:'COO',e:'Herdez',m:'m.cruz@herdez.com'}],
-  auto:[{n:'Rodrigo Gómez',t:'Dir. Marketing',e:'Nissan México',m:'r.gomez@nissan.com.mx'},
-        {n:'Patricia Soto',t:'Eventos Corp.',e:'Honda México',m:'p.soto@honda.com.mx'},
-        {n:'Héctor Leal',t:'VP Comunicación',e:'Chevrolet MX',m:'h.leal@gm.com.mx'},
-        {n:'Daniela Pérez',t:'Gerente Eventos',e:'Toyota MX',m:'d.perez@toyota.com.mx'},
-        {n:'Fernando Alba',t:'Dir. Comercial',e:'Audi México',m:'f.alba@audi.com.mx'}],
-  pharma:[{n:'Claudia Mora',t:'Eventos Médicos',e:'Bayer México',m:'c.mora@bayer.com'},
-          {n:'Jorge Ibáñez',t:'Dir. Comunicación',e:'GSK México',m:'j.ibanez@gsk.com'},
-          {n:'Valeria Ruiz',t:'VP Marketing',e:'J&J México',m:'v.ruiz@jnj.com'},
-          {n:'Andrés Vega',t:'Gerente Eventos',e:'Grunenthal',m:'a.vega@grunenthal.com'},
-          {n:'Isabel Fuentes',t:'Dir. Med Affairs',e:'Roche México',m:'i.fuentes@roche.com'}],
-  tech:[{n:'Roberto Núñez',t:'Dir. Partner',e:'Microsoft MX',m:'r.nunez@microsoft.com'},
-        {n:'Laura Solís',t:'Eventos Corp.',e:'HP México',m:'l.solis@hp.com'},
-        {n:'Diego Herrera',t:'VP Ventas',e:'SAP México',m:'d.herrera@sap.com'},
-        {n:'Mónica Ponce',t:'Mktg Manager',e:'Intel México',m:'m.ponce@intel.com'},
-        {n:'Adrián Flores',t:'Dir. Eventos',e:'IBM México',m:'a.flores@ibm.com'}],
-};
-const SCHIP={corp:'cr',auto:'cb',pharma:'cg',tech:'ca',fin:'cp',retail:'ca'};
 const SNAME={corp:'Corporativo',auto:'Automotriz',pharma:'Farmacéutica',tech:'Tecnología',fin:'Financiero',retail:'Retail',gov:'Gobierno',media:'Medios',logis:'Logística',salud:'Salud',edu:'Educación',constr:'Construcción',mfg:'Manufactura'};
+const TODAY=[0,1,2,3];
 
-const delay=ms=>new Promise(r=>setTimeout(r,ms));
 function alog(id,type,msg){
   const log=document.getElementById(id);
   const ts=new Date().toLocaleTimeString('es-MX',{hour12:false,hour:'2-digit',minute:'2-digit',second:'2-digit'});
-  const icons={info:'→',ls:'✓',lw:'⚠',la:'✦',li:'→'};
+  const colors={info:'var(--gray600)',ls:'var(--green)',lw:'var(--amber)',la:'var(--red)',li:'var(--gray600)'};
   const el=document.createElement('div');
-  el.innerHTML=`<span class="lt">[${ts}]</span> <span class="${type}">${icons[type]||'·'}</span> ${msg}`;
+  el.innerHTML=`<span style="color:var(--gray400)">[${ts}]</span> <span style="color:${colors[type]||'var(--gray600)'}">${msg}</span>`;
   log.appendChild(el);
   log.scrollTop=log.scrollHeight;
 }
@@ -646,15 +203,12 @@ function alog(id,type,msg){
 // PROSPECT — flujo real: Apollo → Claude verify → tabla → buffer
 let _verifiedLeads=[];
 
-let _activePollInterval=null;
-
 async function runProspect(){
   const btn=document.getElementById('btn-p'); const sp=document.getElementById('spp');
   btn.disabled=true; sp.style.display='inline-block';
   const plog=document.getElementById('plog'); plog.innerHTML='';
 
   const todaySectors=['corp','auto','pharma','tech'];
-  renderSGrid();
 
   // Flujo síncrono directo al servidor — sin cola de jobs ni humano de por
   // medio: busca en Apollo y verifica con Claude en la misma petición.
@@ -669,7 +223,6 @@ async function runProspect(){
     leads=data.leads||[];
     (data.errors||[]).forEach(e=>alog('plog','lw',`⚠ ${SNAME[e.sector]||e.sector}: ${e.error}`));
     alog('plog','ls',`Apollo devolvió ${leads.length} contactos con email ✓`);
-    todaySectors.forEach((_,i)=>renderSGrid(TODAY[i]));
   }catch(err){
     alog('plog','lw','⚠ Error buscando en Apollo: '+err.message);
     btn.disabled=false; sp.style.display='none';
@@ -688,7 +241,6 @@ async function runProspect(){
     const data=await resp.json();
     if(!resp.ok) throw new Error(data.error||resp.statusText);
     if(data.warning) alog('plog','lw','⚠ '+data.warning);
-    todaySectors.forEach((_,i)=>renderSGrid(TODAY[i]+1));
     finishProspect(data.leads||[],todaySectors,btn,sp);
   }catch(err){
     alog('plog','lw','⚠ Error verificando con Claude: '+err.message);
@@ -699,212 +251,117 @@ async function runProspect(){
 function finishProspect(leads,todaySectors,btn,sp){
   _verifiedLeads=leads;
   const total=_verifiedLeads.length;
-  if(total===0){ alog('plog','lw','⚠ El job se completó sin leads.'); btn.disabled=false; sp.style.display='none'; return; }
+  if(total===0){ alog('plog','lw','⚠ No se encontraron leads.'); btn.disabled=false; sp.style.display='none'; return; }
 
   const highConf=_verifiedLeads.filter(l=>l.confidence>=7).length;
   alog('plog','ls',`Claude entregó ${total} contactos verificados · ${highConf} con alta confianza (≥7/10)`);
+  document.getElementById('kpi-total').textContent=total;
+  document.getElementById('kpi-conf').textContent=highConf;
 
-  // ── Tabla de resultados ─────────────────────────────────────
   const tb=document.getElementById('rbody'); tb.innerHTML='';
   _verifiedLeads.forEach(p=>{
-    const cc=SCHIP[p.sector]||'cm';
     const conf=p.confidence||7;
-    const confColor=conf>=8?'cg':conf>=6?'ca':'cr';
+    const confTag=conf>=8?'tag-green':conf>=6?'tag-amber':'tag-red';
     const emailOk=p.emailStatus==='verified'||p.emailStatus==='likely to engage'||p.verified;
     tb.innerHTML+=`<tr>
-      <td style="font-weight:600">${p.name}</td>
-      <td style="color:var(--muted2)">${p.title}</td>
-      <td>${p.company}</td>
-      <td><span class="chip ${cc}">${p.sectorTitle||SNAME[p.sector]||p.sector}</span></td>
-      <td style="color:var(--blue)">${p.email||'—'}</td>
-      <td><span class="chip ${emailOk?'cg':'ca'}">${emailOk?'✓ válido':'? pendiente'}</span> <span class="chip ${confColor}" title="${p.verificationNotes||''}">${conf}/10</span></td>
+      <td style="font-weight:600">${esc(p.name)}</td>
+      <td style="color:var(--gray600)">${esc(p.title)}</td>
+      <td>${esc(p.company)}</td>
+      <td><span class="tag tag-blue">${esc(p.sectorTitle||SNAME[p.sector]||p.sector||'')}</span></td>
+      <td class="m" style="color:var(--blue)">${esc(p.email)||'—'}</td>
+      <td><span class="tag ${emailOk?'tag-green':'tag-amber'}">${emailOk?'✓ válido':'? pendiente'}</span> <span class="tag ${confTag}" title="${esc(p.verificationNotes||'')}">${conf}/10</span></td>
     </tr>`;
   });
 
   document.getElementById('rchip').textContent=`${total} contactos`;
   document.getElementById('rcard').style.display='block';
 
-  alog('plog','ls',`✅ ${total} prospectos listos — presiona "Añadir al buffer semanal" para continuar`);
-  alog('dlog','ls',`Prospección completada: ${total} contactos · ${todaySectors.map(s=>SNAME[s]).join(' · ')}`);
-
-  document.getElementById('d4n').textContent=total;
-  document.getElementById('d4l').textContent='✓ Completo';
-  document.querySelector('.wc.wt2')?.classList.replace('wt2','wd');
-  const prev=parseInt(document.getElementById('sw').textContent)||60;
-  document.getElementById('sw').textContent=prev+total;
-  document.getElementById('sp2').style.width=Math.min(100,((prev+total)/100)*100)+'%';
-  document.getElementById('pill-p').textContent='✓ Listo';
-  document.getElementById('pill-p').className='npill np-g';
-  document.getElementById('st4').className='step sd';
-  document.getElementById('st4').textContent=`✓ Jue · ${total} prospectos`;
+  alog('plog','ls',`✅ ${total} prospectos listos — presiona "Añadir al buffer" para continuar`);
   btn.disabled=false; sp.style.display='none';
-  btn.textContent=`✓ Completado — ${total} prospectos de hoy`;
-  btn.classList.add('ok');
 }
 
 let _weekBuffer=[];
 
 function addBuffer(){
-  if(!_verifiedLeads.length){ alert('⚠ No hay prospectos verificados. Ejecuta la prospección primero.'); return; }
+  if(!_verifiedLeads.length){ toast('No hay prospectos verificados. Ejecuta la prospección primero.','red'); return; }
   _weekBuffer=[..._weekBuffer,..._verifiedLeads];
-  const total=_weekBuffer.length;
-  alog('dlog','ls',`${_verifiedLeads.length} prospectos añadidos al buffer. Total acumulado: ${total}. El viernes súbelos a Notion.`);
-  document.getElementById('sn').textContent=total;
-  alert(`✅ ${_verifiedLeads.length} prospectos añadidos al buffer semanal. Total: ${total}`);
+  document.getElementById('sn').textContent=_weekBuffer.length;
+  toast(`✓ ${_verifiedLeads.length} prospectos añadidos al buffer. Total: ${_weekBuffer.length}`);
 }
 
-// NOTION — flujo real: buffer → Notion API
+// NOTION — flujo real: buffer → Notion API (crea Prospectos reales del CRM)
 async function runNotion(){
   const btn=document.getElementById('btn-n'); const sp=document.getElementById('spn');
   btn.disabled=true; sp.style.display='inline-block';
   const log=document.getElementById('nlog'); log.innerHTML='';
 
-  // Verificar config
   try{
     const cfg=await fetch('/api/prospeccion/config/status').then(r=>r.json());
-    if(!cfg.notion){ alog('nlog','lw','⚠ NOTION_TOKEN o NOTION_DATABASE_ID no configurados en .env'); btn.disabled=false; sp.style.display='none'; return; }
+    if(!cfg.notion){ alog('nlog','lw','⚠ NOTION_TOKEN no configurado en el servidor'); btn.disabled=false; sp.style.display='none'; return; }
   }catch(e){ alog('nlog','lw','⚠ No se pudo conectar con el servidor.'); btn.disabled=false; sp.style.display='none'; return; }
 
   const leadsToUpload=_weekBuffer.length>0?_weekBuffer:_verifiedLeads;
   if(!leadsToUpload.length){ alog('nlog','lw','⚠ No hay prospectos en el buffer. Ejecuta la prospección primero.'); btn.disabled=false; sp.style.display='none'; return; }
 
-  const statusEl=document.querySelector('#page-notion select');
-  const status=statusEl?.value||'Prospectado';
-
-  alog('nlog','li',`Conectando con Notion API...`);
+  const status=document.getElementById('notion-status').value;
   alog('nlog','la',`Subiendo ${leadsToUpload.length} prospectos con status "${status}"...`);
 
-  // Subir en lotes de 25 para mostrar progreso
   const BATCH=25;
-  let totalCreated=0;
-  let totalErrors=0;
-
+  let totalCreated=0, totalErrors=0;
   for(let i=0;i<leadsToUpload.length;i+=BATCH){
     const batch=leadsToUpload.slice(i,i+BATCH);
-    alog('nlog','li',`Lote ${Math.floor(i/BATCH)+1}: subiendo ${batch.length} registros...`);
     try{
       const resp=await fetch('/api/prospeccion/notion/upload',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({leads:batch,status})});
       const data=await resp.json();
       totalCreated+=data.created||0;
       totalErrors+=(data.errors||[]).length;
-      alog('nlog','ls',`Lote ${Math.floor(i/BATCH)+1}: ${data.created} filas creadas en Notion ✓`);
-      if(data.errors?.length) alog('nlog','lw',`${data.errors.length} errores en este lote`);
+      alog('nlog','ls',`Lote: ${data.created} creados en Notion ✓`);
     }catch(err){
-      alog('nlog','lw',`⚠ Error en lote ${Math.floor(i/BATCH)+1}: ${err.message}`);
+      alog('nlog','lw',`⚠ Error: ${err.message}`);
       totalErrors+=batch.length;
     }
   }
 
-  if(totalErrors>0) alog('nlog','lw',`⚠ ${totalErrors} registros no pudieron subirse. Revisa los permisos de la integración Notion.`);
-  alog('nlog','ls',`✅ ${totalCreated} prospectos en Notion · Status: "${status}"`);
-  alog('dlog','ls',`${totalCreated} prospectos cargados en Notion. Lista la campaña para el lunes.`);
-
-  document.getElementById('sn').textContent=totalCreated;
-  document.getElementById('pill-n').textContent='✓ Listo';
-  document.getElementById('pill-n').className='npill np-g';
-  document.getElementById('st5').className='step sd';
-  document.getElementById('st5').textContent=`✓ Vie · ${totalCreated} en Notion`;
+  if(totalErrors>0) alog('nlog','lw',`⚠ ${totalErrors} registros no pudieron subirse.`);
+  alog('nlog','ls',`✅ ${totalCreated} prospectos creados en el CRM`);
+  toast(`✓ ${totalCreated} prospectos subidos a Notion`);
+  _weekBuffer=[]; document.getElementById('sn').textContent=0;
   btn.disabled=false; sp.style.display='none';
-  btn.textContent=`✅ ${totalCreated} prospectos en Notion`;
-  btn.classList.add('ok');
-  // Limpiar buffer después de subir
-  _weekBuffer=[];
 }
 
-// EMAILS
-async function runEmails(){
-  const btn=document.getElementById('btn-e'); const sp=document.getElementById('spe');
-  btn.disabled=true; sp.style.display='inline-block';
-  const log=document.getElementById('elog'); log.innerHTML='';
-  alog('elog','li','Leyendo 100 prospectos de Notion...');
-  await delay(600);
-  alog('elog','ls','100 contactos cargados con sector y empresa');
-  await delay(400);
-  alog('elog','la','Claude generando 100 correos personalizados por sector...');
-  await delay(1600);
-  [['Corporativo',22],['Automotriz',16],['Farmacéutica',15],['Tecnología',14],['Financiero',11],['Gobierno',8],['Retail',8],['Medios',6]].forEach(([s,n])=>alog('elog','ls',`${n} correos · ${s}`));
-  await delay(400);
-  alog('elog','li','Conectando con Microsoft Outlook...');
-  await delay(700);
-  alog('elog','ls','100 correos programados · Lunes 9:00 am · 1 c/5 min → hasta ~5:20 pm');
-  await delay(300);
-  alog('elog','la','Notion: 100 registros → Status "Programado"');
-  alog('elog','ls','✅ Listo. Outlook envía automáticamente el lunes.');
-  alog('dlog','ls','100 correos programados en Outlook. Saldrán el próximo lunes de 9am a 5:20pm.');
-  document.getElementById('sq').textContent='100';
-  document.getElementById('pill-e').textContent='✓ Listo';
-  document.getElementById('pill-e').className='npill np-g';
-  document.getElementById('st6').className='step sd';
-  document.getElementById('st6').textContent='✓ Lun sig · 100 correos listos';
-  btn.disabled=false; sp.style.display='none';
-  btn.textContent='✅ 100 correos programados en Outlook';
-  btn.classList.add('ok');
-}
-
-// EMAIL PREVIEWS
-const PV={
-  corp:{to:'ana.torres@grupobimbo.com',sub:'El evento que Grupo Bimbo no ha producido todavía',
-    body:`Ana, hola.\n\nVi que Grupo Bimbo tiene agenda importante de eventos este año — convenciones de distribuidores, lanzamientos regionales, experiencias de marca a nivel nacional.\n\nEn Actidea Continnuo llevamos 25 años produciendo exactamente ese tipo de eventos. Trabajamos con Danone, Colgate y Kimberly Clark en México.\n\n¿Tienes 20 minutos esta semana para explorar si hay fit?\n\nActidea Continnuo · Eventos que conectan\ncontacto@actideacontinnuo.com`},
-  auto:{to:'rodrigo.gomez@nissan.com.mx',sub:'La producción detrás del lanzamiento que Nissan necesita',
-    body:`Rodrigo, hola.\n\nEl lanzamiento de un nuevo modelo necesita más que un venue — producción técnica impecable, escenografía de impacto y operación sin fallas desde el primer ensayo.\n\nHemos producido eventos de lanzamiento para General Motors y Honda en México. Conocemos el estándar automotriz.\n\n¿Tienen proyectos en agenda este año?\n\nActidea Continnuo · Eventos que conectan`},
-  pharma:{to:'claudia.mora@bayer.com',sub:'Congresos médicos que elevan la credibilidad de Bayer',
-    body:`Claudia, hola.\n\nLos congresos y simposios médicos son un canal clave — y la calidad de producción comunica tanto como el contenido científico.\n\nEn Actidea producimos eventos para GSK, Grunenthal y J&J en México. Sabemos manejar los protocolos del sector farmacéutico.\n\n¿20 minutos esta semana para ver cómo podemos colaborar?\n\nActidea Continnuo · Eventos que conectan`},
-  fin:{to:'mario.santos@hsbc.com.mx',sub:'El evento corporativo que HSBC merece producir bien',
-    body:`Mario, hola.\n\nLos eventos de banca exigen precisión, imagen impecable y cero contratiempos — una mala producción afecta la percepción de la institución.\n\nHemos producido eventos para HSBC México e Inbursa, entre otros del sector financiero.\n\n¿15 minutos esta semana para platicarlo?\n\nActidea Continnuo · Eventos que conectan`},
-  tech:{to:'roberto.nunez@microsoft.com',sub:'Partner Summits a nivel Microsoft — lo hacemos bien',
-    body:`Roberto, hola.\n\nMicrosoft México organiza algunos de los eventos tech más exigentes del país — partner summits, lanzamientos de producto, eventos de canal.\n\nProducimos el Microsoft Partner Summit en Miami y Nassau. Conocemos el estándar que Microsoft exige.\n\n¿20 minutos para ver qué tiene en agenda México este año?\n\nActidea Continnuo · Eventos que conectan`},
-  gov:{to:'director@sectur.gob.mx',sub:'Producción institucional que habla por la Secretaría',
-    body:`Estimado Director,\n\nLos eventos institucionales comunican el peso y la seriedad de una dependencia — la producción no puede dejar margen de error.\n\nProducimos el Grito de Independencia en el Zócalo (2013–2015), la Semana del Emprendedor con Secretaría de Economía y la Sesión de la OMT.\n\n¿Podemos agendar una presentación esta semana?\n\nActidea Continnuo · Eventos que conectan`},
-  media:{to:'productor@disney.com.mx',sub:'Premieres y eventos de prensa que se recuerdan',
-    body:`Hola,\n\nLas premieres y eventos de prensa necesitan producción a la altura de la marca — escenografía, logística de talent y operación sin fallas.\n\nProducimos la Premier de WALL·E para Walt Disney Pictures México. Conocemos el estándar de entretenimiento de primer nivel.\n\n¿Tienen proyectos en agenda este año?\n\nActidea Continnuo · Eventos que conectan`},
-  retail:{to:'laura.jimenez@liverpool.com.mx',sub:'Activaciones de marca que el retail no olvida',
-    body:`Laura, hola.\n\nLas activaciones de retail necesitan impacto visual inmediato y ejecución que no falla en piso — dos cosas que Actidea domina.\n\nDiseñamos y producimos brand experiences para grandes retailers y marcas de consumo en México.\n\n¿Tienes agenda esta semana para explorar una colaboración?\n\nActidea Continnuo · Eventos que conectan`},
-};
-function prvw(s,el){
-  document.querySelectorAll('#ptabs .tab').forEach(t=>t.classList.remove('active'));
-  el.classList.add('active');
-  const d=PV[s]||PV.corp;
-  document.getElementById('pto').textContent=d.to;
-  document.getElementById('psub').value=d.sub;
-  document.getElementById('pbody').value=d.body;
-  window._currentSector=s;
-  document.getElementById('regen-status').textContent='';
-}
-
-// TEMPLATES
+// TEMPLATES — sector → asunto/cuerpo base
 const TPLS={
-  corp:{s:`Eres el equipo de ventas de Actidea Continnuo, empresa mexicana con 25 años produciendo eventos corporativos. Conecta con directores de eventos y comunicación de grandes empresas. Referencias: Danone, Bimbo, Colgate, Kimberly Clark.`,u:`Email frío para:\n- Nombre: {{nombre}} · Puesto: {{puesto}}\n- Empresa: {{empresa}} · Sector: Corporativo\n\n1. Asunto impactante (máx 9 palabras)\n2. Referencia a cliente similar de Actidea\n3. Propuesta de valor para eventos corporativos\n4. CTA de 20 minutos\n5. Firma: Actidea Continnuo · Eventos que conectan\n6. Máx 160 palabras\n\nJSON: {"asunto":"...","cuerpo":"..."}`},
-  auto:{s:`Eres el equipo de ventas de Actidea Continnuo. Especializados en lanzamientos automotrices y eventos de distribuidores. Referencias: GM, Honda, Chevrolet.`,u:`Email frío para:\n- Nombre: {{nombre}} · Empresa: {{empresa}} · Sector: Automotriz\n\nEnfoca en: producción de lanzamientos, logística de distribuidores, escenografía de alto impacto.\nReferencia cliente automotriz · CTA · Máx 150 palabras\nJSON: {"asunto":"...","cuerpo":"..."}`},
-  pharma:{s:`Eres el equipo de ventas de Actidea Continnuo. Expertos en congresos médicos con protocolos específicos. Referencias: GSK, Grunenthal, J&J.`,u:`Email frío para:\n- Nombre: {{nombre}} · Empresa: {{empresa}} · Sector: Farmacéutica\n\nEnfoca en: rigor en congresos médicos, manejo de KOLs y speakers, producción impecable.\nJSON: {"asunto":"...","cuerpo":"..."}`},
-  tech:{s:`Eres el equipo de ventas de Actidea Continnuo. Producimos partner summits, lanzamientos tech y eventos de canal. Referencias: Microsoft, HP, SAP, Intel, IBM.`,u:`Email frío para:\n- Nombre: {{nombre}} · Empresa: {{empresa}} · Sector: Tecnología\n\nEnfoca en: partner summits, lanzamientos de producto, eventos de canal en México.\nJSON: {"asunto":"...","cuerpo":"..."}`},
+  corp:{s:'Corporativo / FMCG',u:{asunto:'¿Su próximo evento corporativo merece más que lo esperado?',cuerpo:'Hola,\n\nEn Actidea Continnuo llevamos 25 años produciendo eventos corporativos para marcas como Danone, Bimbo y Colgate.\n\n¿Tienen 20 minutos esta semana para platicar sobre su próximo evento?\n\nActidea Continnuo · Eventos que conectan\ncontacto@actideacontinnuo.com'}},
+  auto:{s:'Automotriz',u:{asunto:'Lanzamientos automotrices que sí generan impacto',cuerpo:'Hola,\n\nProducimos lanzamientos y eventos de distribuidores para marcas como GM y Honda.\n\n¿20 minutos esta semana?\n\nActidea Continnuo · Eventos que conectan\ncontacto@actideacontinnuo.com'}},
+  pharma:{s:'Farmacéutica',u:{asunto:'Congresos médicos sin margen de error',cuerpo:'Hola,\n\nExpertos en congresos médicos para GSK, Grunenthal y J&J.\n\n¿20 minutos esta semana?\n\nActidea Continnuo · Eventos que conectan\ncontacto@actideacontinnuo.com'}},
+  tech:{s:'Tecnología',u:{asunto:'Partner summits que su canal va a recordar',cuerpo:'Hola,\n\nProducimos partner summits y lanzamientos tech para Microsoft, HP e Intel.\n\n¿20 minutos esta semana?\n\nActidea Continnuo · Eventos que conectan\ncontacto@actideacontinnuo.com'}},
 };
-function loadT(s,el){
-  document.querySelectorAll('.tabs .tab').forEach(t=>t.classList.remove('active'));
-  el?.classList.add('active');
-  const t=TPLS[s];
-  if(t){document.getElementById('tsys').value=t.s;document.getElementById('tusr').value=t.u;}
+function loadT(sector){
+  const t=TPLS[sector]; if(!t) return;
+  window._currentSector=sector;
+  document.getElementById('psub').value=t.u.asunto;
+  document.getElementById('pbody').value=t.u.cuerpo;
 }
+loadT('corp');
 
-// REGENERAR CON CLAUDE (API real)
+// REGENERAR CON CLAUDE — vive en el servidor (api/prospeccion.js), nunca en
+// el navegador (ahí no hay forma segura de tener la llave de Anthropic).
 async function regenClaude(){
   const btn=document.getElementById('btn-regen');
   const sp=document.getElementById('sp-regen');
   const status=document.getElementById('regen-status');
   const sector=window._currentSector||'corp';
-  const sectorNames={corp:'Corporativo / FMCG',auto:'Automotriz',pharma:'Farmacéutica',fin:'Financiero / Banca',tech:'Tecnología',gov:'Gobierno / Institucional',media:'Medios y Entretenimiento',retail:'Retail / E-commerce'};
+  const sectorNames={corp:'Corporativo / FMCG',auto:'Automotriz',pharma:'Farmacéutica',tech:'Tecnología'};
   const sectorName=sectorNames[sector]||'Corporativo';
-  const to=document.getElementById('pto').textContent;
+  const to=document.getElementById('pto').value;
   const empresa=to.split('@')[1]?.split('.')[0]||'la empresa';
 
   btn.disabled=true; sp.style.display='inline-block';
-  status.textContent='Generando con Claude...'; status.style.color='var(--muted2)';
+  status.textContent='Generando con Claude...'; status.style.color='var(--gray400)';
 
   try{
-    // La generación vive en el servidor (api/prospeccion.js) — nunca en el
-    // navegador, donde no hay forma segura de poner la llave de Anthropic.
     const resp=await fetch('/api/prospeccion/generar-email',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
+      method:'POST', headers:{'Content-Type':'application/json'},
       body:JSON.stringify({ empresa, sectorName })
     });
     const parsed=await resp.json();
@@ -914,16 +371,16 @@ async function regenClaude(){
     if(parsed.cuerpo) document.getElementById('pbody').value=parsed.cuerpo;
     status.textContent='✓ Regenerado con Claude';
     status.style.color='var(--green)';
-    alog('dlog','la',`✦ Preview regenerado por Claude · Sector: ${sectorName}`);
   }catch(err){
     status.textContent='⚠ Error de conexión con Claude';
     status.style.color='var(--amber)';
-    console.error('Claude API error:',err);
   }
 
   btn.disabled=false; sp.style.display='none';
   setTimeout(()=>{ status.textContent=''; },5000);
 }
+
+function esc(s){ return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 </script>
 </body>
 </html>

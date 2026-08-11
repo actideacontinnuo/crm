@@ -3,422 +3,123 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Actidea Continnuo — Social Manager · Demo</title>
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
-<style>
-:root{
-  --red:#E31E24;--red-d:#B01218;--red-l:#FDE8E9;--red-xl:#FEF3F3;
-  --ink:#111110;--paper:#FAFAF8;
-  --s100:#F5F5F2;--s200:#EAEAE5;--s300:#D4D4CE;--s400:#A8A89E;--s500:#6B6B64;--s600:#3D3D38;
-  --ok:#16A34A;--ok-l:#DCFCE7;
-  --warn:#D97706;--warn-l:#FEF3C7;
-  --info:#2563EB;--info-l:#EFF6FF;
-  --pub:#7C3AED;--pub-l:#F5F3FF;
-  --font-d:'Syne',sans-serif;
-  --font-b:'Plus Jakarta Sans',sans-serif;
-  --r8:8px;--r12:12px;--r16:16px;--r24:24px;
-  --sw:220px;
-}
-*{margin:0;padding:0;box-sizing:border-box;-webkit-font-smoothing:antialiased}
-body{font-family:var(--font-b);background:var(--paper);color:var(--ink);display:flex;min-height:100vh;font-size:14px;line-height:1.5}
-
-/* ── DEMO BADGE ─────────────────────────────── */
-.demo-badge{position:fixed;top:12px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;font-size:11px;font-weight:600;padding:5px 16px;border-radius:20px;z-index:9999;letter-spacing:.04em;pointer-events:none}
-
-/* ── SIDEBAR ────────────────────────────────── */
-.sb{width:var(--sw);background:var(--ink);position:fixed;top:0;left:0;bottom:0;display:flex;flex-direction:column;z-index:100;border-right:1px solid rgba(255,255,255,.06)}
-.sb-top{padding:20px 16px 16px;border-bottom:1px solid rgba(255,255,255,.06)}
-.sb-brand{display:flex;align-items:center;gap:9px}
-.sb-logo{width:28px;height:28px;background:var(--red);border-radius:7px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
-.sb-logo svg{width:14px;height:14px;fill:#fff}
-.sb-name{font-family:var(--font-d);font-size:12px;font-weight:700;color:#fff;line-height:1.2}
-.sb-name span{display:block;font-size:9px;font-weight:400;color:rgba(255,255,255,.3);letter-spacing:.08em;text-transform:uppercase;margin-top:2px}
-.sb-nav{padding:10px 0;flex:1}
-.nav-grp{margin-bottom:18px}
-.nav-grp-lbl{font-size:9px;font-weight:600;color:rgba(255,255,255,.2);letter-spacing:.1em;text-transform:uppercase;padding:0 16px 6px}
-.nav-item{display:flex;align-items:center;gap:8px;padding:8px 16px;cursor:pointer;color:rgba(255,255,255,.4);font-size:12.5px;font-weight:400;transition:all .12s;border-left:2px solid transparent;border-radius:0}
-.nav-item:hover{color:rgba(255,255,255,.8);background:rgba(255,255,255,.04)}
-.nav-item.on{color:#fff;background:rgba(227,30,36,.15);border-left-color:var(--red)}
-.nav-item svg{width:14px;height:14px;flex-shrink:0;opacity:.6}
-.nav-item.on svg{opacity:1}
-.nav-badge{font-size:9px;font-weight:700;padding:1px 6px;border-radius:20px;margin-left:auto;background:rgba(227,30,36,.25);color:#F87171}
-.sb-user{padding:14px 16px;border-top:1px solid rgba(255,255,255,.06);display:flex;align-items:center;gap:9px}
-.sb-av{width:26px;height:26px;border-radius:50%;background:var(--red);display:flex;align-items:center;justify-content:center;font-family:var(--font-d);font-size:10px;font-weight:800;color:#fff;flex-shrink:0}
-.sb-user-info{font-size:11.5px;font-weight:500;color:#fff;line-height:1.2}
-.sb-user-info span{display:block;font-size:10px;font-weight:400;color:rgba(255,255,255,.3)}
-
-/* ── MAIN ────────────────────────────────────── */
-.main{margin-left:var(--sw);flex:1;display:flex;flex-direction:column;min-height:100vh}
-
-/* ── TOPBAR ──────────────────────────────────── */
-.topbar{height:52px;background:#fff;border-bottom:1px solid var(--s200);display:flex;align-items:center;justify-content:space-between;padding:0 24px;position:sticky;top:0;z-index:50}
-.topbar-l{display:flex;align-items:center;gap:10px}
-.topbar-l h1{font-family:var(--font-d);font-size:15px;font-weight:700}
-.chip{font-size:10.5px;font-weight:600;padding:3px 10px;border-radius:20px}
-.chip-red{background:var(--red-l);color:var(--red)}
-.chip-demo{background:var(--warn-l);color:var(--warn)}
-.topbar-r{display:flex;align-items:center;gap:8px}
-
-/* ── BUTTONS ─────────────────────────────────── */
-.btn{padding:7px 14px;border-radius:var(--r8);font-size:12.5px;font-weight:500;cursor:pointer;border:none;transition:all .13s;font-family:var(--font-b);display:inline-flex;align-items:center;gap:6px}
-.btn-primary{background:var(--red);color:#fff}.btn-primary:hover{background:var(--red-d)}
-.btn-ghost{background:none;border:1px solid var(--s200);color:var(--s500)}.btn-ghost:hover{background:var(--s100);border-color:var(--s300)}
-.btn-ok{background:var(--ok);color:#fff}.btn-ok:hover{background:#15803D}
-.btn-danger{background:#EF4444;color:#fff}.btn-danger:hover{background:#DC2626}
-.btn-dark{background:var(--ink);color:#fff}.btn-dark:hover{background:var(--s600)}
-.btn-sm{padding:5px 11px;font-size:12px}
-.btn:disabled{opacity:.45;cursor:not-allowed}
-
-/* ── CONTENT ─────────────────────────────────── */
-.ctn{padding:22px 24px;flex:1}
-
-/* ── STEP INDICATOR ──────────────────────────── */
-.step-bar{display:flex;align-items:center;gap:0;margin-bottom:22px;background:#fff;border:1px solid var(--s200);border-radius:var(--r12);padding:14px 20px;overflow-x:auto}
-.step{display:flex;align-items:center;gap:8px;flex-shrink:0}
-.step-num{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;font-family:var(--font-d);flex-shrink:0;transition:all .2s}
-.step-label{font-size:11.5px;font-weight:500;white-space:nowrap;transition:color .2s}
-.step-arrow{color:var(--s300);margin:0 10px;font-size:14px;flex-shrink:0}
-.step.done .step-num{background:var(--ok);color:#fff}
-.step.done .step-label{color:var(--ok)}
-.step.active .step-num{background:var(--red);color:#fff}
-.step.active .step-label{color:var(--red);font-weight:600}
-.step.idle .step-num{background:var(--s200);color:var(--s400)}
-.step.idle .step-label{color:var(--s400)}
-
-/* ── STATS ───────────────────────────────────── */
-.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px}
-.sc{background:#fff;border:1px solid var(--s200);border-radius:var(--r12);padding:14px 16px}
-.sn{font-family:var(--font-d);font-size:22px;font-weight:800;line-height:1;margin-bottom:2px}
-.sl{font-size:11px;color:var(--s400)}
-
-/* ── MAIN GRID ───────────────────────────────── */
-.mg{display:grid;grid-template-columns:1fr 340px;gap:16px}
-
-/* ── CARDS ───────────────────────────────────── */
-.card{background:#fff;border:1px solid var(--s200);border-radius:var(--r16);padding:18px 20px}
-.ch{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
-.ct{font-family:var(--font-d);font-size:13.5px;font-weight:700}
-.csub{font-size:11px;color:var(--s400);margin-top:1px}
-
-/* ── CALENDAR ────────────────────────────────── */
-.cg{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
-.cdh{text-align:center;font-size:9px;font-weight:700;color:var(--s400);letter-spacing:.06em;text-transform:uppercase;padding:2px 0 6px}
-.cd{aspect-ratio:1;border-radius:6px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;transition:all .1s;padding:2px}
-.cd:hover{background:var(--s100)}.cd.empty{pointer-events:none}
-.cd.today{background:var(--red)}.cd.today .cdn{color:#fff;font-weight:700}
-.cd.hasc{background:var(--s100)}.cd.sel{border:1.5px solid var(--red);background:var(--red-l)}
-.cdn{font-size:10.5px;font-weight:500;line-height:1}
-.cdd{display:flex;gap:2px;margin-top:2px}
-.cdd .dp{width:3px;height:3px;border-radius:50%;background:var(--info);display:inline-block}
-.cdd .dr{width:3px;height:3px;border-radius:50%;background:var(--red);display:inline-block}
-
-/* ── POSTS LIST ──────────────────────────────── */
-.pl{display:flex;flex-direction:column;gap:7px;max-height:440px;overflow-y:auto;padding-right:3px}
-.pcard{border:1px solid var(--s200);border-radius:var(--r12);padding:11px 13px;cursor:pointer;transition:all .12s}
-.pcard:hover{border-color:var(--s300);background:var(--s100)}.pcard.sel{border-color:var(--red);background:var(--red-xl)}
-.pcard-top{display:flex;align-items:center;gap:6px;margin-bottom:5px}
-.tb{font-size:9.5px;font-weight:700;letter-spacing:.05em;padding:2px 7px;border-radius:20px;text-transform:uppercase}
-.tp{background:var(--info-l);color:var(--info)}.tr{background:var(--pub-l);color:var(--pub)}.ts{background:var(--ok-l);color:var(--ok)}
-.pdate{font-size:10.5px;color:var(--s400);margin-left:auto}
-.pcopy{font-size:12.5px;line-height:1.45;margin-bottom:3px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;color:var(--s600)}
-.pcta{font-size:11px;color:var(--red);font-weight:500}
-.sbadge{font-size:9.5px;font-weight:700;padding:2px 7px;border-radius:20px;letter-spacing:.03em;text-transform:uppercase}
-.s-pend{background:var(--warn-l);color:var(--warn)}
-.s-appr{background:var(--ok-l);color:var(--ok)}
-.s-pub{background:var(--pub-l);color:var(--pub)}
-.s-rej{background:#FEF2F2;color:#EF4444}
-
-/* ── TABS ────────────────────────────────────── */
-.tabs{display:flex;gap:3px;background:var(--s100);padding:3px;border-radius:var(--r8);margin-bottom:12px}
-.tab{padding:5px 12px;border-radius:6px;font-size:11.5px;cursor:pointer;color:var(--s400);border:none;background:none;font-family:var(--font-b);transition:all .1s}
-.tab.on{background:#fff;color:var(--ink);font-weight:500;box-shadow:0 1px 3px rgba(0,0,0,.07)}
-.cp{background:var(--s200);color:var(--s500);font-size:9px;padding:1px 5px;border-radius:8px;margin-left:3px}
-.tab.on .cp{background:var(--red-l);color:var(--red)}
-
-/* ── DETAIL ──────────────────────────────────── */
-.dp-stack{display:flex;flex-direction:column;gap:12px}
-.dp-card{background:#fff;border:1px solid var(--s200);border-radius:var(--r16);padding:16px 18px}
-.lbl{font-size:9.5px;font-weight:700;color:var(--s400);letter-spacing:.06em;text-transform:uppercase;margin-bottom:5px}
-.copy-box{background:var(--s100);border-radius:var(--r8);padding:11px 13px;font-size:12.5px;line-height:1.6;border-left:3px solid var(--red);margin-bottom:10px;outline:none;min-height:60px}
-.cta-box{background:var(--red-xl);border-radius:var(--r8);padding:8px 12px;font-size:12px;color:var(--red);font-weight:500;margin-bottom:10px;outline:none}
-.vis-box{background:var(--s100);border-radius:var(--r8);padding:10px 12px;font-size:11.5px;color:var(--s500);margin-bottom:10px;line-height:1.55;font-style:italic}
-.abar{display:flex;gap:7px;padding-top:11px;border-top:1px solid var(--s100)}
-.platform-row{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:12px}
-.ptag{font-size:10.5px;background:var(--s100);padding:3px 9px;border-radius:6px;color:var(--s500);font-weight:500}
-
-/* ── META STATUS BANNER ──────────────────────── */
-.meta-banner{display:flex;align-items:center;gap:10px;padding:10px 16px;border-radius:var(--r8);font-size:12px;margin-bottom:14px}
-.meta-ok{background:var(--ok-l);border:1px solid #86EFAC}
-.meta-no{background:var(--warn-l);border:1px solid #FCD34D}
-
-/* ── HIGGSFIELD CARD ─────────────────────────── */
-.hf-loading{text-align:center;padding:20px 10px}
-.hf-spinner{width:32px;height:32px;border:3px solid var(--s200);border-top-color:var(--red);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto 10px}
-.art-preview{border-radius:var(--r8);overflow:hidden;margin-bottom:10px}
-.art-preview img{width:100%;display:block;border-radius:var(--r8)}
-.art-placeholder{background:linear-gradient(135deg,var(--s100) 0%,var(--s200) 100%);border-radius:var(--r8);aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:var(--s400);font-size:13px}
-.art-placeholder svg{width:32px;height:32px;opacity:.4}
-
-/* ── PUBLISH RESULTS ─────────────────────────── */
-.pub-row{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--s100);font-size:12.5px}
-.pub-row:last-child{border-bottom:none}
-.pub-icon{width:28px;height:28px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
-.pub-ok{background:var(--ok-l)}
-.pub-err{background:#FEF2F2}
-.pub-label{flex:1;font-weight:500}
-.pub-id{font-size:10.5px;color:var(--s400);font-family:monospace}
-
-/* ── EMPTY ───────────────────────────────────── */
-.empty{text-align:center;padding:32px 16px;color:var(--s400)}
-.empty svg{width:32px;height:32px;margin:0 auto 10px;display:block;opacity:.25}
-.empty p{font-size:12.5px}
-
-/* ── OVERLAY + MODAL ─────────────────────────── */
-.ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:200;align-items:center;justify-content:center}
-.ov.on{display:flex}
-.modal{background:#fff;border-radius:var(--r24);padding:28px;width:500px;max-height:84vh;overflow-y:auto;box-shadow:0 24px 60px rgba(0,0,0,.18)}
-.mh{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
-.mt{font-family:var(--font-d);font-size:16px;font-weight:700}
-.mc{background:none;border:none;cursor:pointer;font-size:20px;color:var(--s400);line-height:1;padding:2px 6px}
-.pb-wrap{background:var(--s200);border-radius:20px;height:3px;margin:10px 0}
-.pb-fill{background:var(--red);height:3px;border-radius:20px;transition:width .4s ease}
-.gen-item{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--s100);font-size:12.5px}
-.gi-ic{width:24px;height:24px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0}
-.gi-done{background:var(--ok-l);color:var(--ok)}
-.gi-load{background:var(--warn-l);color:var(--warn)}
-.gi-wait{background:var(--s100);color:var(--s400)}
-
-/* ── NOTIF ───────────────────────────────────── */
-.notif{position:fixed;bottom:20px;right:20px;z-index:999;background:var(--ink);color:#fff;padding:10px 16px;border-radius:var(--r12);font-size:12.5px;font-weight:500;display:flex;align-items:center;gap:7px;transform:translateY(70px);opacity:0;transition:all .3s cubic-bezier(.34,1.56,.64,1);pointer-events:none}
-.notif.on{transform:translateY(0);opacity:1}
-.nd{width:6px;height:6px;border-radius:50%;background:var(--ok);flex-shrink:0}
-
-/* ── TOOLTIP ─────────────────────────────────── */
-.tip-wrap{position:relative;display:inline-flex}
-.tip{position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;font-size:11px;padding:5px 10px;border-radius:7px;white-space:nowrap;pointer-events:none;opacity:0;transition:opacity .15s;z-index:100}
-.tip-wrap:hover .tip{opacity:1}
-
-@keyframes spin{to{transform:rotate(360deg)}}
-@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
-.fade-in{animation:fadeIn .25s ease}
-::-webkit-scrollbar{width:4px}::-webkit-scrollbar-thumb{background:var(--s200);border-radius:4px}
-</style>
+<title>Actidea CRM · Marketing</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/main.css?v=2">
 </head>
 <body>
 
-<div class="demo-badge">✦ DEMO — Prototipo para validación de flujo</div>
-
-<!-- SIDEBAR -->
-<aside class="sb">
-  <div class="sb-top">
-    <div class="sb-brand">
-      <div class="sb-logo"><svg viewBox="0 0 20 20"><path d="M10 2L3 7v11h14V7L10 2zm0 2.2 5 3.9v7.9H5v-7.9z"/></svg></div>
-      <div class="sb-name">Actidea Continnuo<span>Social Manager</span></div>
-    </div>
+<div class="topbar">
+  <div class="t-logo" onclick="window.location.href='/'" style="cursor:pointer">
+    <img src="/assets/logo-dark.png" alt="Actidea Continnuo" style="height:34px;width:auto;display:block">
   </div>
-  <nav class="sb-nav">
-    <div class="nav-grp">
-      <div class="nav-grp-lbl">Contenido</div>
-      <div class="nav-item on" onclick="setNav(this,'all')">
-        <svg viewBox="0 0 20 20" fill="currentColor"><path d="M3 4h14v2H3V4zm0 5h14v2H3V9zm0 5h14v2H3v-2z"/></svg>
-        Calendario del mes
-      </div>
-      <div class="nav-item" onclick="setNav(this,'pending')">
-        <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"/></svg>
-        Por aprobar
-        <span class="nav-badge" id="nb-pend">0</span>
-      </div>
-      <div class="nav-item" onclick="setNav(this,'published')">
-        <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
-        Publicados
-      </div>
+  <div class="t-sep"></div>
+  <div class="t-tag">MARKETING</div>
+  <div class="t-right" style="margin-left:auto;gap:12px">
+    <span class="tag" id="meta-tag" style="background:var(--gray50);color:var(--gray600);border:1px solid var(--border-d)">Meta: verificando…</span>
+    <div style="text-align:right">
+      <div class="u-name" id="topbar-nombre">—</div>
+      <div class="u-role" id="topbar-rol">CRECIMIENTO</div>
     </div>
-    <div class="nav-grp">
-      <div class="nav-grp-lbl">Sistema</div>
-      <div class="nav-item" onclick="connectMeta()" id="nav-meta">
-        <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd"/></svg>
-        <span id="nav-meta-txt">Conectar Meta</span>
-      </div>
-    </div>
-  </nav>
-  <div class="sb-user">
-    <div class="sb-av">N</div>
-    <div class="sb-user-info">Natalia<span>Content Manager</span></div>
+    <div class="u-avatar" id="topbar-avatar">—</div>
   </div>
-</aside>
+</div>
 
-<!-- MAIN -->
+<div class="layout">
+<nav class="sidebar">
+  <div class="s-section">
+    <div class="s-label">PRINCIPAL</div>
+    <div class="nav-item" onclick="window.location.href='/'"><span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></span>Dashboard</div>
+  </div>
+  <div class="s-section">
+    <div class="s-label">CRECIMIENTO</div>
+    <div class="nav-item active" onclick="window.location.href='/marketing.html'"><span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l18-8-8 18-2-8-8-2z"/></svg></span>Marketing</div>
+    <div class="nav-item" onclick="window.location.href='/prospeccion.html'"><span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg></span>Prospección</div>
+  </div>
+  <div class="s-section">
+    <div class="s-label">SISTEMA</div>
+    <div class="nav-item" onclick="connectMeta()"><span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12h8M12 8v8"/></svg></span>Conectar Meta</div>
+  </div>
+  <div class="s-bottom">
+    <div>PLAINWORK · ACTIDEA V1.0</div>
+  </div>
+</nav>
+
 <main class="main">
-  <header class="topbar">
-    <div class="topbar-l">
-      <h1>Contenido del Mes</h1>
-      <span class="chip chip-red" id="month-chip">Junio 2026</span>
-      <span class="chip chip-demo">Demo interactivo</span>
+
+  <div class="ph">
+    <div>
+      <div class="ph-eye">CRECIMIENTO</div>
+      <div class="ph-title">Marketing</div>
+      <div class="ph-sub">Calendario de contenido · Junio 2026 · Higgsfield genera el arte, Meta lo publica</div>
     </div>
-    <div class="topbar-r">
-      <div class="tip-wrap">
-        <button class="btn btn-ghost btn-sm" onclick="resetAll()">↺ Reiniciar demo</button>
-        <span class="tip">Vuelve al estado inicial</span>
-      </div>
-      <button class="btn btn-primary btn-sm" id="gen-btn" onclick="startGenerate()">✦ Generar con IA</button>
-    </div>
-  </header>
-
-  <div class="ctn">
-    <!-- STEP BAR -->
-    <div class="step-bar" id="step-bar">
-      <div class="step active" id="step-1">
-        <div class="step-num">1</div>
-        <div class="step-label">Generar con IA</div>
-      </div>
-      <div class="step-arrow">→</div>
-      <div class="step idle" id="step-2">
-        <div class="step-num">2</div>
-        <div class="step-label">Aprobar copy</div>
-      </div>
-      <div class="step-arrow">→</div>
-      <div class="step idle" id="step-3">
-        <div class="step-num">3</div>
-        <div class="step-label">Generar arte</div>
-      </div>
-      <div class="step-arrow">→</div>
-      <div class="step idle" id="step-4">
-        <div class="step-num">4</div>
-        <div class="step-label">Aprobar arte</div>
-      </div>
-      <div class="step-arrow">→</div>
-      <div class="step idle" id="step-5">
-        <div class="step-num">5</div>
-        <div class="step-label">Publicar</div>
-      </div>
-    </div>
-
-    <!-- STATS -->
-    <div class="stats">
-      <div class="sc"><div class="sn" id="st-t">0</div><div class="sl">Total del mes</div></div>
-      <div class="sc"><div class="sn" style="color:var(--warn)" id="st-p">0</div><div class="sl">Por aprobar</div></div>
-      <div class="sc"><div class="sn" style="color:var(--ok)" id="st-a">0</div><div class="sl">Aprobados</div></div>
-      <div class="sc"><div class="sn" style="color:var(--pub)" id="st-pub">0</div><div class="sl">Publicados</div></div>
-    </div>
-
-    <!-- GRID -->
-    <div class="mg">
-      <!-- LEFT -->
-      <div>
-        <div class="card" style="margin-bottom:14px">
-          <div class="ch">
-            <div><div class="ct" id="cal-title">Calendario Junio 2026</div><div class="csub">Haz clic en un día con puntos para ver las publicaciones</div></div>
-            <div style="display:flex;gap:10px">
-              <span style="display:flex;align-items:center;gap:4px;font-size:10.5px;color:var(--s400)"><span class="cdd"><span class="dp"></span></span>Post</span>
-              <span style="display:flex;align-items:center;gap:4px;font-size:10.5px;color:var(--s400)"><span class="cdd"><span class="dr"></span></span>Reel/Historia</span>
-            </div>
-          </div>
-          <div class="cg" id="cal-grid"></div>
-        </div>
-
-        <div class="card">
-          <div class="ch"><div class="ct">Publicaciones</div></div>
-          <div class="tabs">
-            <button class="tab on" onclick="setFilter('all',this)">Todas <span class="cp" id="tab-t">0</span></button>
-            <button class="tab" onclick="setFilter('pending',this)">Por aprobar <span class="cp" id="tab-p">0</span></button>
-            <button class="tab" onclick="setFilter('approved',this)">Aprobadas <span class="cp" id="tab-a">0</span></button>
-            <button class="tab" onclick="setFilter('published',this)">Publicadas <span class="cp" id="tab-pub">0</span></button>
-          </div>
-          <div class="pl" id="plist">
-            <div class="empty">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
-              <p>Presiona "Generar con IA" para crear el calendario del mes con Claude AI</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- RIGHT: DETAIL -->
-      <div class="dp-stack">
-        <div id="dp-empty" class="dp-card">
-          <div class="empty">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5"/></svg>
-            <p>Selecciona una publicación para ver los detalles y aprobar el contenido</p>
-          </div>
-        </div>
-
-        <div id="dp" class="dp-stack" style="display:none">
-          <!-- COPY CARD -->
-          <div class="dp-card fade-in" id="dp-main">
-            <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px">
-              <div>
-                <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
-                  <span class="tb" id="d-type">POST</span>
-                  <span class="sbadge" id="d-status">Pendiente</span>
-                </div>
-                <div style="font-family:var(--font-d);font-size:13px;font-weight:700" id="d-date">—</div>
-              </div>
-              <button class="btn btn-ghost btn-sm" onclick="toggleEdit()" id="edit-btn">✎ Editar</button>
-            </div>
-
-            <div class="platform-row" id="d-platforms"></div>
-
-            <div class="lbl">Copy generado por Claude AI</div>
-            <div class="copy-box" id="d-copy" contenteditable="false"></div>
-
-            <div class="lbl">Call to Action</div>
-            <div class="cta-box" id="d-cta" contenteditable="false"></div>
-
-            <div class="lbl">Guía visual para Higgsfield AI</div>
-            <div class="vis-box" id="d-vis"></div>
-
-            <div class="abar" id="abar-approve">
-              <button class="btn btn-ok btn-sm" onclick="approvePost()">✓ Aprobar copy</button>
-              <button class="btn btn-danger btn-sm" onclick="rejectPost()">✗ Rechazar</button>
-            </div>
-            <div class="abar" id="abar-publish" style="display:none">
-              <button class="btn btn-dark btn-sm" id="btn-pub" onclick="publishPost()" style="width:100%">↑ Publicar en Instagram, Facebook & LinkedIn</button>
-            </div>
-          </div>
-
-          <!-- HIGGSFIELD CARD -->
-          <div class="dp-card fade-in" id="hf-card">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-              <div style="font-family:var(--font-d);font-size:13px;font-weight:700">Higgsfield AI</div>
-              <span style="font-size:10.5px;font-weight:600;padding:2px 8px;border-radius:20px" id="hf-badge" class="s-pend">En espera</span>
-            </div>
-            <div id="hf-body">
-              <div style="font-size:12px;color:var(--s400)">Aprueba el copy para desbloquear la generación de arte.</div>
-            </div>
-          </div>
-
-          <!-- PUBLISH RESULTS CARD -->
-          <div class="dp-card fade-in" id="pub-results-card" style="display:none">
-            <div style="font-family:var(--font-d);font-size:13px;font-weight:700;margin-bottom:10px">✓ Publicado exitosamente</div>
-            <div id="pub-results-body"></div>
-          </div>
-        </div>
-      </div>
+    <div class="ph-actions">
+      <button class="btn btn-ghost" onclick="reiniciarDemo()">↺ Reiniciar calendario</button>
+      <button class="btn btn-primary" onclick="generarMes()">✦ Generar contenido del mes</button>
     </div>
   </div>
-</main>
 
-<!-- GENERATE MODAL -->
-<div class="ov" id="gen-ov">
-  <div class="modal">
-    <div class="mh">
-      <div class="mt">✦ Generando calendario con IA</div>
-      <button class="mc" onclick="closeModal('gen-ov')">×</button>
+  <div class="kpis" style="grid-template-columns:repeat(4,1fr)">
+    <div class="kpi"><div class="kpi-top"><div class="kpi-label">TOTAL DEL MES</div></div><div class="kpi-value" id="st-t">0</div></div>
+    <div class="kpi"><div class="kpi-top"><div class="kpi-label">POR APROBAR</div></div><div class="kpi-value" id="st-p">0</div></div>
+    <div class="kpi"><div class="kpi-top"><div class="kpi-label">APROBADOS</div></div><div class="kpi-value" id="st-a">0</div></div>
+    <div class="kpi"><div class="kpi-top"><div class="kpi-label">PUBLICADOS</div></div><div class="kpi-value" id="st-pub">0</div></div>
+  </div>
+
+  <div id="empty-board" class="panel" style="display:none">
+    <div class="empty">
+      <div class="empty-ico">✦</div>
+      <div class="empty-t">SIN CONTENIDO GENERADO — presiona "Generar contenido del mes"</div>
     </div>
-    <p style="font-size:12.5px;color:var(--s400);margin-bottom:12px">Claude AI está generando 20 publicaciones para junio — copy, CTAs y guías visuales para Higgsfield.</p>
-    <div class="pb-wrap"><div class="pb-fill" id="gpf" style="width:0%"></div></div>
-    <div style="font-size:11px;color:var(--s400);text-align:right;margin-bottom:12px" id="gcnt">0 / 20</div>
-    <div id="gitems" style="max-height:300px;overflow-y:auto"></div>
-    <div id="gdone" style="display:none;text-align:center;padding:20px 0">
-      <div style="font-size:32px;margin-bottom:8px">✅</div>
-      <div style="font-family:var(--font-d);font-size:15px;font-weight:700;margin-bottom:5px">¡Calendario generado!</div>
-      <div style="font-size:12.5px;color:var(--s400);margin-bottom:18px">20 publicaciones listas para que Natalia las revise</div>
-      <button class="btn btn-primary" onclick="closeModal('gen-ov')">Ver publicaciones →</button>
+  </div>
+
+  <div class="kanban" id="board" style="display:none"></div>
+
+</main>
+</div>
+
+<!-- MODAL DETALLE DE PUBLICACIÓN -->
+<div class="modal-overlay" id="modal-post">
+  <div class="modal modal-wide">
+    <div class="modal-hdr">
+      <div>
+        <div class="modal-eye" id="d-type">POST</div>
+        <div class="modal-title" id="d-day">—</div>
+      </div>
+      <div class="modal-close" onclick="closeModal()">✕</div>
+    </div>
+    <div class="modal-body">
+      <div class="fg">
+        <label class="fl">COPY</label>
+        <textarea class="fta" id="d-copy" style="min-height:120px"></textarea>
+      </div>
+      <div class="fg">
+        <label class="fl">CALL TO ACTION</label>
+        <input class="fi" id="d-cta">
+      </div>
+      <div class="sect-label">ARTE — HIGGSFIELD AI</div>
+      <div class="fg">
+        <label class="fl">DESCRIPCIÓN VISUAL</label>
+        <textarea class="fta" id="d-vis" style="min-height:60px"></textarea>
+      </div>
+      <div id="hf-body" style="margin-bottom:16px"></div>
+      <div id="pub-results" style="display:none">
+        <div class="sect-label">RESULTADO DE PUBLICACIÓN</div>
+        <div id="pub-results-body" class="col-stack" style="gap:8px"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal()">Cerrar</button>
+      <button class="btn btn-ghost" id="btn-save" onclick="guardarCopy()">💾 Guardar cambios</button>
+      <button class="btn btn-dark" id="btn-approve" onclick="aprobarCopy()">✓ Aprobar copy</button>
+      <button class="btn btn-primary" id="btn-pub" onclick="publishPost()" style="display:none">↑ Publicar en Meta</button>
     </div>
   </div>
 </div>
 
-<div class="notif" id="notif"><span class="nd"></span><span id="ntxt"></span></div>
+<div class="toast" id="toast"></div>
 
 <script>
 // ── SESIÓN — misma sesión/login que el CRM (localStorage crm_token/crm_user).
@@ -426,13 +127,14 @@ body{font-family:var(--font-b);background:var(--paper);color:var(--ink);display:
 // app aparte — pero el backend solo la deja usar a la cuenta de Natalia
 // (soloNatalia en api/_guard.js). Aquí se refleja lo mismo en la UI: si no hay
 // sesión, o la sesión no es la de Natalia, se manda de regreso al login.
-(function(){
-  let user=null;
-  try{ user=JSON.parse(localStorage.getItem('crm_user')||'null'); }catch(_){}
-  const token=localStorage.getItem('crm_token');
-  const esNatalia=user && user.role==='admin' && (user.ejec||user.nombre)==='Natalia Gama';
-  if(!token || !user || !esNatalia){ window.location.href='/'; }
-})();
+let _user=null;
+try{ _user=JSON.parse(localStorage.getItem('crm_user')||'null'); }catch(_){}
+const _token=localStorage.getItem('crm_token');
+const _esNatalia=_user && _user.role==='admin' && (_user.ejec||_user.nombre)==='Natalia Gama';
+if(!_token || !_user || !_esNatalia){ window.location.href='/'; }
+document.getElementById('topbar-nombre').textContent=_user?.nombre||'—';
+document.getElementById('topbar-avatar').textContent=(_user?.nombre||'—').split(' ').map(x=>x[0]).join('').slice(0,2).toUpperCase();
+
 // Todas las llamadas a /api/* de esta página necesitan el mismo token Bearer
 // que usa el resto del CRM — se inyecta automáticamente en cada fetch.
 (function(){
@@ -446,9 +148,238 @@ body{font-family:var(--font-b);background:var(--paper);color:var(--ink);display:
   };
 })();
 
-// Antes apuntaba fijo a http://localhost:3000 — solo funcionaba corriendo en
-// una Mac. Ahora vive en el mismo servidor que el CRM: rutas relativas.
 const API_BASE = '/api/marketing';
+
+function toast(msg,type='ok'){
+  const t=document.getElementById('toast');
+  t.textContent=msg;
+  t.className='toast show'+(type==='red'?' err':'');
+  setTimeout(()=>t.classList.remove('show'),3200);
+}
+function notify(msg){ toast(msg); }
+
+// Contenido del mes — plantilla editorial (sin backend propio de calendario;
+// el arte y la publicación sí son reales, vía Higgsfield y Meta).
+const DUMMY = [
+  {type:'post',day:2,copy:'En Actidea Continnuo no solo producimos eventos — creamos experiencias que conectan marcas con personas. ¿Tu próxima gran ocasión merece algo más? 🎯\n\n#EventosQueConectan #Actidea #Produccion',cta:'¡Cotiza tu evento ahora! Escríbenos al DM.',vis:'Imagen editorial de un evento ejecutivo iluminado, pantalla gigante con logo, paleta rojo y negro, estilo cinematográfico HD'},
+  {type:'reel',day:4,copy:'Así es un día de montaje en Actidea Continnuo ⚡ Desde el taller hasta el escenario — cada detalle importa.\n\n#BehindTheScenes #Produccion #Eventos',cta:'Guarda este reel si quieres eventos de este nivel 🔖',vis:'Video time-lapse de montaje de escenario, tomas rápidas y dinámicas, música energética, 9:16 vertical, 6 segundos'},
+  {type:'story',day:5,copy:'💡 ¿Sabías que llevamos más de 25 años conectando marcas con personas? Hoy compartimos uno de esos momentos únicos.\n\n#Actidea #Experiencias',cta:'Desliza arriba para ver nuestro portafolio completo',vis:'Historia de Instagram: secuencia de fotos de eventos icónicos, tipografía negra sobre fondo blanco, animación de entrada suave'},
+  {type:'post',day:7,copy:'Nuestros 4 pilares: eventos corporativos, producción integral, experiencias de marca y construcción especializada. Todo en un solo equipo. 🏗️\n\n#Servicios #ActideaContinnuo',cta:'Contáctanos para una propuesta personalizada',vis:'Infografía limpia con los 4 pilares de servicios, diseño editorial, colores rojo y negro'},
+  {type:'reel',day:9,copy:'¡Así quedó el evento de lanzamiento para nuestro cliente! 🔥 Desde el concept hasta la ejecución — sin fallas.\n\n#CasoDeExito #EventosCorporativos',cta:'Comenta "INFO" y te enviamos nuestra propuesta 👇',vis:'Reel de evento corporativo, tomas aéreas y en planta, logo de marca en pantallas, público emocionado'},
+  {type:'post',day:11,copy:'Pasión por los detalles. Precisión operativa. Resolución sin excusas. Así trabajamos en cada proyecto. ✨\n\n#Valores #ActideaContinnuo #EventosQueConectan',cta:'Conoce más sobre nuestra metodología → link en bio',vis:'Diseño editorial con los 6 valores de la empresa, fondo negro, tipografía blanca y roja'},
+  {type:'reel',day:13,copy:'Creativos, planners, diseñadores, técnicos, productores... somos el equipo que convierte tu visión en realidad. 💪\n\n#Equipo #Produccion',cta:'Síguenos para más contenido del detrás de cámaras 🎬',vis:'Reel del equipo trabajando: planos del taller, reuniones de producción, montaje en locación'},
+  {type:'story',day:14,copy:'🏆 Danone, Porsche, SAP, Disney, Microsoft... ¿Tu marca podría ser la siguiente?\n\n#Clientes #EventosQueConectan',cta:'Escríbenos HOY y te damos una asesoría sin costo',vis:'Historia con logos de clientes sobre fondo negro, animación suave de entrada, estilo premium'},
+  {type:'post',day:16,copy:'Escuchar → Diagnosticar → Diseñar → Ejecutar → Resolver. Nuestra fórmula comprobada en 25+ años. 🎯\n\n#Metodologia #Actidea',cta:'Agenda una llamada gratuita con nuestro equipo',vis:'Infografía horizontal con los 5 pasos metodológicos, iconos limpios en blanco sobre fondo negro'},
+  {type:'reel',day:18,copy:'¡El Grito de Independencia en el Zócalo! 🇲🇽 3 años consecutivos produciendo el evento más icónico de México.\n\n#GritodeIndependencia #Mexico',cta:'¿Quieres producción de este nivel? DM ahora',vis:'Reel con imágenes espectaculares del Zócalo, fuegos artificiales, multitudes, bandera, logo de Actidea al final'},
+  {type:'post',day:20,copy:'No solo trabajamos PARA ti — trabajamos CONTIGO. Nos involucramos desde el primer brief hasta el último aplauso. 🤝\n\n#Colaboracion #Actidea',cta:'Conversemos sobre tu próximo evento → link en bio',vis:'Foto editorial de reunión de trabajo cliente-equipo, ambiente cálido, carpetas y laptops, iluminación natural'},
+  {type:'story',day:21,copy:'¿Qué tipo de evento estás planeando? Cuéntanos 👇\n\n#Encuesta #EventosQueConectan',cta:'Responde con tu tipo de evento y te damos ideas',vis:'Historia interactiva con sticker de encuesta de Instagram, paleta de marca roja y negra, fondo oscuro premium'},
+  {type:'reel',day:23,copy:'¡48 horas de montaje condensadas en 60 segundos! ⚡ Así se construye magia cuando tienes el equipo correcto.\n\n#Timelapse #Produccion #Actidea',cta:'Guarda si quieres este nivel de producción 🔖',vis:'Time-lapse de construcción de escenografía, desde estructura vacía hasta evento terminado, muy dinámico'},
+  {type:'post',day:25,copy:'Microsoft Partner Summit en Miami y Nassau, Bahamas. Producción internacional sin fronteras. 🌎✈️\n\n#EventosInternacionales #Microsoft',cta:'También hacemos eventos internacionales → contáctanos',vis:'Collage premium de imágenes del evento Microsoft, vista del barco, pantallas corporativas, branding profesional'},
+  {type:'reel',day:26,copy:'Premier de Wall-E con Walt Disney Pictures México 🤖✨ Cada detalle al nivel más alto. Eso es lo que nos mueve.\n\n#Disney #WallE #EventoCinematografico',cta:'Sigue nuestra cuenta para más casos de éxito épicos',vis:'Reel de alfombra roja, robot Wall-E gigante, logo Disney, close-ups de detalles de producción'},
+  {type:'story',day:27,copy:'💡 Dato: Los eventos con producción profesional generan hasta 3x más engagement. ¿Ya inviertes en la experiencia de tu audiencia?\n\n#DatoDelDia #Actidea',cta:'DM para asesoría gratuita sobre tu próximo evento',vis:'Historia informativa tipográfica: número "3x" destacado en rojo, fondo negro'},
+  {type:'post',day:28,copy:'El futuro de los eventos es tecnología + estrategia + diseño + pasión. En Actidea Continnuo estamos listos para el siguiente nivel. 🚀\n\n#FuturoDeEventos #Innovacion',cta:'Conócenos más en nuestra web → link en bio',vis:'Imagen futurista de evento con proyecciones de mapping, ambiente oscuro y tecnológico'},
+  {type:'reel',day:29,copy:'Brand activations que la gente NO olvida 💥 Así fue la activación para Danone — creatividad y experiencia en un solo momento.\n\n#BrandActivation #Danone',cta:'¿Quieres una activación así? Escríbenos 💬',vis:'Reel de la carpa Danone colorida, entrada espectacular, público entrando emocionado'},
+  {type:'post',day:30,copy:'Stand de Coahuila en feria nacional: diseño a medida que comunica identidad y atrae visitantes. 🏆\n\n#Stand #DisenoDeEspacios #Actidea',cta:'Pide cotización para tu stand o espacio comercial',vis:'Fotografía profesional del stand Coahuila, diseño de madera natural, iluminación cálida'},
+];
+
+let posts=[], selId=null;
+
+function generarMes(){
+  posts = DUMMY.map((d,i)=>({ id:i+1, ...d, status:'pending', artGenerated:false, artApproved:false, published:false }));
+  document.getElementById('empty-board').style.display='none';
+  document.getElementById('board').style.display='flex';
+  renderBoard(); updateStats();
+  toast('✦ 20 publicaciones generadas para junio');
+}
+function reiniciarDemo(){
+  posts=[]; selId=null;
+  document.getElementById('empty-board').style.display='block';
+  document.getElementById('board').style.display='none';
+  updateStats();
+}
+
+const TYPE_LABEL={post:'POST',reel:'REEL',story:'HISTORIA'};
+
+function renderBoard(){
+  const cols=[
+    {key:'pending',  label:'POR APROBAR',  filter:p=>p.status==='pending'},
+    {key:'approved', label:'APROBADO',     filter:p=>p.status==='approved' && !p.artApproved},
+    {key:'art',      label:'ARTE LISTO',   filter:p=>p.artApproved && p.status!=='published'},
+    {key:'published',label:'PUBLICADO',    filter:p=>p.status==='published'},
+  ];
+  document.getElementById('board').innerHTML = cols.map(c=>{
+    const items=posts.filter(c.filter);
+    return `<div class="kanban-col">
+      <div class="kanban-hdr"><span class="panel-title" style="font-size:9px"><span class="dot"></span>${c.label} (${items.length})</span></div>
+      <div class="kanban-body">${items.map(p=>`
+        <div class="kanban-card" onclick="openPost(${p.id})">
+          <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+            <span class="tag tag-blue">${TYPE_LABEL[p.type]}</span>
+            <span class="tag tag-gray">${p.day} jun</span>
+          </div>
+          <div style="font-size:12px;color:var(--gray600);line-height:1.4">${esc(p.copy.slice(0,90))}…</div>
+        </div>`).join('') || '<div class="empty" style="padding:20px"><div class="empty-t">Vacío</div></div>'}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function updateStats(){
+  const t=posts.length, p=posts.filter(x=>x.status==='pending').length,
+        a=posts.filter(x=>x.status==='approved'||x.artApproved).length,
+        pub=posts.filter(x=>x.status==='published').length;
+  document.getElementById('st-t').textContent=t;
+  document.getElementById('st-p').textContent=p;
+  document.getElementById('st-a').textContent=a;
+  document.getElementById('st-pub').textContent=pub;
+}
+
+function openPost(id){
+  selId=id;
+  const p=posts.find(x=>x.id===id); if(!p) return;
+  document.getElementById('d-type').textContent=TYPE_LABEL[p.type];
+  document.getElementById('d-day').textContent=`${p.day} de junio · 2026`;
+  document.getElementById('d-copy').value=p.copy;
+  document.getElementById('d-cta').value=p.cta;
+  document.getElementById('d-vis').value=p.vis;
+  document.getElementById('btn-approve').style.display=p.status==='pending'?'inline-flex':'none';
+  document.getElementById('btn-pub').style.display=(p.artApproved && !p.published)?'inline-flex':'none';
+  updateHF(p);
+  const pr=document.getElementById('pub-results');
+  if(p.status==='published'){
+    pr.style.display='block';
+    const r=p.publishResults||{};
+    const row=(icon,label,res)=>{
+      if(!res) return '';
+      const ok=res.success;
+      return `<div style="display:flex;align-items:center;gap:10px;font-size:12.5px">
+        <span class="tag ${ok?'tag-green':'tag-red'}">${icon} ${label}</span>
+        <span style="color:var(--gray600)">${ok?(res.post_id||'✓'):(res.error||res.note||'Error')}</span>
+      </div>`;
+    };
+    document.getElementById('pub-results-body').innerHTML = row('📸','Instagram',r.instagram)+row('👥','Facebook',r.facebook)+row('💼','LinkedIn',r.linkedin) || '<span style="font-size:12px;color:var(--gray400)">Sin detalle</span>';
+  } else { pr.style.display='none'; }
+  document.getElementById('modal-post').classList.add('open');
+}
+function closeModal(){ document.getElementById('modal-post').classList.remove('open'); }
+
+function guardarCopy(){
+  const p=posts.find(x=>x.id===selId); if(!p) return;
+  p.copy=document.getElementById('d-copy').value;
+  p.cta=document.getElementById('d-cta').value;
+  p.vis=document.getElementById('d-vis').value;
+  renderBoard();
+  toast('Cambios guardados');
+}
+function aprobarCopy(){
+  const p=posts.find(x=>x.id===selId); if(!p) return;
+  guardarCopy();
+  p.status='approved';
+  renderBoard(); updateStats();
+  document.getElementById('btn-approve').style.display='none';
+  toast('✓ Copy aprobado');
+}
+
+function updateHF(p){
+  const hfb=document.getElementById('hf-body');
+  if(p.artGenerated && p.artUrl){
+    const isVideo=p.type==='reel';
+    hfb.innerHTML = (isVideo
+      ? `<video src="${p.artUrl}" autoplay muted loop playsinline style="width:100%;border-radius:10px;max-height:280px;object-fit:cover"></video>`
+      : `<img src="${p.artUrl}" style="width:100%;border-radius:10px;max-height:280px;object-fit:cover">`)
+      + `<div style="display:flex;gap:8px;margin-top:10px">
+        ${p.artApproved ? '<span class="tag tag-green">✓ Arte aprobado</span>' : `<button class="btn btn-dark btn-sm" onclick="aprobarArte()">✓ Aprobar arte</button>`}
+        <button class="btn btn-ghost btn-sm" onclick="generateArt()">↺ Regenerar</button>
+      </div>`;
+  } else {
+    hfb.innerHTML = `<button class="btn btn-ghost" onclick="generateArt()" style="width:100%;justify-content:center">🎨 Generar arte con Higgsfield AI</button>`;
+  }
+}
+function aprobarArte(){
+  const p=posts.find(x=>x.id===selId); if(!p) return;
+  p.artApproved=true; updateHF(p); updateStats(); renderBoard();
+  document.getElementById('btn-pub').style.display='inline-flex';
+  toast('✓ Arte aprobado');
+}
+
+async function generateArt(){
+  const p=posts.find(x=>x.id===selId); if(!p) return;
+  const hfb=document.getElementById('hf-body');
+
+  // Llamada síncrona directa a Higgsfield (sin cola de jobs ni humano de por
+  // medio). Si Higgsfield responde con la imagen de una vez, se usa directo;
+  // si responde con un job en proceso, se hace polling a /higgsfield/status.
+  hfb.innerHTML=`<div style="text-align:center;padding:24px"><div class="spinner-ring" style="position:static;display:inline-block;border-top-color:var(--red)"></div><p style="font-size:12px;color:var(--gray400);margin-top:10px">Solicitando arte a Higgsfield AI…</p></div>`;
+  let data;
+  try {
+    const res  = await fetch(`${API_BASE}/higgsfield/generate`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ prompt: p.vis, type: p.type, postId: p.id }),
+    });
+    data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Error al generar');
+  } catch(err) {
+    hfb.innerHTML=`<p style="font-size:12px;color:var(--red)">⚠ ${esc(err.message)}</p>
+      <button class="btn btn-ghost btn-sm" onclick="generateArt()" style="margin-top:8px;width:100%;justify-content:center">↺ Reintentar</button>`;
+    return;
+  }
+
+  if (data.status === 'completed' && data.url) {
+    p.artGenerated = true; p.artUrl = data.url;
+    updateHF(p); updateStats();
+    toast('🎨 Arte generado por Higgsfield AI');
+    return;
+  }
+
+  const jobId = data.jobId;
+  let dots = 0;
+  const pollInterval = setInterval(async () => {
+    dots = (dots+1)%4;
+    hfb.innerHTML=`<div style="text-align:center;padding:24px"><div class="spinner-ring" style="position:static;display:inline-block;border-top-color:var(--red)"></div>
+      <p style="font-size:12px;color:var(--gray400);margin-top:10px">Higgsfield AI generando${'.'.repeat(dots+1)}<br><span style="font-size:10px;opacity:.6">Puede tomar 20–60 seg</span></p></div>`;
+    try {
+      const res  = await fetch(`${API_BASE}/higgsfield/status/${jobId}`);
+      const job  = await res.json();
+      if (job.status === 'completed' && job.url) {
+        clearInterval(pollInterval);
+        p.artGenerated = true; p.artUrl = job.url;
+        updateHF(p); updateStats();
+        toast('🎨 Arte generado por Higgsfield AI');
+      } else if (job.status === 'error') {
+        clearInterval(pollInterval);
+        hfb.innerHTML=`<p style="font-size:12px;color:var(--red)">⚠ Error: ${esc(job.error)}</p>
+          <button class="btn btn-ghost btn-sm" onclick="generateArt()" style="margin-top:8px;width:100%;justify-content:center">↺ Reintentar</button>`;
+      }
+    } catch(e) { /* servidor no disponible, sigue intentando */ }
+  }, 3000);
+}
+
+async function publishPost(){
+  const p=posts.find(x=>x.id===selId); if(!p) return;
+  const btn=document.getElementById('btn-pub'); btn.disabled=true; btn.textContent='⏳ Publicando…';
+
+  try {
+    const res = await fetch(`${API_BASE}/meta/publish`, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ copy: p.copy, cta: p.cta, image_url: p.artUrl || null, type: p.type }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      btn.disabled=false; btn.textContent='↑ Publicar en Meta';
+      toast('⚠ ' + (data.error || 'Error al publicar'), 'red');
+      if (data.error && data.error.includes('Meta no conectado')) {
+        if(confirm('Meta no está conectado.\n\n¿Abrir la autenticación de Meta ahora?')) connectMeta();
+      }
+      return;
+    }
+    p.status='published'; p.published=true; p.publishResults=data.results;
+    renderBoard(); updateStats(); openPost(p.id);
+    toast('✓ Publicado en Meta');
+  } catch(err) {
+    toast('⚠ ' + err.message, 'red');
+  }
+  btn.disabled=false; btn.textContent='↑ Publicar en Meta';
+}
 
 // Pide la URL de login de Facebook (requiere el header de sesión, por eso no
 // se puede usar window.open() directo contra el backend) y navega ahí.
@@ -459,389 +390,22 @@ async function connectMeta(){
     if(!res.ok || !data.url) throw new Error(data.error || 'No se pudo iniciar la conexión con Meta');
     window.open(data.url, '_blank');
   }catch(err){
-    notify('⚠ ' + err.message);
+    toast('⚠ ' + err.message, 'red');
   }
 }
 
-const MONTH = 'Junio 2026';
-const YEAR = 2026, MON = 6;
-const DAYS = 30, START_DOW = 0; // June 2026 starts Sunday
-
-const DUMMY = [
-  {type:'post',day:2,copy:'En Actidea Continnuo no solo producimos eventos — creamos experiencias que conectan marcas con personas. ¿Tu próxima gran ocasión merece algo más? 🎯\n\n#EventosQueConectan #Actidea #Produccion',cta:'¡Cotiza tu evento ahora! Escríbenos al DM.',vis:'Imagen editorial de un evento ejecutivo iluminado, pantalla gigante con logo, paleta rojo y negro, estilo cinematográfico HD'},
-  {type:'reel',day:4,copy:'Así es un día de montaje en Actidea Continnuo ⚡ Desde el taller hasta el escenario — cada detalle importa.\n\n#BehindTheScenes #Produccion #Eventos',cta:'Guarda este reel si quieres eventos de este nivel 🔖',vis:'Video time-lapse de montaje de escenario, tomas rápidas y dinámicas, música energética, 9:16 vertical, 6 segundos'},
-  {type:'story',day:5,copy:'💡 ¿Sabías que llevamos más de 25 años conectando marcas con personas? Hoy compartimos uno de esos momentos únicos.\n\n#Actidea #Experiencias',cta:'Desliza arriba para ver nuestro portafolio completo',vis:'Historia de Instagram: secuencia de fotos de eventos icónicos, tipografía negra sobre fondo blanco, animación de entrada suave'},
-  {type:'post',day:7,copy:'Nuestros 4 pilares: eventos corporativos, producción integral, experiencias de marca y construcción especializada. Todo en un solo equipo. 🏗️\n\n#Servicios #ActideaContinnuo',cta:'Contáctanos para una propuesta personalizada',vis:'Infografía limpia con los 4 pilares de servicios, diseño editorial, colores rojo y negro, tipografía Syne'},
-  {type:'reel',day:9,copy:'¡Así quedó el evento de lanzamiento para nuestro cliente! 🔥 Desde el concept hasta la ejecución — sin fallas.\n\n#CasoDeExito #EventosCorporativos',cta:'Comenta "INFO" y te enviamos nuestra propuesta 👇',vis:'Reel de evento corporativo, tomas aéreas y en planta, logo de marca en pantallas, público emocionado, color grading profesional'},
-  {type:'post',day:11,copy:'Pasión por los detalles. Precisión operativa. Resolución sin excusas. Así trabajamos en cada proyecto. ✨\n\n#Valores #ActideaContinnuo #EventosQueConectan',cta:'Conoce más sobre nuestra metodología → link en bio',vis:'Diseño editorial con los 6 valores de la empresa, fondo negro, tipografía blanca y roja, estilo de revista de diseño'},
-  {type:'reel',day:13,copy:'Creativos, planners, diseñadores, técnicos, productores... somos el equipo que convierte tu visión en realidad. 💪\n\n#Equipo #Produccion',cta:'Síguenos para más contenido del detrás de cámaras 🎬',vis:'Reel del equipo trabajando: planos del taller, reuniones de producción, montaje en locación, atmósfera dinámica y humana'},
-  {type:'story',day:14,copy:'🏆 Danone, Porsche, SAP, Disney, Microsoft... ¿Tu marca podría ser la siguiente?\n\n#Clientes #EventosQueConectan',cta:'Escríbenos HOY y te damos una asesoría sin costo',vis:'Historia con logos de clientes sobre fondo negro, animación suave de entrada, estilo premium y minimalista'},
-  {type:'post',day:16,copy:'Escuchar → Diagnosticar → Diseñar → Ejecutar → Resolver. Nuestra fórmula comprobada en 25+ años. 🎯\n\n#Metodologia #Actidea',cta:'Agenda una llamada gratuita con nuestro equipo',vis:'Infografía horizontal con los 5 pasos metodológicos, iconos limpios en blanco sobre fondo negro, estilo moderno'},
-  {type:'reel',day:18,copy:'¡El Grito de Independencia en el Zócalo! 🇲🇽 3 años consecutivos produciendo el evento más icónico de México. Eso es Actidea Continnuo.\n\n#GritodeIndependencia #Mexico',cta:'¿Quieres producción de este nivel? DM ahora',vis:'Reel con imágenes espectaculares del Zócalo, fuegos artificiales, multitudes, bandera, logo de Actidea al final, épico'},
-  {type:'post',day:20,copy:'No solo trabajamos PARA ti — trabajamos CONTIGO. Nos involucramos desde el primer brief hasta el último aplauso. 🤝\n\n#Colaboracion #Actidea',cta:'Conversemos sobre tu próximo evento → link en bio',vis:'Foto editorial de reunión de trabajo cliente-equipo, ambiente cálido, carpetas y laptops, iluminación natural'},
-  {type:'story',day:21,copy:'¿Qué tipo de evento estás planeando? Cuéntanos 👇\n\n#Encuesta #EventosQueConectan',cta:'Responde con tu tipo de evento y te damos ideas',vis:'Historia interactiva con sticker de encuesta de Instagram, paleta de marca roja y negra, fondo oscuro premium'},
-  {type:'reel',day:23,copy:'¡48 horas de montaje condensadas en 60 segundos! ⚡ Así se construye magia cuando tienes el equipo correcto.\n\n#Timelapse #Produccion #Actidea',cta:'Guarda si quieres este nivel de producción 🔖',vis:'Time-lapse de construcción de escenografía, desde estructura vacía hasta evento terminado, muy dinámico, 6 seg 9:16'},
-  {type:'post',day:25,copy:'Microsoft Partner Summit en Miami y Nassau, Bahamas. Producción internacional sin fronteras. 🌎✈️\n\n#EventosInternacionales #Microsoft',cta:'También hacemos eventos internacionales → contáctanos',vis:'Collage premium de imágenes del evento Microsoft, vista del barco, pantallas corporativas, branding profesional'},
-  {type:'reel',day:26,copy:'Premier de Wall-E con Walt Disney Pictures México 🤖✨ Cada detalle al nivel más alto. Eso es lo que nos mueve.\n\n#Disney #WallE #EventoCinematografico',cta:'Sigue nuestra cuenta para más casos de éxito épicos',vis:'Reel de alfombra roja, robot Wall-E gigante, logo Disney, close-ups de detalles de producción, ambiente de gala'},
-  {type:'story',day:27,copy:'💡 Dato: Los eventos con producción profesional generan hasta 3x más engagement. ¿Ya inviertes en la experiencia de tu audiencia?\n\n#DatoDelDia #Actidea',cta:'DM para asesoría gratuita sobre tu próximo evento',vis:'Historia informativa tipográfica: número "3x" destacado en rojo, fondo negro, estilo editorial de revista'},
-  {type:'post',day:28,copy:'El futuro de los eventos es tecnología + estrategia + diseño + pasión. En Actidea Continnuo estamos listos para el siguiente nivel. 🚀\n\n#FuturoDeEventos #Innovacion',cta:'Conócenos más en nuestra web → link en bio',vis:'Imagen futurista de evento con proyecciones de mapping, ambiente oscuro y tecnológico, paleta rojo y azul digital'},
-  {type:'reel',day:29,copy:'Brand activations que la gente NO olvida 💥 Así fue la activación para Danone — creatividad y experiencia en un solo momento.\n\n#BrandActivation #Danone',cta:'¿Quieres una activación así? Escríbenos 💬',vis:'Reel de la carpa Danone colorida, entrada espectacular, público entrando emocionado, tomas dinámicas y vibrantes'},
-  {type:'post',day:30,copy:'Stand de Coahuila en feria nacional: diseño a medida que comunica identidad y atrae visitantes. 🏆\n\n#Stand #DisenoDeEspacios #Actidea',cta:'Pide cotización para tu stand o espacio comercial',vis:'Fotografía profesional del stand Coahuila, diseño de madera natural, iluminación cálida, muy limpio y premium'},
-  {type:'reel',day:30,copy:'Si buscas una empresa que se involucre de verdad, que entienda tu visión y la haga tangible... ya la encontraste. 🎯\n\n#ActideaContinnuo #EventosQueConectan',cta:'📲 contacto@actideacontinnuo.com',vis:'Reel de cierre del mes con montaje de los mejores momentos del portafolio, música épica, logo final en pantalla grande'},
-];
-
-// Fake art images (placeholder colors per type)
-const ART_COLORS = { post:'#1a1a2e', reel:'#16213e', story:'#0f3460' };
-const ART_LABELS = { post:'Imagen HD generada por Higgsfield AI', reel:'Video 9:16 · 6 seg · generado por Higgsfield AI', story:'Historia 9:16 generada por Higgsfield AI' };
-
-let posts = [], selId = null, filter = 'all', editing = false;
-
-function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
-
-function buildPosts() {
-  return DUMMY.map((d,i)=>({ id:i+1, ...d, status:'pending', artGenerated:false, artApproved:false, published:false }));
+async function checkMetaStatus(){
+  const tag=document.getElementById('meta-tag');
+  try{
+    const res=await fetch(`${API_BASE}/meta/status`);
+    const data=await res.json();
+    if(data.connected){ tag.textContent='Meta: conectado ✓'; tag.style.background='var(--green-dim)'; tag.style.color='var(--green)'; tag.style.borderColor='var(--green-bdr)'; }
+    else { tag.textContent='Meta: no conectado'; tag.style.background='var(--amber-dim)'; tag.style.color='var(--amber)'; tag.style.borderColor='var(--amber-bdr)'; }
+  }catch(e){ tag.textContent='Meta: sin conexión al servidor'; }
 }
+checkMetaStatus();
 
-function updateStats() {
-  const t=posts.length, p=posts.filter(x=>x.status==='pending').length,
-        a=posts.filter(x=>x.status==='approved').length,
-        pub=posts.filter(x=>x.status==='published').length;
-  ['t','p','a','pub'].forEach((k,i)=>{ document.getElementById(`st-${k}`).textContent=[t,p,a,pub][i]; });
-  document.getElementById('nb-pend').textContent=p;
-  ['t','p','a','pub'].forEach((k,i)=>{ const el=document.getElementById(`tab-${k}`); if(el) el.textContent=[t,p,a,pub][i]; });
-  // Update step bar
-  if(t===0) return setStep(1);
-  const allApprCopy = posts.every(x=>x.status!=='pending');
-  const anyArtDone  = posts.some(x=>x.artGenerated);
-  const anyArtAppr  = posts.some(x=>x.artApproved);
-  const anyPub      = posts.some(x=>x.status==='published');
-  if(anyPub)        setStep(5);
-  else if(anyArtAppr) setStep(5);
-  else if(anyArtDone) setStep(4);
-  else if(allApprCopy) setStep(3);
-  else               setStep(2);
-}
-
-function setStep(active) {
-  for(let i=1;i<=5;i++){
-    const el=document.getElementById(`step-${i}`);
-    el.className = 'step ' + (i<active?'done':i===active?'active':'idle');
-  }
-}
-
-function buildCalendar() {
-  const grid=document.getElementById('cal-grid');
-  const days=['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
-  let h=days.map(d=>`<div class="cdh">${d}</div>`).join('');
-  for(let i=0;i<START_DOW;i++) h+=`<div class="cd empty"></div>`;
-  for(let d=1;d<=DAYS;d++){
-    const dp=posts.filter(p=>p.day===d);
-    const hasP=dp.some(p=>p.type==='post'), hasR=dp.some(p=>p.type!=='post');
-    const isSel=dp.some(p=>p.id===selId);
-    let cls='cd'+(dp.length?' hasc':'')+(isSel?' sel':'');
-    const dots=(hasP?'<span class="dp"></span>':'')+(hasR?'<span class="dr"></span>':'');
-    h+=`<div class="${cls}" onclick="dayClick(${d})"><span class="cdn">${d}</span>${dots?`<div class="cdd">${dots}</div>`:''}</div>`;
-  }
-  grid.innerHTML=h;
-}
-
-function dayClick(d){
-  const dp=posts.filter(p=>p.day===d);
-  if(dp.length){ selId=dp[0].id; renderAll(); showDetail(posts.find(p=>p.id===selId)); }
-}
-
-function renderPosts(){
-  const list=document.getElementById('plist');
-  const fp=filter==='all'?posts:posts.filter(p=>p.status===filter);
-  if(!fp.length){ list.innerHTML=`<div class="empty"><p>No hay publicaciones en esta categoría.</p></div>`; return; }
-  list.innerHTML=fp.map(p=>{
-    const tc=p.type==='post'?'tp':p.type==='reel'?'tr':'ts';
-    const tl=p.type==='post'?'POST':p.type==='reel'?'REEL':'HISTORIA';
-    const sc={pending:'s-pend',approved:'s-appr',published:'s-pub',rejected:'s-rej'}[p.status];
-    const sl={pending:'Pendiente',approved:'Aprobado',published:'Publicado',rejected:'Rechazado'}[p.status];
-    const sel=p.id===selId?' sel':'';
-    return `<div class="pcard${sel}" onclick="selectPost(${p.id})">
-      <div class="pcard-top"><span class="tb ${tc}">${tl}</span><span class="sbadge ${sc}">${sl}</span><span class="pdate">${p.day} jun</span></div>
-      <div class="pcopy">${p.copy.slice(0,90)}…</div>
-      <div class="pcta">${p.cta}</div>
-    </div>`;
-  }).join('');
-}
-
-function selectPost(id){ selId=id; renderAll(); showDetail(posts.find(p=>p.id===id)); }
-
-function showDetail(p){
-  if(!p) return;
-  document.getElementById('dp-empty').style.display='none';
-  document.getElementById('dp').style.display='flex';
-  const tc=p.type==='post'?'tp':p.type==='reel'?'tr':'ts';
-  const tl=p.type==='post'?'POST':p.type==='reel'?'REEL':'HISTORIA';
-  const sc={pending:'sbadge s-pend',approved:'sbadge s-appr',published:'sbadge s-pub',rejected:'sbadge s-rej'}[p.status];
-  const sl={pending:'Pendiente',approved:'Aprobado',published:'Publicado',rejected:'Rechazado'}[p.status];
-  document.getElementById('d-type').className=`tb ${tc}`;
-  document.getElementById('d-type').textContent=tl;
-  document.getElementById('d-status').className=sc;
-  document.getElementById('d-status').textContent=sl;
-  document.getElementById('d-date').textContent=`${p.day} de junio de 2026`;
-  document.getElementById('d-platforms').innerHTML=['📸 Instagram','👥 Facebook','💼 LinkedIn'].map(x=>`<span class="ptag">${x}</span>`).join('');
-  document.getElementById('d-copy').textContent=p.copy;
-  document.getElementById('d-cta').textContent=p.cta;
-  document.getElementById('d-vis').textContent=p.vis;
-  // action bars
-  document.getElementById('abar-approve').style.display=p.status==='pending'?'flex':'none';
-  document.getElementById('abar-publish').style.display=(p.status==='approved'&&p.artApproved)?'block':'none';
-  // higgsfield
-  updateHF(p);
-  // publish results
-  const prc=document.getElementById('pub-results-card');
-  if(p.status==='published'){
-    prc.style.display='block';
-    const r = p.publishResults || {};
-    const row = (icon, label, res) => {
-      if(!res) return '';
-      const ok = res.success;
-      const detail = ok ? (res.post_id || '✓') : (res.error || res.note || 'Error');
-      return `<div class="pub-row">
-        <div class="pub-icon ${ok?'pub-ok':'pub-err'}">${icon}</div>
-        <div class="pub-label">${label}</div>
-        <div class="pub-id">${detail}</div>
-      </div>`;
-    };
-    document.getElementById('pub-results-body').innerHTML =
-      row('📸','Instagram', r.instagram) +
-      row('👥','Facebook',  r.facebook) +
-      row('💼','LinkedIn',  r.linkedin) ||
-      '<p style="font-size:12px;color:var(--s400)">Sin detalles de publicación.</p>';
-  } else { prc.style.display='none'; }
-}
-
-function updateHF(p){
-  const badge=document.getElementById('hf-badge');
-  const body=document.getElementById('hf-body');
-  if(p.status==='pending'){
-    badge.className='sbadge s-pend'; badge.textContent='En espera';
-    body.innerHTML=`<p style="font-size:12px;color:var(--s400)">Aprueba el copy para desbloquear la generación de arte.</p>`;
-  } else if(p.artApproved){
-    badge.className='sbadge s-appr'; badge.textContent='Arte aprobado';
-    const artHtml = p.artUrl
-      ? (p.type==='reel'
-          ? `<video src="${p.artUrl}" autoplay muted loop playsinline style="width:100%;border-radius:8px"></video>`
-          : `<img src="${p.artUrl}" style="width:100%;border-radius:8px">`)
-      : `<div style="background:${ART_COLORS[p.type]};aspect-ratio:1;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.5)" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="m3 9 4-4 4 4 4-6 6 6"/><circle cx="8.5" cy="7.5" r="1.5"/></svg><span style="font-size:11px;color:rgba(255,255,255,.5)">${ART_LABELS[p.type]}</span></div>`;
-    body.innerHTML=`<div class="art-preview">${artHtml}</div><p style="font-size:12px;color:var(--ok);font-weight:500">✓ Arte aprobado por Natalia</p>`;
-  } else if(p.artGenerated){
-    badge.className='sbadge s-appr'; badge.textContent='Arte listo';
-    const artHtml = p.artUrl
-      ? (p.type==='reel'
-          ? `<video src="${p.artUrl}" autoplay muted loop playsinline style="width:100%;border-radius:8px"></video>`
-          : `<img src="${p.artUrl}" style="width:100%;border-radius:8px">`)
-      : `<div style="background:${ART_COLORS[p.type]};aspect-ratio:1;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.5)" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="m3 9 4-4 4 4 4-6 6 6"/><circle cx="8.5" cy="7.5" r="1.5"/></svg><span style="font-size:11px;color:rgba(255,255,255,.5)">${ART_LABELS[p.type]}</span></div>`;
-    body.innerHTML=`<div class="art-preview">${artHtml}</div><div style="display:flex;gap:7px;margin-top:8px"><button class="btn btn-ok btn-sm" onclick="approveArt()" style="flex:1">✓ Aprobar arte</button><button class="btn btn-danger btn-sm" onclick="regenArt()">↺ Regenerar</button></div>`;
-  } else {
-    badge.className='sbadge s-pend'; badge.textContent='Pendiente';
-    body.innerHTML=`<p style="font-size:12px;color:var(--s400);margin-bottom:8px">Copy aprobado. Genera el arte para esta publicación.</p><button class="btn btn-primary btn-sm" onclick="generateArt()" style="width:100%">🎨 Generar arte con Higgsfield AI</button>`;
-  }
-}
-
-async function approvePost(){
-  const p=posts.find(x=>x.id===selId); if(!p) return;
-  p.status='approved'; renderAll(); showDetail(p); notify('✓ Copy aprobado'); updateStats();
-}
-function rejectPost(){
-  const p=posts.find(x=>x.id===selId); if(!p) return;
-  p.status='rejected'; renderAll(); showDetail(p); notify('✗ Publicación rechazada'); updateStats();
-}
-function toggleEdit(){
-  const c=document.getElementById('d-copy'), cta=document.getElementById('d-cta'), btn=document.getElementById('edit-btn');
-  editing=!editing;
-  c.contentEditable=editing?'true':'false'; cta.contentEditable=editing?'true':'false';
-  c.style.border=editing?'1.5px solid var(--red)':'none'; cta.style.border=editing?'1.5px solid var(--red)':'none';
-  btn.textContent=editing?'✓ Guardar':'✎ Editar';
-  if(!editing){ const p=posts.find(x=>x.id===selId); if(p){ p.copy=c.textContent; p.cta=cta.textContent; } notify('Cambios guardados'); }
-}
-async function generateArt(){
-  const p=posts.find(x=>x.id===selId); if(!p) return;
-  const hfb=document.getElementById('hf-body');
-
-  // Llamada síncrona directa a Higgsfield (sin cola de jobs ni humano de por
-  // medio). Si Higgsfield responde con la imagen de una vez, se usa directo;
-  // si responde con un job en proceso, se hace polling a /higgsfield/status.
-  hfb.innerHTML=`<div class="hf-loading"><div class="hf-spinner"></div><p style="font-size:12px;color:var(--s400)">Solicitando arte a Higgsfield AI…</p></div>`;
-  let data;
-  try {
-    const res  = await fetch(`${API_BASE}/higgsfield/generate`, {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ prompt: p.vis, type: p.type, postId: p.id }),
-    });
-    data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Error al generar');
-  } catch(err) {
-    hfb.innerHTML=`<p style="font-size:12px;color:#EF4444">⚠ ${err.message}</p>
-      <button class="btn btn-primary btn-sm" onclick="generateArt()" style="margin-top:8px;width:100%">↺ Reintentar</button>`;
-    return;
-  }
-
-  if (data.status === 'completed' && data.url) {
-    p.artGenerated = true;
-    p.artUrl = data.url;
-    updateHF(p); updateStats();
-    notify('🎨 Arte generado por Higgsfield AI');
-    return;
-  }
-
-  // Higgsfield devolvió un job en proceso — polling hasta que termine.
-  const jobId = data.jobId;
-  let dots = 0;
-  const pollInterval = setInterval(async () => {
-    dots = (dots+1)%4;
-    hfb.innerHTML=`<div class="hf-loading">
-      <div class="hf-spinner"></div>
-      <p style="font-size:12px;color:var(--s400)">
-        Higgsfield AI generando<span>${'.'.repeat(dots+1)}</span><br>
-        <span style="font-size:10px;opacity:.6">Puede tomar 20–60 seg</span>
-      </p>
-    </div>`;
-
-    try {
-      const res  = await fetch(`${API_BASE}/higgsfield/status/${jobId}`);
-      const job  = await res.json();
-
-      if (job.status === 'completed' && job.url) {
-        clearInterval(pollInterval);
-        p.artGenerated = true;
-        p.artUrl = job.url;
-        updateHF(p); updateStats();
-        notify('🎨 Arte generado por Higgsfield AI');
-      } else if (job.status === 'error') {
-        clearInterval(pollInterval);
-        hfb.innerHTML=`<p style="font-size:12px;color:#EF4444">⚠ Error: ${job.error}</p>
-          <button class="btn btn-primary btn-sm" onclick="generateArt()" style="margin-top:8px;width:100%">↺ Reintentar</button>`;
-      }
-    } catch(e) { /* servidor no disponible, sigue intentando */ }
-  }, 3000);
-}
-function approveArt(){
-  const p=posts.find(x=>x.id===selId); if(!p) return;
-  p.artApproved=true; updateHF(p); showDetail(p); updateStats(); notify('✓ Arte aprobado');
-}
-function regenArt(){
-  const p=posts.find(x=>x.id===selId); if(!p) return;
-  p.artGenerated=false; updateHF(p); generateArt();
-}
-async function publishPost(){
-  const p=posts.find(x=>x.id===selId); if(!p) return;
-  const btn=document.getElementById('btn-pub'); btn.disabled=true; btn.textContent='⏳ Publicando…';
-
-  try {
-    const res = await fetch(`${API_BASE}/meta/publish`, {
-      method: 'POST',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({
-        copy:      p.copy,
-        cta:       p.cta,
-        image_url: p.artUrl || null,
-        type:      p.type,
-      }),
-    });
-    const data = await res.json();
-
-    if (!res.ok) {
-      // Meta no conectado — guiar al usuario
-      btn.disabled=false; btn.textContent='↑ Publicar en Instagram, Facebook & LinkedIn';
-      notify('⚠ ' + (data.error || 'Error al publicar'));
-      if (data.error && data.error.includes('Meta no conectado')) {
-        if(confirm('Meta no está conectado.\n\n¿Abrir la autenticación de Meta ahora?')) {
-          connectMeta();
-        }
-      }
-      return;
-    }
-
-    // Guardar resultados reales por plataforma
-    p.publishResults = data.results;
-    p.status='published';
-    renderAll(); showDetail(p); updateStats();
-    notify('🚀 ¡Publicado en Instagram y Facebook!');
-
-  } catch(err) {
-    console.error('[Publish]', err);
-    btn.disabled=false; btn.textContent='↑ Publicar en Instagram, Facebook & LinkedIn';
-    notify('⚠ No se pudo conectar al servidor. ¿Está corriendo node server.js?');
-  }
-}
-
-async function startGenerate(){
-  document.getElementById('gen-ov').classList.add('on');
-  document.getElementById('gdone').style.display='none';
-  document.getElementById('gitems').innerHTML='';
-  document.getElementById('gpf').style.width='0%';
-  document.getElementById('gcnt').textContent='0 / 20';
-  document.getElementById('gen-btn').disabled=true;
-  posts=buildPosts();
-
-  for(let i=0;i<DUMMY.length;i++){
-    await sleep(160);
-    const d=DUMMY[i];
-    const tl=d.type==='post'?'POST':d.type==='reel'?'REEL':'HISTORIA';
-    const div=document.createElement('div'); div.className='gen-item'; div.id=`gi${i}`;
-    div.innerHTML=`<div class="gi-ic gi-load">⏳</div><div><strong>${tl} — ${d.day} de junio</strong><br><span style="font-size:11px;color:var(--s400)">Generando con Claude AI…</span></div>`;
-    document.getElementById('gitems').appendChild(div);
-    await sleep(350+Math.random()*250);
-    const ic=div.querySelector('.gi-ic'); ic.className='gi-ic gi-done'; ic.textContent='✓';
-    div.querySelector('span').textContent=d.copy.slice(0,55)+'…';
-    const prog=Math.round((i+1)/DUMMY.length*100);
-    document.getElementById('gpf').style.width=prog+'%';
-    document.getElementById('gcnt').textContent=`${i+1} / 20`;
-    renderAll(); updateStats();
-  }
-  await sleep(300);
-  document.getElementById('gdone').style.display='block';
-  document.getElementById('gen-btn').disabled=false;
-  renderAll(); updateStats(); buildCalendar();
-}
-
-function renderAll(){ buildCalendar(); renderPosts(); updateStats(); }
-
-function setNav(el,f){
-  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('on'));
-  el.classList.add('on');
-  if(f){ filter=f; document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on')); document.querySelector('.tabs .tab').classList.add('on'); renderPosts(); }
-}
-function setFilter(f,tab){
-  filter=f; document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on')); tab.classList.add('on'); renderPosts();
-}
-function closeModal(id){ document.getElementById(id).classList.remove('on'); }
-function resetAll(){
-  posts=[]; selId=null; filter='all'; editing=false;
-  document.getElementById('dp-empty').style.display='block';
-  document.getElementById('dp').style.display='none';
-  renderAll(); notify('Demo reiniciado');
-}
-function notify(msg){
-  const n=document.getElementById('notif'); document.getElementById('ntxt').textContent=msg;
-  n.classList.add('on'); setTimeout(()=>n.classList.remove('on'),3000);
-}
-
-// ── Meta status ──────────────────────────────────────────────
-async function checkMetaStatus() {
-  try {
-    const res  = await fetch(`${API_BASE}/meta/status`);
-    const data = await res.json();
-    const navTxt = document.getElementById('nav-meta-txt');
-    const navEl  = document.getElementById('nav-meta');
-    if (data.connected) {
-      navTxt.textContent = '✓ Meta conectado';
-      navEl.style.color  = 'rgba(134,239,172,.9)';
-    } else {
-      navTxt.textContent = 'Conectar Meta →';
-    }
-  } catch {
-    // servidor no corriendo — modo demo sin conexión
-  }
-}
-
-// Init
-buildCalendar(); updateStats(); checkMetaStatus();
+function esc(s){ return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 </script>
 </body>
 </html>
