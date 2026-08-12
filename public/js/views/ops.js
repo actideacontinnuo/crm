@@ -282,7 +282,7 @@ async function openEDR(id) {
           <td style="text-align:right" class="mono">—</td>
         </tr>`;
       }).join('')
-    : `<tr><td colspan="5" style="text-align:center;color:var(--gray400);padding:16px;font-size:12px">Sin costos de proveedores registrados.<br><span style="color:var(--red);cursor:pointer" onclick="closeM('edr');openM('nueva-deuda')">+ Registrar pago a proveedor →</span></td></tr>`;
+    : `<tr><td colspan="5" style="text-align:center;color:var(--gray400);padding:16px;font-size:12px">Sin costos de proveedores registrados.<br><span style="color:var(--red);cursor:pointer" onclick="abrirNuevaDeudaParaOP('${id}')">+ Registrar pago a proveedor →</span></td></tr>`;
 
   const costos = opDeudas.reduce((a, d) => a + (d.monto || 0), 0);
   document.getElementById('edr-bottom').innerHTML = `

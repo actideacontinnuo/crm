@@ -768,7 +768,13 @@
     </table>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px" id="edr-bottom"></div>
   </div>
-  <div class="modal-footer"><button class="btn btn-ghost" onclick="closeM('edr')">Cerrar</button><button class="btn btn-ghost" onclick="exportEDR()"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-3px"><path d="M12 3v12M7 11l5 5 5-5M5 21h14"/></svg> Exportar PDF</button></div>
+  <div class="modal-footer" style="justify-content:space-between">
+    <button class="btn btn-ghost" onclick="closeM('edr')">Cerrar</button>
+    <div style="display:flex;gap:9px">
+      <button class="btn btn-ghost" onclick="exportEDR()"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-3px"><path d="M12 3v12M7 11l5 5 5-5M5 21h14"/></svg> Exportar PDF</button>
+      <button class="btn btn-primary" onclick="abrirNuevaDeudaParaOP(STATE.selOP)">+ Registrar pago a proveedor</button>
+    </div>
+  </div>
 </div></div>
 
 <!-- SUBIR COTIZACIÓN (solo archivos PDF + Excel) -->

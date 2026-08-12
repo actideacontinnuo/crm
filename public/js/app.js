@@ -457,12 +457,29 @@ async function _refreshPagoOPSelect() {
   if (s) s.innerHTML = '<option value="">— Ninguna —</option>' + list.map(o => `<option value="${o.id}">${esc(o.numero)} — ${esc(o.desc)}</option>`).join('');
 }
 
+// Si se abrió "Registrar pago a proveedor" desde el Estado de Resultados de
+// una OP específica, ese id se preselecciona aquí una sola vez.
+let _deudaPrefillOpId = null;
+
 async function _refreshDeudaSelects() {
   const [provs, ops] = await Promise.all([db.proveedores.list(), db.ops.list()]);
   const sp = document.getElementById('nd-prov');
   if (sp) sp.innerHTML = provs.map(p => `<option value="${p.id}">${esc(p.nombre)}</option>`).join('');
   const so = document.getElementById('nd-op');
-  if (so) so.innerHTML = '<option value="">— Sin OP —</option>' + ops.map(o => `<option value="${o.id}">${esc(o.numero)} — ${esc(o.desc)}</option>`).join('');
+  if (so) {
+    so.innerHTML = '<option value="">— Sin OP —</option>' + ops.map(o => `<option value="${o.id}">${esc(o.numero)} — ${esc(o.desc)}</option>`).join('');
+    if (_deudaPrefillOpId) { so.value = _deudaPrefillOpId; _deudaPrefillOpId = null; }
+  }
+}
+
+// Abre "Registrar pago a proveedor" con la OP actual ya seleccionada — se usa
+// desde el Estado de Resultados, donde antes SOLO existía este botón cuando
+// la lista de proveedores de la OP estaba vacía (desaparecía para siempre en
+// cuanto se registraba el primero, sin forma de agregar un segundo/tercero).
+function abrirNuevaDeudaParaOP(opId) {
+  _deudaPrefillOpId = opId || null;
+  closeM('edr');
+  openM('nueva-deuda');
 }
 
 async function _refreshCasoSelects() {
