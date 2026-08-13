@@ -133,12 +133,21 @@
 
 /* KPIS */
 .kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--gap-lg);margin-bottom:var(--gap-lg);}
+/* Una fila de 4 tarjetas se reparte en 4 columnas. Sin esto, Control de
+   Pagos (4 tarjetas sobre una rejilla de 3) dejaba la cuarta sola en un
+   segundo renglón, mientras Pagos y Casos —sus equivalentes— sí declaraban
+   4 columnas. Se resuelve en el sistema y no tarjeta por tarjeta. */
+.kpis:has(> .kpi:nth-child(4)){grid-template-columns:repeat(4,1fr);}
 .kpi{background:var(--white);border:1px solid var(--border);border-radius:14px;padding:18px 20px;position:relative;overflow:hidden;box-shadow:var(--sh-sm);transition:transform .22s var(--ease-out),box-shadow .22s var(--ease-out),border-color .22s var(--ease);}
 .kpi::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--accent,var(--red));opacity:0;transition:opacity .22s var(--ease);}
 .kpi:hover{transform:translateY(-3px);box-shadow:var(--sh-md);border-color:var(--border-d);}
 .kpi:hover::before{opacity:1;}
 .kpi-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
-.kpi-label{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--gray400);letter-spacing:.17em;}
+/* La etiqueta puede empezar con un icono SVG de 13px o con un carácter
+   suelto. Sin altura mínima la caja medía 13px o 12px según el caso y el
+   contenido de esa tarjeta quedaba 1px desplazado respecto a las demás. */
+.kpi-label{display:flex;align-items:center;gap:var(--gap-xs);min-height:13px;line-height:1;font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--gray400);letter-spacing:.17em;}
+.kpi-label svg{flex-shrink:0;}
 .kpi-ico{width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;background:var(--accent-dim,var(--red-dim));color:var(--accent,var(--red));}
 .kpi-value{font-family:'Bebas Neue',sans-serif;font-size:42px;line-height:.82;margin-bottom:9px;letter-spacing:.01em;}
 .kpi-delta{font-family:'JetBrains Mono',monospace;font-size:9.5px;color:var(--gray400);letter-spacing:.04em;display:flex;align-items:center;gap:5px;}
