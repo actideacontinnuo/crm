@@ -332,3 +332,100 @@
 a{text-decoration:none;color:inherit;}
 .chart-box{position:relative;height:230px;}
 .spark{height:38px;}
+
+/* ══════════════════════════════════════════════════════════════
+   CLASES SIN DEFINICIÓN — QA visual
+   Estas clases ya se usaban en el markup pero nunca tuvieron regla
+   CSS, así que renderizaban sin estilo. Se definen aquí reutilizando
+   los mismos tokens y patrones del sistema (no se inventa paleta).
+   ══════════════════════════════════════════════════════════════ */
+
+/* Fila de pestañas de vista — el markup usa .view-tabs, el sistema
+   ya tenía .vtabs. Sin esto las pestañas se apilaban en vertical
+   ocupando el ancho completo, una debajo de otra. */
+.view-tabs{display:flex;gap:2px;border-bottom:1px solid var(--border);margin-bottom:18px;flex-wrap:wrap;}
+
+/* Barra de búsqueda de listados — mismo ritmo que .toolbar */
+.search-bar{display:flex;gap:10px;align-items:center;margin-bottom:18px;flex-wrap:wrap;}
+
+/* Zona de carga de documentos (CSF, carátula bancaria, opinión de
+   cumplimiento). El JS pinta el borde para señalar estado —
+   ámbar al analizar, verde al validar, rojo al fallar — así que el
+   borde TIENE que existir para que ese feedback sea visible. */
+.upload-area{
+  display:block;border:1.5px dashed var(--border-d);border-radius:9px;
+  padding:12px 14px;font-size:12px;color:var(--gray400);background:var(--white);
+  text-align:center;line-height:1.5;
+  transition:border-color .18s var(--ease),color .18s var(--ease),background .18s var(--ease);
+}
+.upload-area:hover{border-color:var(--red-border);color:var(--gray600);background:var(--cream);}
+
+/* Estado vacío dentro de tablas/listados — espeja .empty */
+.empty-state{text-align:center;padding:44px 20px;color:var(--gray400);}
+.empty-state > :first-child{opacity:.45;margin-bottom:9px;}
+.empty-state > :last-child{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.16em;}
+
+/* Tarjetas de deuda a proveedor (modal "¿Qué le debemos a quién?") */
+.deuda-card{
+  background:var(--white);border:1px solid var(--border);border-radius:12px;
+  overflow:hidden;margin-bottom:10px;box-shadow:var(--sh-xs);
+  transition:box-shadow .2s var(--ease),border-color .2s var(--ease);
+}
+.deuda-card:last-child{margin-bottom:0;}
+.deuda-card:hover{box-shadow:var(--sh-sm);border-color:var(--border-d);}
+.deuda-hdr{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;}
+.deuda-body{padding:12px 14px;border-top:1px solid var(--border);background:var(--cream);}
+.deuda-tag{
+  display:inline-block;font-family:'JetBrains Mono',monospace;font-size:9px;
+  letter-spacing:.1em;padding:3px 9px;border-radius:5px;
+  background:var(--white);color:var(--gray600);border:1px solid var(--border-d);
+}
+
+/* Resultado del buscador global (panel oscuro de la topbar) */
+.gs-hit{transition:background .14s var(--ease);}
+.gs-hit:hover{background:rgba(255,255,255,.07);}
+.gs-hit:last-child{border-bottom:none !important;}
+
+/* Filas de seguimiento / historial con viñeta */
+.seg-row{display:flex;gap:10px;align-items:flex-start;padding:9px 0;border-bottom:1px solid var(--border);}
+.seg-row:last-child{border-bottom:none;}
+.seg-dot{width:6px;height:6px;border-radius:50%;background:var(--red);flex-shrink:0;margin-top:6px;}
+
+/* Variantes puntuales ya referenciadas en el markup */
+.btn-red{background:linear-gradient(150deg,#E22A04,var(--red) 62%,var(--red-dark));color:#fff;box-shadow:var(--sh-red);}
+.btn-red:hover{transform:translateY(-1px);box-shadow:0 9px 22px -5px rgba(204,34,0,.46);filter:brightness(1.04);}
+.link-red{color:var(--red);cursor:pointer;transition:opacity .16s var(--ease);}
+.link-red:hover{opacity:.72;text-decoration:underline;}
+.col-span2{grid-column:span 2;}
+
+/* ── Foco de teclado ──────────────────────────────────────────
+   Solo los inputs tenían anillo de foco; botones, pestañas y
+   enlaces no daban ninguna señal al navegar con Tab. Se usa
+   :focus-visible, así que NO cambia nada al hacer clic con mouse. */
+.btn:focus-visible,
+.modal-close:focus-visible,
+.vsel-btn:focus-visible,
+.vtab:focus-visible,
+.t-icon:focus-visible,
+.u-chip:focus-visible,
+a:focus-visible,
+button:focus-visible{
+  outline:2px solid var(--red);
+  outline-offset:2px;
+  border-radius:9px;
+}
+/* Sobre fondo oscuro (topbar) el rojo pierde contraste — se aclara */
+.topbar button:focus-visible,
+.topbar a:focus-visible,
+.t-icon:focus-visible,
+.u-chip:focus-visible{outline-color:#FF6644;}
+
+/* ── Estado deshabilitado ─────────────────────────────────────
+   El JS deshabilita botones y selects en varios flujos (pago ya
+   confirmado, caso cerrado, ejecutivo forzado por regla de negocio)
+   pero no existía ninguna regla, así que se veían activos. */
+.btn:disabled,.btn[disabled]{opacity:.45;cursor:not-allowed;box-shadow:none;}
+.btn:disabled:hover,.btn[disabled]:hover{transform:none;filter:none;box-shadow:none;}
+.fi:disabled,.fta:disabled,.fsel-full:disabled,.fsel:disabled,select:disabled{
+  background:var(--gray50);color:var(--gray400);cursor:not-allowed;border-color:var(--border);
+}
