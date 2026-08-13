@@ -57,10 +57,10 @@ async function renderCotizaciones() {
           <td><div style="font-weight:600">${esc(cli.nombre) || '—'}</div><div style="font-size:11px;color:var(--gray400)">${esc(op.numero) || '—'}</div></td>
           <td class="mono">${esc(c.fecha) || '—'}</td>
           <td>${pillHTML(c.status)}</td>
-          <td style="display:flex;gap:5px;flex-wrap:wrap">
+          <td><div class="td-acciones">
             ${fileLink(c.pdf, 'PDF', icoHTML('file', 12))}
             ${fileLink(c.excel, 'EXCEL', icoHTML('grid', 12))}
-          </td>
+          </div></td>
           <td><button class="btn btn-ghost btn-xs" onclick="event.stopPropagation();openVerCotizacion('${c.id}')">Ver</button></td>
         </tr>`;
       }).join('')

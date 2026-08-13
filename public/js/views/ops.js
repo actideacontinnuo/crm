@@ -43,10 +43,10 @@ async function renderOPs() {
           <td class="monto" style="color:${o.cobrado===o.cotizado?'var(--green)':o.cobrado>0?'var(--amber)':'var(--gray400)'}">${fmx(o.cobrado)}</td>
           <td class="monto" style="color:${o.utilidad>0?'var(--green)':'var(--gray400)'}">${o.utilidad ? fmx(o.utilidad) : '—'}</td>
           <td>${isExec ? '<span class="tag tag-green">LIBERADA ✓</span>' : '<span class="tag tag-amber">PENDIENTE</span>'}</td>
-          <td style="display:flex;gap:5px">
+          <td><div class="td-acciones">
             <button class="btn btn-ghost btn-xs" onclick="event.stopPropagation();openDetalleOP('${o.id}')">Ver</button>
             ${isExec ? `<button class="btn btn-primary btn-xs" onclick="event.stopPropagation();openEDR('${o.id}')">EdR</button>` : ''}
-          </td>
+          </div></td>
         </tr>`;
       }).join('')
     : `<tr><td colspan="10"><div class="empty-state"><div>${icoHTML('box',26)}</div><div>SIN RESULTADOS</div></div></td></tr>`;
