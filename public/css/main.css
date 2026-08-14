@@ -146,7 +146,13 @@
 /* La etiqueta puede empezar con un icono SVG de 13px o con un carácter
    suelto. Sin altura mínima la caja medía 13px o 12px según el caso y el
    contenido de esa tarjeta quedaba 1px desplazado respecto a las demás. */
-.kpi-label{display:flex;align-items:center;gap:var(--gap-xs);min-height:13px;line-height:1;font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--gray400);letter-spacing:.17em;}
+/* Reserva el alto de DOS líneas siempre. Las etiquetas largas ("POR PAGAR
+   (PROVEEDORES)") se parten en dos renglones cuando la tarjeta se estrecha,
+   y al ocupar más alto empujaban su número hacia abajo, desalineándolo
+   respecto a las tarjetas vecinas. Reservando el espacio, la fila queda
+   alineada a cualquier ancho de pantalla. En Dashboard no cambia nada:
+   ahí el icono de 30px ya domina la altura de la cabecera. */
+.kpi-label{display:flex;align-items:center;gap:var(--gap-xs);min-height:2em;line-height:1;font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--gray400);letter-spacing:.17em;}
 .kpi-label svg{flex-shrink:0;}
 .kpi-ico{width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;background:var(--accent-dim,var(--red-dim));color:var(--accent,var(--red));}
 .kpi-value{font-family:'Bebas Neue',sans-serif;font-size:42px;line-height:.82;margin-bottom:9px;letter-spacing:.01em;}
