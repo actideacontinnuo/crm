@@ -123,8 +123,11 @@ async function cotSave() {
   showSpinner();
   try {
     await db.cotizaciones.create(data);
-    // Marcar la OP como "Cotización" si aplica
-    if (opId) { try { await db.ops.update(opId, { status: 'Cotización' }); } catch (_) {} }
+    // "Cotización" no es un estatus de OP — una OP puede tener varias
+    // cotizaciones ligadas (versiones, revisiones) sin que eso cambie su
+    // estatus operativo. Antes esto retrocedía a "Cotización" el estatus de
+    // una OP que ya estaba En Producción cada vez que se subía una cotización
+    // nueva o adicional. Ya no se toca el estatus aquí.
     closeM('cotizador');
     ['cot-pdf', 'cot-excel'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
     toast('✓ Cotización guardada — ' + version);

@@ -284,7 +284,7 @@ function pillHTML(status) {
   const map = {
     'Nuevo': 'nuevo', 'Contactado': 'contactado', 'En conversación': 'contactado',
     'Listo p/ cotizar': 'listo', 'En Producción': 'produccion', 'Ejecutado': 'ejecutado',
-    'Cotización': 'cotizacion', 'Pendiente': 'pendiente', 'Vencido': 'vencido',
+    'Pendiente': 'pendiente', 'Vencido': 'vencido',
     'Pagado': 'pagado', 'Parcial': 'parcial',
     'Activo': 'activo', 'Bloqueado': 'bloqueado',
     'Aceptada': 'aprobado', 'Enviada': 'pendiente', 'Rechazada': 'vencido',

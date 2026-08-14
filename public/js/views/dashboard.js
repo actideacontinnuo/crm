@@ -108,10 +108,23 @@ async function renderDashboard() {
 
   const opsActivas    = ops.filter(o => o.status === 'En Producción');
   const totalCotizado = opsActivas.reduce((a, o) => a + (o.cotizado || 0), 0);
+  // Cobranza pendiente = saldo real por OP (cotizado − cobrado), no el listado
+  // de recordatorios de pago — una OP puede tener saldo pendiente sin tener
+  // ningún "Pago" agendado todavía. Se suma sobre TODAS las OPs reales (ya no
+  // existe el estatus "Cotización": solo En Producción y Ejecutado).
+  const opsConSaldo  = ops.filter(o => ((o.cotizado || 0) - (o.cobrado || 0)) > 0);
+  const totalPend    = opsConSaldo.reduce((a, o) => a + Math.max((o.cotizado || 0) - (o.cobrado || 0), 0), 0);
+  // "Vencido" sigue viniendo de los Pagos (son los que tienen fecha acordada;
+  // una OP por sí sola no carga fecha de vencimiento) — usado para la alerta,
+  // no para el monto total de arriba.
   const pagosPend     = pagos.filter(p => (p.status === 'Pendiente' || p.status === 'Vencido') && p.tipo === 'Cobro a cliente');
-  const totalPend     = pagosPend.reduce((a, p) => a + (p.monto || 0), 0);
   const ejecutadas    = ops.filter(o => o.status === 'Ejecutado');
-  const cliActivos    = clientes.filter(c => c.status === 'Activo').length;
+  // Cliente "activo" = tiene al menos una OP En Producción ahora mismo (no el
+  // campo Activo/Inactivo que se edita a mano en la ficha del cliente — ese
+  // campo sigue existiendo y sigue alimentando el filtro de la lista de
+  // Clientes, solo dejó de alimentar este KPI del Dashboard).
+  const clientesConOpAbierta = new Set(opsActivas.filter(o => o.clienteId).map(o => o.clienteId));
+  const cliActivos    = clientes.filter(c => clientesConOpAbierta.has(c.id)).length;
   const vencidos      = pagos.filter(p => p.status === 'Vencido').length;
   // Pipeline: ya no hay campo "Estimado" en prospectos (se retiró) — se muestra
   // por CONTEO de oportunidades, no por monto (no hay base real para un $).
@@ -139,8 +152,10 @@ async function renderDashboard() {
   // Sin fecha de evento: cuentan en la vista ANUAL (para no perder ventas), no en mes/tri
   const _cuenta = o => periodo === 'anual' ? (!o.fechaEvento || _enRango(o.fechaEvento, rangos.actual)) : _enRango(o.fechaEvento, rangos.actual);
   const ejecPeriodo = ejecutadas.filter(_cuenta);
-  const ventasPeriodo = ejecPeriodo.reduce((a, o) => a + (o.cotizado || 0), 0);
-  const ventasPrevio  = ejecutadas.filter(o => _enRango(o.fechaEvento, rangos.previo)).reduce((a, o) => a + (o.cotizado || 0), 0);
+  // Ventas ejecutadas = pago recibido del cliente (cobrado), no lo cotizado.
+  // Solo sobre OPs Ejecutado — igual que antes, nada más cambia cotizado→cobrado.
+  const ventasPeriodo = ejecPeriodo.reduce((a, o) => a + (o.cobrado || 0), 0);
+  const ventasPrevio  = ejecutadas.filter(o => _enRango(o.fechaEvento, rangos.previo)).reduce((a, o) => a + (o.cobrado || 0), 0);
   const sinFecha = ejecutadas.filter(o => !o.fechaEvento).length;
   const delta = ventasPrevio ? Math.round((ventasPeriodo - ventasPrevio) / ventasPrevio * 100) : null;
   const deltaHTML = delta === null
@@ -189,7 +204,7 @@ async function renderDashboard() {
       <div class="kpi" style="--accent:var(--green);--accent-dim:var(--green-dim)"><div class="kpi-top"><div class="kpi-label">PIPELINE PROSPECTOS</div><div class="kpi-ico">${icoHTML('target')}</div></div><div class="kpi-value kv-green">${prospectos.length}</div><div class="kpi-delta up">${prospListos} listos para cotizar</div></div>
     </div>
     <div class="kpis" style="margin-bottom:22px">
-      <div class="kpi" style="--accent:var(--red);--accent-dim:var(--red-dim)"><div class="kpi-top"><div class="kpi-label">COBRANZA PENDIENTE</div><div class="kpi-ico" style="background:var(--red-dim);color:var(--red)">${icoHTML('wallet')}</div></div><div class="kpi-value kv-red">${pagosVisibles ? fmxK(totalPend) : '—'}</div><div class="kpi-delta ${vencidos ? 'down' : ''}">${!pagosVisibles ? 'solo Dirección' : vencidos ? icoHTML('alert') + ' ' + vencidos + ' vencidos' : pagosPend.length + ' por cobrar'}</div>${METAS.cobranza ? kpiBar(cobradoMes, METAS.cobranza, cobradoMes >= METAS.cobranza ? 'green' : 'amber') : ''}</div>
+      <div class="kpi" style="--accent:var(--red);--accent-dim:var(--red-dim)"><div class="kpi-top"><div class="kpi-label">COBRANZA PENDIENTE</div><div class="kpi-ico" style="background:var(--red-dim);color:var(--red)">${icoHTML('wallet')}</div></div><div class="kpi-value kv-red">${pagosVisibles ? fmxK(totalPend) : '—'}</div><div class="kpi-delta ${vencidos ? 'down' : ''}">${!pagosVisibles ? 'solo Dirección' : vencidos ? icoHTML('alert') + ' ' + vencidos + ' vencidos' : opsConSaldo.length + ' OPs con saldo pendiente'}</div>${METAS.cobranza ? kpiBar(cobradoMes, METAS.cobranza, cobradoMes >= METAS.cobranza ? 'green' : 'amber') : ''}</div>
       <div class="kpi" style="--accent:var(--green);--accent-dim:var(--green-dim)"><div class="kpi-top"><div class="kpi-label">UTILIDAD GENERADA</div><div class="kpi-ico" style="background:var(--green-dim);color:var(--green)">${icoHTML('trend')}</div></div><div class="kpi-value kv-green">${fmxK(utilidad)}</div><div class="kpi-delta up">margen prom. ${margen}%</div>${METAS.utilidad ? kpiBar(utilidad, METAS.utilidad, 'green') : ''}</div>
       <div class="kpi"><div class="kpi-top"><div class="kpi-label">CLIENTES ACTIVOS</div><div class="kpi-ico" style="background:var(--gray50);color:var(--gray600)">${icoHTML('building')}</div></div><div class="kpi-value">${cliActivos}</div><div class="kpi-delta">${clientes.length} en directorio</div>${METAS.clientes ? `<div class="kpi-bar"><div class="kpi-bar-top"><span class="kpi-bar-meta">META ${METAS.clientes}</span><span class="kpi-bar-meta" style="color:${cliActivos >= METAS.clientes ? 'var(--green)' : 'var(--amber)'};font-weight:700">${Math.min(Math.round(cliActivos / METAS.clientes * 100), 100)}%</span></div><div class="prog"><div class="prog-fill ${cliActivos >= METAS.clientes ? 'green' : 'amber'}" style="width:${Math.min(Math.round(cliActivos / METAS.clientes * 100), 100)}%"></div></div></div>` : ''}</div>
     </div>
@@ -240,7 +255,10 @@ async function renderDashboard() {
 function rankingHTML(ops, ejecutadasPeriodo) {
   const nombres = [...new Set(ops.map(o => o.ejec).filter(Boolean))];
   const data = nombres.map(name => {
-    const cerrado = (ejecutadasPeriodo || []).filter(o => o.ejec === name).reduce((a, o) => a + (o.cotizado || 0), 0);
+    // 'cerrado' = cobrado (mismo criterio que Ventas Ejecutadas); 'activo' se
+    // queda en cotizado — es el tamaño del trabajo en producción, no dinero
+    // ya cobrado, y esas OPs todavía no tienen por qué estar liquidadas.
+    const cerrado = (ejecutadasPeriodo || []).filter(o => o.ejec === name).reduce((a, o) => a + (o.cobrado || 0), 0);
     const activo  = ops.filter(o => o.ejec === name && o.status === 'En Producción').reduce((a, o) => a + (o.cotizado || 0), 0);
     return { name, short: name.split(' ')[0], color: ejecColor(name), cerrado, activo, total: cerrado + activo };
   }).sort((a, b) => b.total - a.total);
@@ -254,9 +272,10 @@ function drawTrend(ejecutadas, metaAnual, periodo) {
   if (!ctx || !window.Chart) return;
   if (window._acCharts.trend) window._acCharts.trend.destroy();
   const anio = new Date().getFullYear();
+  // Mismo criterio que la tarjeta "Ventas Ejecutadas": cobrado, no cotizado.
   const suma = (desde, hasta) => ejecutadas
     .filter(o => o.fechaEvento && o.fechaEvento >= desde && o.fechaEvento < hasta)
-    .reduce((a, o) => a + (o.cotizado || 0), 0) / 1e6;
+    .reduce((a, o) => a + (o.cobrado || 0), 0) / 1e6;
   let labels, ventas, metaVal;
   if (periodo === 'anual') {
     labels = [anio - 2, anio - 1, anio].map(String);

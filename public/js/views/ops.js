@@ -62,7 +62,10 @@ async function saveOP() {
   const ops = await db.ops.list();
   const numero = document.getElementById('op-num-prev').value || ('OP-' + uid().toUpperCase());
   const monto  = parseFloat(document.getElementById('op-monto').value) || 0;
-  const status = document.getElementById('op-status').value;
+  // "Cotización" no es un estatus de OP: una OP puede tener varias cotizaciones
+  // ligadas sin que eso cambie su estatus operativo. Toda OP nueva nace
+  // En Producción; solo se mueve a Ejecutado manualmente cuando el evento ya pasó.
+  const status = 'En Producción';
 
   // La OP hereda los 3 roles comerciales del cliente. El "dueño" operativo de la
   // OP (Ejecutivo) es SIEMPRE el Ejecutivo asignado del cliente. Natalia y el
@@ -203,7 +206,7 @@ const _sub = o.cotizado || 0, _iva = _sub * 0.16, _totIva = _sub + _iva;
       : '<div style="color:var(--gray400);font-size:12px">Sin cotizaciones cargadas para esta OP</div>';
   }
 
-  const statuses = ['Cotización', 'En Producción', 'Ejecutado'];
+  const statuses = ['En Producción', 'Ejecutado'];
   document.getElementById('dop-acciones').innerHTML =
     statuses.filter(s => s !== o.status).map(s => `<button class="btn btn-ghost btn-sm" onclick="changeOPStatus('${o.id}','${s}')">${s}</button>`).join('') +
     `<button class="btn btn-ghost btn-sm" onclick="closeM('detalle-op');openM('nuevo-pago')">+ Registrar pago</button>` +
@@ -349,7 +352,7 @@ async function openEditarOP() {
 
   document.getElementById('eop-desc').value   = o.desc || '';
   document.getElementById('eop-fecha').value  = o.fechaEvento || '';
-  document.getElementById('eop-status').value = o.status || 'Cotización';
+  document.getElementById('eop-status').value = o.status || 'En Producción';
   document.getElementById('eop-monto').value  = o.cotizado || 0;
   document.getElementById('eop-num').value    = o.numero || '';
 

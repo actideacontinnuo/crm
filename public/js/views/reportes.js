@@ -110,7 +110,7 @@ function _buildRpCharts(ops) {
   // Estado OP chart (donut)
   const statusCounts = {};
   ops.forEach(o => { statusCounts[o.status] = (statusCounts[o.status] || 0) + 1; });
-  const statusColors = { 'Ejecutado': '#1A6B3C', 'En Producción': '#A0620A', 'Cotización': '#0077CC', 'Cancelado': '#C8C3BC' };
+  const statusColors = { 'Ejecutado': '#1A6B3C', 'En Producción': '#A0620A', 'Cancelado': '#C8C3BC' };
 
   if (_rpCharts.estado) _rpCharts.estado.destroy();
   const sel = document.getElementById('chartRpEstado');
