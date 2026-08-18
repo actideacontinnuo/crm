@@ -250,6 +250,79 @@ describe('Roles (Propietario/EjecCuenta/EjecAsignado) — SIEMPRE heredados del 
   });
 });
 
+describe('Comisión — heredada del cliente al crear la OP (Regla 2 = 15%, Regla 3 = 7.5%)', () => {
+  async function crearCliente(rfc, propietario) {
+    const res = await request(app).post('/api/clientes')
+      .set('Authorization', `Bearer ${adminToken()}`)
+      .send({
+        nombre: 'Cliente Test', razon: 'Cliente Test SA', rfc,
+        dir: 'CDMX', contacto: 'Juan', cargo: 'Gerente', tel: '5500000000',
+        email: 'juan@test.com', propietario, pago: '30 días', status: 'Activo',
+      });
+    return res.body;
+  }
+
+  test('propietario = ejecutivo real (Regla 2) → la OP hereda 15%', async () => {
+    const cliente = await crearCliente('COM130814368', 'Ximena');
+    expect(cliente.comision).toBe(15); // confirma la premisa: el cliente ya trae 15
+    const res = await request(app).post('/api/ops')
+      .set('Authorization', `Bearer ${adminToken()}`)
+      .send({ ...OP_VALIDA, clienteId: cliente.id });
+    expect(res.body.comision).toBe(15);
+  });
+
+  test('propietario especial Eduardo/Alfredo (Regla 3) → la OP hereda 7.5%', async () => {
+    const cliente = await crearCliente('COM230814368', 'Eduardo Gama');
+    expect(cliente.comision).toBe(7.5);
+    const res = await request(app).post('/api/ops')
+      .set('Authorization', `Bearer ${adminToken()}`)
+      .send({ ...OP_VALIDA, clienteId: cliente.id });
+    expect(res.body.comision).toBe(7.5);
+  });
+
+  test('lo que mande el request en comision se IGNORA — siempre se hereda del cliente', async () => {
+    const cliente = await crearCliente('COM330814368', 'Ximena');
+    const res = await request(app).post('/api/ops')
+      .set('Authorization', `Bearer ${adminToken()}`)
+      .send({ ...OP_VALIDA, clienteId: cliente.id, comision: 999 });
+    expect(res.body.comision).toBe(15);
+  });
+
+  test('OP interna (sin cliente) no tiene comisión', async () => {
+    const res = await request(app).post('/api/ops')
+      .set('Authorization', `Bearer ${adminToken()}`)
+      .send({ ...OP_VALIDA, clienteId: '__interno__' });
+    expect(res.body.comision).toBe(null);
+  });
+
+  test('PATCH no puede editar la comisión directamente, ni el admin', async () => {
+    const cliente = await crearCliente('COM430814368', 'Ximena');
+    const creada = await request(app).post('/api/ops')
+      .set('Authorization', `Bearer ${adminToken()}`)
+      .send({ ...OP_VALIDA, clienteId: cliente.id });
+    const res = await request(app).patch(`/api/ops/${creada.body.id}`)
+      .set('Authorization', `Bearer ${adminToken()}`)
+      .send({ comision: 50 });
+    expect(res.status).toBe(200);
+    expect(res.body.comision).toBe(15); // se ignora el 50 — se conserva la heredada
+  });
+
+  test('PATCH SÍ re-deriva la comisión cuando oficina total reasigna el propietario', async () => {
+    const clienteXimena = await crearCliente('COM530814368', 'Ximena');
+    const creada = await request(app).post('/api/ops')
+      .set('Authorization', `Bearer ${adminToken()}`)
+      .send({ ...OP_VALIDA, clienteId: clienteXimena.id });
+    expect(creada.body.comision).toBe(15);
+
+    const res = await request(app).patch(`/api/ops/${creada.body.id}`)
+      .set('Authorization', `Bearer ${adminToken()}`)
+      .send({ propietario: 'Eduardo Gama' }); // reasignación → cuenta como nueva asignación
+    expect(res.status).toBe(200);
+    expect(res.body.comision).toBe(7.5);
+    expect(res.body.ejecCuenta).toBe('Natalia Gama'); // Regla 3
+  });
+});
+
 describe('Número de OP = código del cliente + consecutivo — generado por el servidor', () => {
   async function crearCliente(rfc) {
     const res = await request(app).post('/api/clientes')

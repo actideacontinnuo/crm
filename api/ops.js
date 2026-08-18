@@ -26,6 +26,12 @@ function toObj(page) {
     utilidad:   read_number(p['Utilidad']),
     status:     read_select(p['Status']),
     bono:       read_text(p['Bono']),
+    // % de comisión del ejecutivo — heredado del Cliente al crear la OP (Regla
+    // 2 = 15%, Regla 3 = 7.5%, ver api/_roles.js) y FIJO desde entonces, igual
+    // que ya se hace con la comisión de Clientes/Prospectos: no se recalcula
+    // si el cliente cambia de dueño después. null en OPs viejas (antes de este
+    // campo) — se sigue mostrando 7.5% como respaldo, no un dato inventado.
+    comision:   p['Comision']?.number ?? null,
   };
 }
 
@@ -46,6 +52,7 @@ function toProps(data) {
   if (data.utilidad !== undefined) props['Utilidad']    = prop_number(data.utilidad);
   if (data.status   !== undefined) props['Status']      = prop_select(data.status);
   if (data.bono     !== undefined) props['Bono']        = prop_text(data.bono);
+  if (data.comision !== undefined) props['Comision']    = prop_number(data.comision);
   return props;
 }
 
@@ -54,7 +61,7 @@ function toProps(data) {
 // servidor: nunca se confía en lo que mande el cliente HTTP para ninguno de
 // estos campos (mismo criterio que api/clientes.js _generarCodigoCliente).
 async function _datosClienteParaOP(clienteId) {
-  const vacio = { codigo: '', propietario: '', ejecCuenta: '', ejecAsignado: '' };
+  const vacio = { codigo: '', propietario: '', ejecCuenta: '', ejecAsignado: '', comision: null };
   if (!clienteId || clienteId === '__interno__') return vacio;
   try {
     const clientePage = await notion.pages.retrieve({ page_id: clienteId });
@@ -64,6 +71,7 @@ async function _datosClienteParaOP(clienteId) {
       propietario:  read_select(p['Propietario']),
       ejecCuenta:   read_select(p['EjecutivoCuenta']),
       ejecAsignado: read_select(p['EjecutivoAsignado']),
+      comision:     p['Comision']?.number ?? null,
     };
   } catch (_) {
     return vacio; // clienteId inválido/inexistente — no se puede heredar nada
@@ -176,6 +184,9 @@ router.post('/', async (req, res) => {
       data.ejecCuenta    = cli.ejecCuenta;
       data.ejecAsignado = cli.ejecAsignado;
       data.ejec         = cli.ejecAsignado || data.ejec || '';
+      // Comisión: FIJA al crear la OP, igual que ya se hace en Clientes/
+      // Prospectos — no se recalcula después aunque el cliente cambie de dueño.
+      data.comision     = cli.comision;
     }
 
     const page = await createPage('ops', toProps(data));
@@ -195,6 +206,9 @@ router.patch('/:id', async (req, res) => {
     // única fuente de verdad, ver arriba). Cualquier valor recibido aquí se ignora.
     delete body.utilidad;
     delete body.cobrado;
+    // La comisión nunca se edita a mano — igual que en Clientes/Prospectos,
+    // solo se re-deriva automáticamente cuando cambia el propietario (abajo).
+    delete body.comision;
     // Solo la oficina total (Dirección/Oscar) puede reasignar roles y renumerar la OP
     // (p. ej. al cambiar el Ejecutivo asignado). El resto no reasigna por edición.
     if (!esOficinaTotal(req.user)) {
@@ -203,10 +217,13 @@ router.patch('/:id', async (req, res) => {
     } else if (body.propietario !== undefined || body.ejecCuenta !== undefined) {
       // Propietario = Ejecutivo de cuenta SIEMPRE (excepto Eduardo/Alfredo) — se
       // re-deriva también aquí para que "Editar OP" no pueda romper la regla.
+      // La comisión se re-deriva junto con el rol: reasignar el propietario
+      // cuenta como una nueva asignación (misma filosofía que Clientes).
       const propietarioEfectivo = body.propietario !== undefined ? body.propietario : existingObj.propietario;
       const r = aplicarReglasComision({ propietario: propietarioEfectivo });
       body.propietario = r.propietario;
       body.ejecCuenta   = r.ejecCuenta;
+      body.comision     = r.comision;
     }
     const page = await updatePage(req.params.id, toProps(body));
     const [enriched] = await withCobradoReal(await withUtilidadReal([toObj(page)]));

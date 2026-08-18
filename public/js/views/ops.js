@@ -288,8 +288,12 @@ async function openEDR(id) {
     : `<tr><td colspan="5" style="text-align:center;color:var(--gray400);padding:16px;font-size:12px">Sin costos de proveedores registrados.<br><span style="color:var(--red);cursor:pointer" onclick="abrirNuevaDeudaParaOP('${id}')">+ Registrar pago a proveedor →</span></td></tr>`;
 
   const costos = opDeudas.reduce((a, d) => a + (d.monto || 0), 0);
+  // % real de esta OP (heredado del cliente al crearla — Regla 2 = 15%,
+  // Regla 3 = 7.5%, ver api/_roles.js). Respaldo 7.5% solo para OPs viejas
+  // creadas antes de que este dato existiera (comision === null).
+  const comisionPct = (o.comision ?? 7.5);
   document.getElementById('edr-bottom').innerHTML = `
-    <div class="info-cell"><div class="info-cell-label">COMISIÓN EJECUTIVO (7.5%)</div><div style="font-family:'Bebas Neue',cursive;font-size:22px;color:var(--green)">${fmx((o.utilidad || 0) * 0.075)}</div><div style="font-size:11px;color:var(--gray400)">${esc(o.ejec)} · 7.5% de ${fmx(o.utilidad)}</div></div>
+    <div class="info-cell"><div class="info-cell-label">COMISIÓN EJECUTIVO (${comisionPct}%)</div><div style="font-family:'Bebas Neue',cursive;font-size:22px;color:var(--green)">${fmx((o.utilidad || 0) * (comisionPct / 100))}</div><div style="font-size:11px;color:var(--gray400)">${esc(o.ejec)} · ${comisionPct}% de ${fmx(o.utilidad)}</div></div>
     <div class="info-cell"><div class="info-cell-label">COSTOS REGISTRADOS A PROVEEDORES</div><div style="font-family:'Bebas Neue',cursive;font-size:22px;color:var(--amber)">${fmx(costos)}</div><div style="font-size:11px;color:var(--gray400)">${opDeudas.length} proveedor(es)</div></div>`;
 
   openM('edr');
