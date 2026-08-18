@@ -148,8 +148,13 @@ const _sub = o.cotizado || 0, _iva = _sub * 0.16, _totIva = _sub + _iva;
     <div class="info-cell" style="text-align:center"><div class="info-cell-label">SUBTOTAL</div><div style="font-family:'Bebas Neue',cursive;font-size:22px">${fmx(_sub)}</div></div>
     <div class="info-cell" style="text-align:center;background:var(--green-dim);border:1px solid var(--green-bdr)"><div class="info-cell-label" style="color:var(--green)">COBRADO</div><div style="font-family:'Bebas Neue',cursive;font-size:22px;color:var(--green)">${fmx(o.cobrado)}</div></div>
     <div class="info-cell" style="text-align:center;background:var(--red-dim);border:1px solid var(--red-border)"><div class="info-cell-label" style="color:var(--red)">PENDIENTE</div><div style="font-family:'Bebas Neue',cursive;font-size:22px;color:var(--red)">${fmx(Math.max(0, _totIva - (o.cobrado||0)))}</div></div>`;
-  const ivaHost = document.getElementById('dop-montos');
-  ivaHost.insertAdjacentHTML('afterend', `<div style="display:flex;justify-content:space-between;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--gray600);margin:-6px 0 12px;padding:0 4px"><span>IVA 16%: <strong>${fmx(_iva)}</strong></span><span>TOTAL CON IVA: <strong style="color:var(--black)">${fmx(_totIva)}</strong></span></div>`);
+  // Línea de IVA — id fijo y reemplazo (no insertAdjacentHTML repetido), para
+  // que reabrir la misma OP varias veces no acumule filas duplicadas debajo
+  // de #dop-montos (el contenedor del modal nunca se limpia entre aperturas).
+  const ivaLineHTML = `<div id="dop-iva-line" style="display:flex;justify-content:space-between;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--gray600);margin:-6px 0 12px;padding:0 4px"><span>IVA 16%: <strong>${fmx(_iva)}</strong></span><span>TOTAL CON IVA: <strong style="color:var(--black)">${fmx(_totIva)}</strong></span></div>`;
+  const existingIvaLine = document.getElementById('dop-iva-line');
+  if (existingIvaLine) existingIvaLine.outerHTML = ivaLineHTML;
+  else document.getElementById('dop-montos').insertAdjacentHTML('afterend', ivaLineHTML);
 
   const pagosOP = pagos.filter(pg => pg.opId === id && pg.tipo === 'Cobro a cliente');
   document.getElementById('dop-cobros').innerHTML = pagosOP.length
