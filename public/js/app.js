@@ -451,6 +451,31 @@ function _previewOPIva() {
   if (el) el.textContent = sub ? `IVA 16%: ${fmx(iva)}  ·  Total con IVA: ${fmx(sub + iva)}` : '';
 }
 
+// Monto de EFECTIVO de una deuda a proveedor = lo que realmente se le paga
+// (con IVA, como la factura). Las vistas de flujo (Proveedores "por pagar",
+// Control de Pagos) usan esto; el Estado de Resultados usa 'monto' (neto sin
+// IVA). Deudas viejas no tienen 'montoConIva' → se cae al 'monto' guardado.
+function efectivoDeuda(d) {
+  return (d && d.montoConIva != null) ? d.montoConIva : (d?.monto || 0);
+}
+
+// Preview en vivo del gasto de proveedor: se captura CON IVA (factura) y se
+// muestra el IVA y el neto sin IVA — que es el que cuenta para la utilidad.
+// El neto definitivo lo deriva el servidor (api/deudas.js); esto es solo la
+// vista previa para quien captura, mismo patrón que _previewOPIva.
+function _previewDeudaIva() {
+  const conIva = parseFloat(document.getElementById('nd-monto')?.value) || 0;
+  const box = document.getElementById('nd-iva-prev');
+  if (!box) return;
+  if (!conIva) { box.style.display = 'none'; box.innerHTML = ''; return; }
+  const neto = conIva / (1 + IVA_RATE);
+  const iva  = conIva - neto;
+  box.style.display = 'block';
+  box.innerHTML =
+    `<div style="display:flex;justify-content:space-between;color:var(--gray600)"><span>IVA 16%</span><span>${fmx(iva)}</span></div>` +
+    `<div style="display:flex;justify-content:space-between;color:var(--green);font-weight:700;margin-top:3px"><span>Neto sin IVA → utilidad</span><span>${fmx(neto)}</span></div>`;
+}
+
 async function _refreshPagoOPSelect() {
   const list = await db.ops.list();
   const s = document.getElementById('pg-op');

@@ -88,3 +88,31 @@ describe('CRUD de deudas (admin)', () => {
     expect(res.status).toBe(500);
   });
 });
+
+describe('Captura CON IVA — el servidor deriva el neto (÷1.16)', () => {
+  test('montoConIva=237249 → guarda montoConIva=237249 y monto neto=204525', async () => {
+    const res = await request(app).post('/api/deudas')
+      .set('Authorization', `Bearer ${adminToken()}`)
+      .send({ concepto: 'Producción', provId: 'p1', opId: 'o1', montoConIva: 237249, status: 'pendiente' });
+    expect([200, 201]).toContain(res.status);
+    expect(res.body.montoConIva).toBe(237249);
+    // 237249 / 1.16 = 204525.00 exacto (el número real del Excel de Actidea)
+    expect(res.body.monto).toBe(204525);
+  });
+
+  test('el neto es el que sirve para la utilidad (cotizado − neto), no el con IVA', async () => {
+    const res = await request(app).post('/api/deudas')
+      .set('Authorization', `Bearer ${adminToken()}`)
+      .send({ concepto: 'Audio', provId: 'p1', opId: 'o1', montoConIva: 11600, status: 'pendiente' });
+    expect(res.body.montoConIva).toBe(11600);
+    expect(res.body.monto).toBe(10000); // 11600 / 1.16
+  });
+
+  test('compatibilidad: si se manda monto directo (sin montoConIva) se respeta tal cual', async () => {
+    const res = await request(app).post('/api/deudas')
+      .set('Authorization', `Bearer ${adminToken()}`)
+      .send({ concepto: 'Legado', provId: 'p1', opId: 'o1', monto: 5000, status: 'pendiente' });
+    expect(res.body.monto).toBe(5000);
+    expect(res.body.montoConIva).toBeNull(); // no se inventa un con IVA
+  });
+});

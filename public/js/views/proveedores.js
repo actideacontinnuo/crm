@@ -34,7 +34,7 @@ async function renderProveedores() {
   const alertEl = document.getElementById('deudas-alert');
   if (alertEl) {
     if (deudasPend.length) {
-      const total = deudasPend.reduce((a, d) => a + (d.monto || 0), 0);
+      const total = deudasPend.reduce((a, d) => a + efectivoDeuda(d), 0);
       alertEl.innerHTML = `<div style="background:var(--white);border:1px solid var(--border);border-radius:10px;padding:14px 18px;display:flex;align-items:center;gap:14px;cursor:pointer;margin-bottom:16px" onclick="openM('deudas')">
         <div style="width:40px;height:40px;border-radius:10px;background:#FFF8F0;border:1px solid #F0DFC0;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:var(--amber)">${icoHTML('doc',18)}</div>
         <div style="flex:1"><div style="font-size:13px;font-weight:600">Tienes ${deudasPend.length} pago(s) pendiente(s) a proveedores</div><div style="font-size:12px;color:var(--gray400);margin-top:2px">Total: ${fmx(total)} · Haz clic para ver el detalle</div></div>
@@ -48,7 +48,7 @@ async function renderProveedores() {
   // Table
   document.getElementById('prov-tbody').innerHTML = provs.map(p => {
     const deudasProv = deudas.filter(d => d.provId === p.id && d.status === 'pendiente');
-    const totalDeuda = deudasProv.reduce((a, d) => a + (d.monto || 0), 0);
+    const totalDeuda = deudasProv.reduce((a, d) => a + efectivoDeuda(d), 0);
     const condTag = p.cond === 'Inmediato' ? 'gray' : p.cond === '30 días' ? 'amber' : 'red';
     return `<tr onclick="openDetalleProveedor('${p.id}')">
       <td><div style="font-weight:600">${esc(p.nombre)}</div><div style="font-size:11px;color:var(--gray400)">${esc(p.razon) || '—'}</div></td>
@@ -210,7 +210,7 @@ async function openDetalleProveedor(id) {
             <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--gray400)">${esc(op.numero) || '—'} · Vence ${esc(d.fechaAcordada) || '—'}</div>
           </div>
           <div style="display:flex;align-items:center;gap:8px">
-            <div style="font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700">${fmx(d.monto)}</div>
+            <div style="font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700">${fmx(efectivoDeuda(d))}</div>
             ${pillHTML(d.status === 'pagado' ? 'Pagado' : 'Pendiente')}
           </div>
         </div>`;
@@ -270,9 +270,9 @@ async function renderDeudasModal() {
   });
 
   document.getElementById('deudas-kpis').innerHTML = `
-    <div class="info-cell"><div class="info-cell-label">POR PAGAR</div><div style="font-family:'Bebas Neue',cursive;font-size:26px">${fmx(pend.reduce((a,d)=>a+(d.monto||0),0))}</div><div style="font-size:11px;color:var(--gray400)">${pend.length} proveedor(es)</div></div>
-    <div class="info-cell" style="background:#FFF8F0;border:1px solid #F0DFC0"><div class="info-cell-label" style="color:var(--amber)">VENCE ESTA SEMANA</div><div style="font-family:'Bebas Neue',cursive;font-size:26px;color:var(--amber)">${fmx(venceSemana.reduce((a,d)=>a+(d.monto||0),0))}</div></div>
-    <div class="info-cell" style="background:#F2FBF5;border:1px solid #C0DFC8"><div class="info-cell-label" style="color:var(--green)">PAGADO</div><div style="font-family:'Bebas Neue',cursive;font-size:26px;color:var(--green)">${fmx(pagadas.reduce((a,d)=>a+(d.monto||0),0))}</div></div>`;
+    <div class="info-cell"><div class="info-cell-label">POR PAGAR</div><div style="font-family:'Bebas Neue',cursive;font-size:26px">${fmx(pend.reduce((a,d)=>a+efectivoDeuda(d),0))}</div><div style="font-size:11px;color:var(--gray400)">${pend.length} proveedor(es)</div></div>
+    <div class="info-cell" style="background:#FFF8F0;border:1px solid #F0DFC0"><div class="info-cell-label" style="color:var(--amber)">VENCE ESTA SEMANA</div><div style="font-family:'Bebas Neue',cursive;font-size:26px;color:var(--amber)">${fmx(venceSemana.reduce((a,d)=>a+efectivoDeuda(d),0))}</div></div>
+    <div class="info-cell" style="background:#F2FBF5;border:1px solid #C0DFC8"><div class="info-cell-label" style="color:var(--green)">PAGADO</div><div style="font-family:'Bebas Neue',cursive;font-size:26px;color:var(--green)">${fmx(pagadas.reduce((a,d)=>a+efectivoDeuda(d),0))}</div></div>`;
 
   document.getElementById('deudas-cards').innerHTML = list.map(d => {
     const pv = provMap[d.provId] || {};
@@ -285,7 +285,7 @@ async function renderDeudasModal() {
           <div><div style="font-size:13px;font-weight:600">${esc(pv.nombre) || '—'}</div><div style="font-size:11px;color:var(--gray400)">${esc(pv.servicio) || '—'}</div></div>
         </div>
         <div style="text-align:right">
-          <div style="font-family:'Bebas Neue',cursive;font-size:22px;${isPagado ? 'text-decoration:line-through;color:var(--gray400)' : ''}">${fmx(d.monto)}</div>
+          <div style="font-family:'Bebas Neue',cursive;font-size:22px;${isPagado ? 'text-decoration:line-through;color:var(--gray400)' : ''}">${fmx(efectivoDeuda(d))}</div>
           <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:${isPagado ? 'var(--green)' : 'var(--gray400)'}">${isPagado ? 'Pagado ✓' : 'Vence ' + (esc(d.fechaAcordada) || '—')}</div>
         </div>
       </div>
@@ -320,11 +320,13 @@ async function saveDeuda() {
   const concepto = document.getElementById('nd-concepto')?.value.trim();
   if (!concepto) { toast('El concepto es requerido', 'red'); return; }
 
+  // Se captura CON IVA (como la factura). El servidor deriva el neto ÷1.16 y
+  // guarda los dos (con IVA = lo que se paga; neto = lo que cuenta en la utilidad).
   const data = {
     provId:       provId || '',
     opId:         opId || '',
     concepto,
-    monto:        parseFloat(document.getElementById('nd-monto')?.value) || 0,
+    montoConIva:  parseFloat(document.getElementById('nd-monto')?.value) || 0,
     fechaAcordada: document.getElementById('nd-fecha')?.value || new Date().toISOString().split('T')[0],
     status:       'pendiente',
   };
@@ -334,6 +336,7 @@ async function saveDeuda() {
     await db.deudas.create(data);
     closeM('nueva-deuda');
     ['nd-concepto','nd-monto','nd-fecha'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+    const prev = document.getElementById('nd-iva-prev'); if (prev) { prev.style.display = 'none'; prev.innerHTML = ''; }
     toast('✓ Deuda registrada');
     openM('deudas');
   } catch (e) {

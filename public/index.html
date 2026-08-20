@@ -1006,9 +1006,10 @@
     <div class="fg"><label class="fl">OP RELACIONADA</label><select class="fsel-full" id="nd-op"></select></div>
     <div class="fg"><label class="fl">CONCEPTO</label><input class="fi" id="nd-concepto" placeholder="Equipo de audio para evento 14 jun"></div>
     <div class="fgrid">
-      <div class="fg"><label class="fl">MONTO (MXN)</label><input class="fi" id="nd-monto" type="number" placeholder="0.00"></div>
+      <div class="fg"><label class="fl">MONTO CON IVA <span style="color:var(--gray400)">(como viene en la factura)</span></label><input class="fi" id="nd-monto" type="number" placeholder="0.00" oninput="_previewDeudaIva()"></div>
       <div class="fg"><label class="fl">FECHA ACORDADA</label><input class="fi" id="nd-fecha" type="date"></div>
     </div>
+    <div id="nd-iva-prev" style="display:none;background:var(--green-dim);border:1px solid var(--green-bdr);border-radius:9px;padding:10px 12px;margin-top:-4px;font-family:'JetBrains Mono',monospace;font-size:12px"></div>
   </div>
   <div class="modal-footer"><button class="btn btn-ghost" onclick="closeM('nueva-deuda')">Cancelar</button><button class="btn btn-primary" onclick="saveDeuda()">Registrar Deuda</button></div>
 </div></div>

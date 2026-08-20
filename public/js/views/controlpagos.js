@@ -23,9 +23,12 @@ async function renderControlPagos() {
   const cliMap  = Object.fromEntries(clientes.map(c => [c.id, c]));
 
   // KPIs globales
-  const totalDebemos = deudas.filter(d => !_esPagado(d.status)).reduce((a, d) => a + (d.monto || 0), 0);
-  const totalPagado  = deudas.filter(d => _esPagado(d.status)).reduce((a, d) => a + (d.monto || 0), 0);
-  const totalGastos  = deudas.reduce((a, d) => a + (d.monto || 0), 0);
+  // Flujo de efectivo (lo que se le paga al proveedor) = CON IVA. La utilidad
+  // del bloque por OP usa el neto (ver bloqueOP). efectivoDeuda cae al 'monto'
+  // en deudas viejas sin 'montoConIva'.
+  const totalDebemos = deudas.filter(d => !_esPagado(d.status)).reduce((a, d) => a + efectivoDeuda(d), 0);
+  const totalPagado  = deudas.filter(d => _esPagado(d.status)).reduce((a, d) => a + efectivoDeuda(d), 0);
+  const totalGastos  = deudas.reduce((a, d) => a + efectivoDeuda(d), 0);
   // Proveedores con saldo PENDIENTE (no los ya pagados) — coincide con la etiqueta.
   const nProv        = new Set(deudas.filter(d => !_esPagado(d.status)).map(d => d.provId).filter(Boolean)).size;
 
@@ -40,10 +43,13 @@ async function renderControlPagos() {
     const o   = opMap[opId] || {};
     const cli = cliMap[o.clienteId] || {};
     const precioVenta = o.cotizado || 0;                 // sin IVA
-    const costo   = lista.reduce((a, d) => a + (d.monto || 0), 0);
-    const pagado  = lista.filter(d => _esPagado(d.status)).reduce((a, d) => a + (d.monto || 0), 0);
-    const debemos = costo - pagado;
-    const utilidad = precioVenta - costo;
+    // Costo de producción para el P&L = NETO sin IVA (Σ monto). Flujo de efectivo
+    // (lo que se paga / se debe al proveedor) = CON IVA (efectivoDeuda).
+    const costoNeto     = lista.reduce((a, d) => a + (d.monto || 0), 0);
+    const costoEfectivo = lista.reduce((a, d) => a + efectivoDeuda(d), 0);
+    const pagado  = lista.filter(d => _esPagado(d.status)).reduce((a, d) => a + efectivoDeuda(d), 0);
+    const debemos = costoEfectivo - pagado;
+    const utilidad = precioVenta - costoNeto;
     const pctUtil  = precioVenta ? (utilidad / precioVenta * 100) : 0;
     const comisionEjec = o.ejec ? (utilidad * 0.075) : 0; // 7.5% sobre utilidad
     const utilDespues  = utilidad - comisionEjec;
@@ -51,11 +57,11 @@ async function renderControlPagos() {
     const filas = lista.map(d => {
       const prov = provMap[d.provId] || {};
       const nombre = prov.nombre || d.concepto || '—';
-      const pag = _esPagado(d.status) ? (d.monto || 0) : 0;
-      const deb = _esPagado(d.status) ? 0 : (d.monto || 0);
+      const pag = _esPagado(d.status) ? efectivoDeuda(d) : 0;
+      const deb = _esPagado(d.status) ? 0 : efectivoDeuda(d);
       return `<tr>
         <td>${esc(nombre)}<div style="font-size:10px;color:var(--gray400)">${esc(d.concepto) || ''}</div></td>
-        <td class="monto">${fmx(d.monto)}</td>
+        <td class="monto">${fmx(efectivoDeuda(d))}</td>
         <td class="monto" style="color:${pag ? 'var(--green)' : 'var(--gray400)'}">${pag ? fmx(pag) : '—'}</td>
         <td class="monto" style="color:${deb ? 'var(--red)' : 'var(--gray400)'}">${deb ? fmx(deb) : '—'}</td>
         <td>${pillHTML(_esPagado(d.status) ? 'Pagado' : 'Pendiente')}</td>
@@ -68,13 +74,13 @@ async function renderControlPagos() {
         <span class="tag ${debemos > 0 ? 'tag-red' : 'tag-green'}">${debemos > 0 ? 'DEBEMOS ' + fmxK(debemos) : 'AL DÍA'}</span>
       </div>
       <div class="panel-body">
-        <table class="tbl"><thead><tr><th>PROVEEDOR</th><th>COTIZACIÓN</th><th>PAGADO</th><th>DEBEMOS</th><th>ESTATUS</th></tr></thead>
+        <table class="tbl"><thead><tr><th>PROVEEDOR</th><th>MONTO C/IVA</th><th>PAGADO</th><th>DEBEMOS</th><th>ESTATUS</th></tr></thead>
         <tbody>${filas}
-          <tr style="border-top:2px solid var(--border)"><td style="font-weight:700">TOTAL GASTOS</td><td class="monto" style="font-weight:700">${fmx(costo)}</td><td class="monto" style="font-weight:700;color:var(--green)">${fmx(pagado)}</td><td class="monto" style="font-weight:700;color:var(--red)">${fmx(debemos)}</td><td></td></tr>
+          <tr style="border-top:2px solid var(--border)"><td style="font-weight:700">TOTAL GASTOS <span style="font-weight:400;color:var(--gray400)">(con IVA)</span></td><td class="monto" style="font-weight:700">${fmx(costoEfectivo)}</td><td class="monto" style="font-weight:700;color:var(--green)">${fmx(pagado)}</td><td class="monto" style="font-weight:700;color:var(--red)">${fmx(debemos)}</td><td></td></tr>
         </tbody></table>
         ${o.numero ? `<div style="display:flex;flex-wrap:wrap;gap:18px;margin-top:12px;padding:10px 12px;background:var(--cream);border-radius:8px;font-family:'JetBrains Mono',monospace;font-size:11px">
-          <span>Precio de venta: <strong>${fmx(precioVenta)}</strong></span>
-          <span>Costo de producción: <strong>${fmx(costo)}</strong></span>
+          <span>Precio de venta <span style="color:var(--gray400)">(sin IVA)</span>: <strong>${fmx(precioVenta)}</strong></span>
+          <span>Costo de producción <span style="color:var(--gray400)">(sin IVA)</span>: <strong>${fmx(costoNeto)}</strong></span>
           <span>Utilidad: <strong style="color:${utilidad >= 0 ? 'var(--green)' : 'var(--red)'}">${fmx(utilidad)}</strong></span>
           <span>% Utilidad: <strong>${pctUtil.toFixed(2)}%</strong></span>
           <span>Comisión 7.5%: <strong>${fmx(comisionEjec)}</strong></span>
@@ -85,8 +91,8 @@ async function renderControlPagos() {
   };
 
   const ordenOps = Object.keys(byOp).sort((a, b) => {
-    const da = byOp[a].filter(d => !_esPagado(d.status)).reduce((s, d) => s + (d.monto || 0), 0);
-    const dbb = byOp[b].filter(d => !_esPagado(d.status)).reduce((s, d) => s + (d.monto || 0), 0);
+    const da = byOp[a].filter(d => !_esPagado(d.status)).reduce((s, d) => s + efectivoDeuda(d), 0);
+    const dbb = byOp[b].filter(d => !_esPagado(d.status)).reduce((s, d) => s + efectivoDeuda(d), 0);
     return dbb - da; // primero los que más debemos
   });
 
@@ -108,11 +114,12 @@ function exportarControlPagosCSV() {
   Promise.all([db.deudas.list(), db.proveedores.list(), db.ops.list()]).then(([deudas, provs, ops]) => {
     const provMap = Object.fromEntries(provs.map(p => [p.id, p]));
     const opMap   = Object.fromEntries(ops.map(o => [o.id, o]));
-    const filas = [['OP', 'Proveedor', 'Concepto', 'Cotización', 'Pagado', 'Debemos', 'Estatus']]
+    const filas = [['OP', 'Proveedor', 'Concepto', 'Monto con IVA', 'Neto sin IVA', 'Pagado', 'Debemos', 'Estatus']]
       .concat(deudas.map(d => {
         const o = opMap[d.opId] || {}; const prov = provMap[d.provId] || {};
-        const pag = _esPagado(d.status) ? d.monto : 0; const deb = _esPagado(d.status) ? 0 : d.monto;
-        return [o.numero || '', prov.nombre || '', d.concepto || '', d.monto || 0, pag || 0, deb || 0, d.status || ''];
+        const efe = efectivoDeuda(d);
+        const pag = _esPagado(d.status) ? efe : 0; const deb = _esPagado(d.status) ? 0 : efe;
+        return [o.numero || '', prov.nombre || '', d.concepto || '', efe || 0, d.monto || 0, pag || 0, deb || 0, d.status || ''];
       }));
     const csv = filas.map(f => f.map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
     const a = document.createElement('a');
