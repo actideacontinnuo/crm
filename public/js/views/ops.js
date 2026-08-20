@@ -151,7 +151,11 @@ const _sub = o.cotizado || 0, _iva = _sub * 0.16, _totIva = _sub + _iva;
   // Línea de IVA — id fijo y reemplazo (no insertAdjacentHTML repetido), para
   // que reabrir la misma OP varias veces no acumule filas duplicadas debajo
   // de #dop-montos (el contenedor del modal nunca se limpia entre aperturas).
-  const ivaLineHTML = `<div id="dop-iva-line" style="display:flex;justify-content:space-between;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--gray600);margin:-6px 0 12px;padding:0 4px"><span>IVA 16%: <strong>${fmx(_iva)}</strong></span><span>TOTAL CON IVA: <strong style="color:var(--black)">${fmx(_totIva)}</strong></span></div>`;
+  // Caption de IVA — pertenece a las tarjetas de montos (proximidad = relación),
+  // por eso queda pegado a ellas (gap chico arriba) y la separación grande la
+  // aporta el .sect-label de la siguiente sección. Antes usaba margin-top
+  // negativo, que lo encimaba sobre las tarjetas.
+  const ivaLineHTML = `<div id="dop-iva-line" style="display:flex;justify-content:space-between;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--gray600);margin:var(--gap-sm) 0 0;padding:0 4px"><span>IVA 16%: <strong>${fmx(_iva)}</strong></span><span>TOTAL CON IVA: <strong style="color:var(--black)">${fmx(_totIva)}</strong></span></div>`;
   const existingIvaLine = document.getElementById('dop-iva-line');
   if (existingIvaLine) existingIvaLine.outerHTML = ivaLineHTML;
   else document.getElementById('dop-montos').insertAdjacentHTML('afterend', ivaLineHTML);

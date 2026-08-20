@@ -292,7 +292,7 @@
 
 /* FORM */
 .fg{margin-bottom:16px;}
-.fl{display:block;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:.15em;color:var(--gray400);margin-bottom:7px;}
+.fl{display:block;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:.15em;color:var(--gray400);margin-bottom:var(--gap-sm);}
 .fi,.fsel-full,.fta{width:100%;border:1px solid var(--border-d);border-radius:9px;padding:10px 13px;font-family:'DM Sans',sans-serif;font-size:13px;color:var(--black);background:var(--white);outline:none;transition:border-color .18s var(--ease),box-shadow .18s var(--ease);}
 /* Input y select del mismo formulario medían 39px y 41px — se igualan.
    El textarea queda fuera: crece con el contenido. */
@@ -303,11 +303,18 @@
 .fgrid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;}
 
 /* INFO CELLS */
-.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;}
+.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:var(--gap-md);margin-bottom:var(--gap-lg);}
 .info-cell{background:var(--cream);border:1px solid var(--border);border-radius:11px;padding:13px 15px;}
 .info-cell-label{font-family:'JetBrains Mono',monospace;font-size:8px;color:var(--gray400);letter-spacing:.14em;margin-bottom:5px;}
 .info-cell-val{font-size:14px;font-weight:600;}
-.sect-label{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--gray400);letter-spacing:.17em;margin-bottom:12px;display:flex;align-items:center;gap:8px;}
+/* El encabezado de sección separa DOS cosas: de su propio contenido (abajo)
+   y de la sección anterior (arriba). Antes solo tenía margen inferior, así
+   que cada header se pegaba al contenido de la sección previa (regla:
+   spacing debe comunicar jerarquía). Se le da aire arriba —un escalón mayor
+   que el de abajo, para que la separación entre grupos sea mayor que la
+   separación dentro del grupo— con guarda para cuando es el primer elemento. */
+.sect-label{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--gray400);letter-spacing:.17em;margin-top:var(--gap-xl);margin-bottom:var(--gap-md);display:flex;align-items:center;gap:8px;}
+.sect-label:first-child{margin-top:0;}
 .sect-label::after{content:"";flex:1;height:1px;background:var(--border);}
 
 /* KANBAN */
