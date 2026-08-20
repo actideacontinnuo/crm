@@ -3,9 +3,12 @@
  * El Propietario de la cuenta (quien la trajo) es SIEMPRE el mismo que el
  * Ejecutivo de cuenta (quien la atiende) — EXCEPTO Eduardo Gama y Alfredo,
  * que son socios/externos, nunca ejecutivos: para ellos se sigue forzando
- * Ejec. de cuenta = Natalia (Regla 3, 7.5%). El Ejecutivo de cuenta YA NO es
+ * Ejec. de cuenta = Natalia (Regla 3). Su 7.5% NO se paga como comisión — se
+ * queda como utilidad de la empresa, por eso la comisión gestionada por el
+ * sistema es 0 (no hay payout que mostrar). El Ejecutivo de cuenta YA NO es
  * una entrada independiente: aplicarReglasComision siempre la deriva/fuerza,
  * ignorando cualquier valor de ejecCuenta que venga en los datos de entrada.
+ * Propietario "Externo" (Regla 5): comisión manual, capturada a mano.
  */
 const { aplicarReglasComision, NATALIA, PROPIETARIOS_ESPECIALES } = require('../../api/_roles');
 
@@ -29,7 +32,7 @@ describe('Apollo — Natalia propietaria por default, comisión con las MISMAS r
     const r = aplicarReglasComision({ propietario: 'Eduardo Gama', ejecCuenta: 'Alexia' }, { esApollo: true });
     expect(r.propietario).toBe('Eduardo Gama');
     expect(r.ejecCuenta).toBe(NATALIA); // forzado, 'Alexia' se ignora
-    expect(r.comision).toBe(7.5); // Regla 3
+    expect(r.comision).toBe(0); // Regla 3 — no se paga, se queda como utilidad
     expect(r.regla).toBe(3);
   });
 });
@@ -52,12 +55,35 @@ describe('Regla 2 — Propietario = Ejecutivo de cuenta SIEMPRE (15%)', () => {
   });
 });
 
-describe('Regla 3 — Propietario es Eduardo Gama o Alfredo (7.5%) — excepción confirmada', () => {
-  test.each(PROPIETARIOS_ESPECIALES)('%s → ejec. de cuenta Natalia y 7.5%, SIEMPRE (no la puede pisar Regla 2)', (owner) => {
+describe('Regla 3 — Propietario es Eduardo Gama o Alfredo — excepción confirmada', () => {
+  test.each(PROPIETARIOS_ESPECIALES)('%s → ejec. de cuenta Natalia, SIEMPRE (no la puede pisar Regla 2); su 7.5%% no se paga (comision=0)', (owner) => {
     const r = aplicarReglasComision({ propietario: owner, ejecCuenta: owner }); // intento de "mismo dueño" no aplica
     expect(r.ejecCuenta).toBe(NATALIA);
-    expect(r.comision).toBe(7.5);
+    expect(r.comision).toBe(0);
     expect(r.regla).toBe(3);
+  });
+});
+
+describe('Regla 5 — Propietario Externo (comisión manual)', () => {
+  test('sin % capturado → ejec. de cuenta Natalia por default, comisión null', () => {
+    const r = aplicarReglasComision({ propietario: 'Externo' });
+    expect(r.ejecCuenta).toBe(NATALIA);
+    expect(r.comision).toBeNull();
+    expect(r.regla).toBe(5);
+  });
+
+  test('con % capturado a mano → se respeta tal cual', () => {
+    const r = aplicarReglasComision({ propietario: 'Externo', comision: 10 });
+    expect(r.ejecCuenta).toBe(NATALIA);
+    expect(r.comision).toBe(10);
+    expect(r.regla).toBe(5);
+  });
+
+  test('el ejec. de cuenta SÍ es editable para Externo (a diferencia de Regla 2/3)', () => {
+    const r = aplicarReglasComision({ propietario: 'Externo', ejecCuenta: 'Ximena', comision: 8 });
+    expect(r.ejecCuenta).toBe('Ximena');
+    expect(r.comision).toBe(8);
+    expect(r.regla).toBe(5);
   });
 });
 

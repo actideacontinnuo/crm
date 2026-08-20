@@ -51,7 +51,10 @@ async function renderControlPagos() {
     const debemos = costoEfectivo - pagado;
     const utilidad = precioVenta - costoNeto;
     const pctUtil  = precioVenta ? (utilidad / precioVenta * 100) : 0;
-    const comisionEjec = o.ejec ? (utilidad * 0.075) : 0; // 7.5% sobre utilidad
+    // % real de la OP (heredado del cliente — Regla 2 = 15%, Externo = manual).
+    // Eduardo/Alfredo tienen comision=0: su 7.5% no se paga, se queda como utilidad.
+    const comisionPct  = Number(o.comision) || 0;
+    const comisionEjec = comisionPct > 0 ? (utilidad * comisionPct / 100) : 0;
     const utilDespues  = utilidad - comisionEjec;
 
     const filas = lista.map(d => {
@@ -83,7 +86,7 @@ async function renderControlPagos() {
           <span>Costo de producción <span style="color:var(--gray400)">(sin IVA)</span>: <strong>${fmx(costoNeto)}</strong></span>
           <span>Utilidad: <strong style="color:${utilidad >= 0 ? 'var(--green)' : 'var(--red)'}">${fmx(utilidad)}</strong></span>
           <span>% Utilidad: <strong>${pctUtil.toFixed(2)}%</strong></span>
-          <span>Comisión 7.5%: <strong>${fmx(comisionEjec)}</strong></span>
+          ${comisionPct > 0 ? `<span>Comisión ${comisionPct}%: <strong>${fmx(comisionEjec)}</strong></span>` : ''}
           <span>Utilidad después de %: <strong style="color:var(--green)">${fmx(utilDespues)}</strong></span>
         </div>` : ''}
       </div>

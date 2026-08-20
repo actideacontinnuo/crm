@@ -206,24 +206,20 @@ router.patch('/:id', async (req, res) => {
     // única fuente de verdad, ver arriba). Cualquier valor recibido aquí se ignora.
     delete body.utilidad;
     delete body.cobrado;
-    // La comisión nunca se edita a mano — igual que en Clientes/Prospectos,
-    // solo se re-deriva automáticamente cuando cambia el propietario (abajo).
+    // El PROPIETARIO nunca cambia ni se reasigna (regla de negocio confirmada):
+    // se hereda del cliente al crear la OP y queda fijo. Como el Ejecutivo de
+    // cuenta y la comisión se derivan del propietario, también quedan fijos.
+    // Lo ÚNICO reasignable —y solo por la oficina total— es el Ejecutivo ASIGNADO
+    // (quien lleva el evento); el 'ejec' operativo lo sigue.
     delete body.comision;
-    // Solo la oficina total (Dirección/Oscar) puede reasignar roles y renumerar la OP
-    // (p. ej. al cambiar el Ejecutivo asignado). El resto no reasigna por edición.
+    delete body.propietario;
+    delete body.ejecCuenta;
+    delete body.numero;
+    delete body.num;
     if (!esOficinaTotal(req.user)) {
-      delete body.ejec; delete body.propietario; delete body.ejecCuenta; delete body.ejecAsignado;
-      delete body.numero; delete body.num;
-    } else if (body.propietario !== undefined || body.ejecCuenta !== undefined) {
-      // Propietario = Ejecutivo de cuenta SIEMPRE (excepto Eduardo/Alfredo) — se
-      // re-deriva también aquí para que "Editar OP" no pueda romper la regla.
-      // La comisión se re-deriva junto con el rol: reasignar el propietario
-      // cuenta como una nueva asignación (misma filosofía que Clientes).
-      const propietarioEfectivo = body.propietario !== undefined ? body.propietario : existingObj.propietario;
-      const r = aplicarReglasComision({ propietario: propietarioEfectivo });
-      body.propietario = r.propietario;
-      body.ejecCuenta   = r.ejecCuenta;
-      body.comision     = r.comision;
+      delete body.ejec; delete body.ejecAsignado;
+    } else if (body.ejecAsignado !== undefined) {
+      body.ejec = body.ejecAsignado; // el dueño operativo sigue al ejec. asignado
     }
     const page = await updatePage(req.params.id, toProps(body));
     const [enriched] = await withCobradoReal(await withUtilidadReal([toObj(page)]));

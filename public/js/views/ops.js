@@ -61,7 +61,9 @@ async function saveOP() {
 
   const ops = await db.ops.list();
   const numero = document.getElementById('op-num-prev').value || ('OP-' + uid().toUpperCase());
-  const monto  = parseFloat(document.getElementById('op-monto').value) || 0;
+  // El campo captura el TOTAL con IVA; se guarda el subtotal neto sin IVA.
+  const totalConIvaOP = parseFloat(document.getElementById('op-monto').value) || 0;
+  const monto  = netoSinIva(totalConIvaOP);
   // "Cotización" no es un estatus de OP: una OP puede tener varias cotizaciones
   // ligadas sin que eso cambie su estatus operativo. Toda OP nueva nace
   // En Producción; solo se mueve a Ejecutado manualmente cuando el evento ya pasó.
@@ -170,7 +172,7 @@ const _sub = o.cotizado || 0, _iva = _sub * 0.16, _totIva = _sub + _iva;
             ${pillHTML(pg.status)}
           </div>
         </div>`).join('')
-    : `<div style="color:var(--gray400);font-size:12px">Sin pagos registrados. <span style="color:var(--red);cursor:pointer" onclick="closeM('detalle-op');openM('nuevo-pago')">Registrar pago →</span></div>`;
+    : `<div style="color:var(--gray400);font-size:12px">Sin pagos registrados. <span style="color:var(--red);cursor:pointer" onclick="abrirNuevoPagoParaOP('${id}')">Registrar pago →</span></div>`;
 
   // Bono en la OP: SIEMPRE manual y SOLO aplica al Ejecutivo asignado (quien
   // lleva el evento), y solo si está en BONO_ELEGIBLES. Lo captura Dirección.
@@ -218,7 +220,7 @@ const _sub = o.cotizado || 0, _iva = _sub * 0.16, _totIva = _sub + _iva;
   const statuses = ['En Producción', 'Ejecutado'];
   document.getElementById('dop-acciones').innerHTML =
     statuses.filter(s => s !== o.status).map(s => `<button class="btn btn-ghost btn-sm" onclick="changeOPStatus('${o.id}','${s}')">${s}</button>`).join('') +
-    `<button class="btn btn-ghost btn-sm" onclick="closeM('detalle-op');openM('nuevo-pago')">+ Registrar pago</button>` +
+    `<button class="btn btn-ghost btn-sm" onclick="abrirNuevoPagoParaOP('${o.id}')">+ Registrar pago</button>` +
     `<button class="btn btn-ghost btn-sm" onclick="openCotForOP()">+ Nueva cotización</button>`;
 
   openM('detalle-op');
@@ -297,13 +299,16 @@ async function openEDR(id) {
     : `<tr><td colspan="5" style="text-align:center;color:var(--gray400);padding:16px;font-size:12px">Sin costos de proveedores registrados.<br><span style="color:var(--red);cursor:pointer" onclick="abrirNuevaDeudaParaOP('${id}')">+ Registrar pago a proveedor →</span></td></tr>`;
 
   const costos = opDeudas.reduce((a, d) => a + (d.monto || 0), 0);
-  // % real de esta OP (heredado del cliente al crearla — Regla 2 = 15%,
-  // Regla 3 = 7.5%, ver api/_roles.js). Respaldo 7.5% solo para OPs viejas
-  // creadas antes de que este dato existiera (comision === null).
-  const comisionPct = (o.comision ?? 7.5);
-  document.getElementById('edr-bottom').innerHTML = `
-    <div class="info-cell"><div class="info-cell-label">COMISIÓN EJECUTIVO (${comisionPct}%)</div><div style="font-family:'Bebas Neue',cursive;font-size:22px;color:var(--green)">${fmx((o.utilidad || 0) * (comisionPct / 100))}</div><div style="font-size:11px;color:var(--gray400)">${esc(o.ejec)} · ${comisionPct}% de ${fmx(o.utilidad)}</div></div>
-    <div class="info-cell"><div class="info-cell-label">COSTOS REGISTRADOS A PROVEEDORES</div><div style="font-family:'Bebas Neue',cursive;font-size:22px;color:var(--amber)">${fmx(costos)}</div><div style="font-size:11px;color:var(--gray400)">${opDeudas.length} proveedor(es)</div></div>`;
+  // % real de esta OP (heredado del cliente — Regla 2 = 15%, Externo = manual).
+  // La línea de comisión SOLO se muestra si hay comisión > 0 que se pague: para
+  // Eduardo/Alfredo (comision = 0) ese 7.5% no se paga, se queda como utilidad,
+  // así que NO aparece ninguna línea. OPs viejas sin dato (null) tampoco inventan.
+  const comisionPct = Number(o.comision) || 0;
+  const comisionCell = comisionPct > 0
+    ? `<div class="info-cell"><div class="info-cell-label">COMISIÓN EJECUTIVO (${comisionPct}%)</div><div style="font-family:'Bebas Neue',cursive;font-size:22px;color:var(--green)">${fmx((o.utilidad || 0) * (comisionPct / 100))}</div><div style="font-size:11px;color:var(--gray400)">${esc(o.ejec)} · ${comisionPct}% de ${fmx(o.utilidad)}</div></div>`
+    : '';
+  document.getElementById('edr-bottom').innerHTML = comisionCell +
+    `<div class="info-cell"><div class="info-cell-label">COSTOS REGISTRADOS A PROVEEDORES</div><div style="font-family:'Bebas Neue',cursive;font-size:22px;color:var(--amber)">${fmx(costos)}</div><div style="font-size:11px;color:var(--gray400)">${opDeudas.length} proveedor(es)</div></div>`;
 
   openM('edr');
 }
@@ -366,13 +371,18 @@ async function openEditarOP() {
   document.getElementById('eop-desc').value   = o.desc || '';
   document.getElementById('eop-fecha').value  = o.fechaEvento || '';
   document.getElementById('eop-status').value = o.status || 'En Producción';
-  document.getElementById('eop-monto').value  = o.cotizado || 0;
+  // El campo muestra el TOTAL con IVA (el interno 'cotizado' es el subtotal neto).
+  document.getElementById('eop-monto').value  = totalConIva(o.cotizado || 0);
+  _previewEopIva();
   document.getElementById('eop-num').value    = o.numero || '';
 
   document.getElementById('eop-propietario').innerHTML  = personaOptions(o.propietario  || cli?.propietario  || '', PERSONAS_PROPIETARIO);
   document.getElementById('eop-ejeccuenta').innerHTML   = personaOptions(o.ejecCuenta   || cli?.ejecCuenta   || '', PERSONAS_EJECUTIVO);
   document.getElementById('eop-ejecasignado').innerHTML = personaOptions(o.ejecAsignado || o.ejec || cli?.ejecAsignado || '', PERSONAS_EJECUTIVO);
-  _refrescarEjecCuentaDerivada('eop');
+  // El propietario NUNCA cambia ni se reasigna, y el ejec. de cuenta se deriva
+  // de él → ambos quedan bloqueados. Solo el Ejecutivo ASIGNADO es editable.
+  document.getElementById('eop-propietario').disabled = true;
+  document.getElementById('eop-ejeccuenta').disabled  = true;
 
   closeM('detalle-op');
   setTimeout(() => openM('editar-op'), 200);
@@ -389,9 +399,10 @@ async function saveEditarOP() {
     // El número (código) NO se toca al reasignar ejecutivo — es fijo por proyecto.
     desc,
     status:       document.getElementById('eop-status').value,
-    cotizado:     parseFloat(document.getElementById('eop-monto').value) || 0,
-    propietario:  document.getElementById('eop-propietario').value || '',
-    ejecCuenta:   document.getElementById('eop-ejeccuenta').value || '',
+    // El campo trae el TOTAL con IVA; se guarda el subtotal neto sin IVA.
+    cotizado:     netoSinIva(parseFloat(document.getElementById('eop-monto').value) || 0),
+    // Propietario y ejec. de cuenta NO se mandan: son inmutables (el backend los
+    // ignora de todos modos). Solo se reasigna el Ejecutivo ASIGNADO.
     ejecAsignado,
     ejec:         ejecAsignado, // ejecutivo asignado = quien ejecuta/lleva el proyecto (para el bono)
   };

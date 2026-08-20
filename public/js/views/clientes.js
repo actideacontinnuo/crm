@@ -182,7 +182,13 @@ async function saveCliente() {
   };
 
   // Al convertir un prospecto, la comisión FIJA se copia tal cual (incluso null, §3.1)
-  if (STATE.convirtiendoProspecto) data.comision = STATE.convComision ?? null;
+  if (STATE.convirtiendoProspecto) {
+    data.comision = STATE.convComision ?? null;
+  } else if (propietario === PROPIETARIO_EXTERNO) {
+    // Propietario Externo: comisión manual, la captura Dirección en este mismo formulario.
+    const manual = document.getElementById('nc-comision-manual')?.value;
+    data.comision = (manual !== '' && manual !== undefined) ? Number(manual) : null;
+  }
 
   showSpinner();
   try {
@@ -227,6 +233,11 @@ async function openEditarCliente() {
   document.getElementById('ec-ejeccuenta').innerHTML   = personaOptions(c.ejecCuenta   || '', PERSONAS_EJECUTIVO);
   document.getElementById('ec-ejecasignado').innerHTML = personaOptions(c.ejecAsignado || '', PERSONAS_EJECUTIVO);
   _refrescarEjecCuentaDerivada('ec');
+  // El propietario de un cliente NUNCA cambia ni se reasigna (regla de negocio
+  // confirmada) — el backend lo ignora en el PATCH; se bloquea aquí también
+  // para no sugerir que es editable. Ejec. de cuenta se deriva de él, igual bloqueado.
+  document.getElementById('ec-propietario').disabled = true;
+  document.getElementById('ec-ejeccuenta').disabled  = true;
   document.getElementById('ec-title').textContent = c.nombre || 'Editar Cliente';
 
   closeM('detalle-cliente');

@@ -6,8 +6,12 @@
 // Rosters por rol:
 //  - Propietario: todos menos Oscar (Eduardo y Alfredo SOLO entran como propietario)
 //  - Ejecutivo de cuenta / asignado: solo ejecutivos reales (Natalia, Ximena, Alexia)
-const PERSONAS_PROPIETARIO = ['Natalia Gama', 'Ximena', 'Alexia', 'Eduardo Gama', 'Alfredo'];
+const PERSONAS_PROPIETARIO = ['Natalia Gama', 'Ximena', 'Alexia', 'Eduardo Gama', 'Alfredo', 'Externo'];
 const PERSONAS_EJECUTIVO   = ['Natalia Gama', 'Ximena', 'Alexia'];
+// Propietario "Externo": la cuenta la trajo alguien de fuera. No es ejecutivo
+// ni socio — el % de comisión se captura A MANO (Dirección) y el ejec. de
+// cuenta arranca en Natalia pero se puede cambiar.
+const PROPIETARIO_EXTERNO = 'Externo';
 const PERSONAS = [...new Set([...PERSONAS_PROPIETARIO, ...PERSONAS_EJECUTIVO])];
 
 const NATALIA = 'Natalia Gama';
@@ -36,11 +40,24 @@ function aplicarReglasComision(data, { esApollo = false } = {}) {
   // se calcula con LAS MISMAS reglas que cualquier otra fuente (2, 3 o 4).
   if (esApollo && !out.propietario) out.propietario = NATALIA;
 
+  // Regla 5 — Propietario "Externo": comisión MANUAL (la teclea Dirección en la
+  // ficha del cliente; se respeta tal cual venga). El ejec. de cuenta arranca en
+  // Natalia por default pero se puede cambiar (se respeta si viene otro).
+  if (out.propietario === PROPIETARIO_EXTERNO) {
+    out.ejecCuenta = out.ejecCuenta || NATALIA;
+    out.comision   = (data.comision !== undefined && data.comision !== null && data.comision !== '')
+      ? Number(data.comision) : null;
+    out.regla      = 5;
+    return out;
+  }
+
   // Regla 3 — Propietario es Eduardo Gama o Alfredo (excepción confirmada,
-  // nunca son ejecutivos) → ejec. de cuenta se fuerza a Natalia, 7.5%.
+  // nunca son ejecutivos) → ejec. de cuenta se fuerza a Natalia. Su 7.5% NO se
+  // paga como comisión: se queda como utilidad de la empresa. Por eso la
+  // comisión gestionada por el sistema es 0 (no hay payout que mostrar).
   if (out.propietario && PROPIETARIOS_ESPECIALES.includes(out.propietario)) {
     out.ejecCuenta = NATALIA;
-    out.comision   = 7.5;
+    out.comision   = 0;
     out.regla      = 3;
     return out;
   }
@@ -62,4 +79,4 @@ function aplicarReglasComision(data, { esApollo = false } = {}) {
   return out;
 }
 
-module.exports = { PERSONAS, PERSONAS_PROPIETARIO, PERSONAS_EJECUTIVO, NATALIA, PROPIETARIOS_ESPECIALES, aplicarReglasComision };
+module.exports = { PERSONAS, PERSONAS_PROPIETARIO, PERSONAS_EJECUTIVO, NATALIA, PROPIETARIOS_ESPECIALES, PROPIETARIO_EXTERNO, aplicarReglasComision };

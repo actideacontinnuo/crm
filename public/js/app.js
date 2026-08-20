@@ -8,10 +8,11 @@ const EJEC_COL = { 'Natalia Gama': '#CC2200', 'Ximena': '#1A6B3C', 'Alexia': '#A
 // Rosters por rol:
 //  - Propietario: todos menos Oscar (Eduardo y Alfredo SOLO como propietario)
 //  - Ejec. de cuenta / asignado: solo ejecutivos reales (Natalia, Ximena, Alexia)
-const PERSONAS_PROPIETARIO = ['Natalia Gama', 'Ximena', 'Alexia', 'Eduardo Gama', 'Alfredo'];
+const PERSONAS_PROPIETARIO = ['Natalia Gama', 'Ximena', 'Alexia', 'Eduardo Gama', 'Alfredo', 'Externo'];
 const PERSONAS_EJECUTIVO   = ['Natalia Gama', 'Ximena', 'Alexia'];
 const NATALIA_ID = 'Natalia Gama';
 const PROPIETARIOS_ESPECIALES = ['Eduardo Gama', 'Alfredo'];
+const PROPIETARIO_EXTERNO = 'Externo';
 // Bono en OPs: siempre manual y solo para estas ejecutivas
 const BONO_ELEGIBLES = ['Alexia', 'Ximena'];
 
@@ -46,11 +47,15 @@ function personaOptions(sel, roster) {
 // Comisión según las reglas §3 (espejo EXACTO de aplicarReglasComision en
 // api/_roles.js — el Ejecutivo de cuenta ya no es una elección independiente,
 // se deriva del Propietario, así que esta función solo necesita 'propietario').
-function calcComision(propietario, esApollo) {
+function calcComision(propietario, esApollo, comisionManual) {
   // Apollo solo fija Natalia como propietaria por default; la comisión sale de las mismas reglas.
   const prop = (esApollo && !propietario) ? NATALIA_ID : propietario;
+  if (prop === PROPIETARIO_EXTERNO) {
+    const m = (comisionManual !== undefined && comisionManual !== '' && comisionManual !== null) ? Number(comisionManual) : null;
+    return { comision: m, texto: 'Regla 5 · Propietario Externo — comisión manual (captúrala abajo)' };
+  }
   if (prop && PROPIETARIOS_ESPECIALES.includes(prop))
-    return { comision: 7.5, texto: 'Regla 3 · Propietario especial — Ejec. de cuenta = Natalia, comisión 7.5%' };
+    return { comision: 0, texto: 'Regla 3 · Propietario especial — Ejec. de cuenta = Natalia. Su 7.5% NO se paga: se queda como utilidad.' };
   if (prop && PERSONAS_EJECUTIVO.includes(prop))
     return { comision: 15, texto: 'Regla 2 · Propietario = Ejecutivo de cuenta — comisión 15% + bono manual al cierre' };
   return { comision: null, texto: 'Regla 4 · Sin propietario asignado — comisión no gestionada por el sistema' };
@@ -59,9 +64,12 @@ function calcComision(propietario, esApollo) {
 // Deriva el Ejecutivo de cuenta a partir del Propietario (arquitectura
 // confirmada: el propietario de la cuenta ES el ejecutivo de cuenta, excepto
 // Eduardo/Alfredo → siempre Natalia). Espejo de aplicarReglasComision.
+// 'Externo' es la única excepción: arranca en Natalia pero es editable (no se
+// bloquea el select en ese caso — ver refrescarComision/_refrescarEjecCuentaDerivada).
 function _ejecCuentaDe(propietario) {
   if (propietario && PROPIETARIOS_ESPECIALES.includes(propietario)) return NATALIA_ID;
   if (propietario && PERSONAS_EJECUTIVO.includes(propietario)) return propietario;
+  if (propietario === PROPIETARIO_EXTERNO) return NATALIA_ID;
   return '';
 }
 
@@ -76,18 +84,28 @@ function refrescarComision(prefix) {
   // Apollo: Propietario = Natalia por default (si aún no se eligió otro)
   if (propSel && esApollo && !propSel.value) propSel.value = NATALIA_ID;
   const prop = propSel?.value || '';
+  const esExterno = prop === PROPIETARIO_EXTERNO;
   const ejc  = _ejecCuentaDe(prop);
 
   if (ejcSel) {
-    ejcSel.value = ejc;
-    ejcSel.disabled = true;
-    ejcSel.style.background = 'var(--cream)';
-    ejcSel.style.color      = 'var(--gray400)';
-    ejcSel.style.cursor     = 'not-allowed';
-    ejcSel.title = 'Se asigna automáticamente: el Ejecutivo de cuenta es siempre el Propietario (Natalia si el propietario es un socio).';
+    if (!ejcSel.value) ejcSel.value = ejc; // solo precarga si aún no hay selección
+    // 'Externo': arranca en Natalia pero es editable. Los demás casos se
+    // siguen bloqueando (el ejec. de cuenta se deriva, no se elige a mano).
+    ejcSel.disabled = !esExterno;
+    ejcSel.style.background = esExterno ? '' : 'var(--cream)';
+    ejcSel.style.color      = esExterno ? '' : 'var(--gray400)';
+    ejcSel.style.cursor     = esExterno ? '' : 'not-allowed';
+    ejcSel.title = esExterno
+      ? 'Propietario Externo: el Ejecutivo de cuenta arranca en Natalia pero se puede cambiar.'
+      : 'Se asigna automáticamente: el Ejecutivo de cuenta es siempre el Propietario (Natalia si el propietario es un socio).';
   }
 
-  const r = calcComision(prop, esApollo);
+  // Campo de % manual — solo visible/relevante cuando el propietario es Externo.
+  const comEl = document.getElementById(prefix + '-comision-manual-wrap');
+  const comInput = document.getElementById(prefix + '-comision-manual');
+  if (comEl) comEl.style.display = esExterno ? 'block' : 'none';
+
+  const r = calcComision(prop, esApollo, comInput?.value);
   const el = document.getElementById(prefix + '-comision-preview');
   if (el) {
     const pct = r.comision === null ? '—' : r.comision + '%';
@@ -440,15 +458,33 @@ async function _previewOPNum() {
   if (el) el.value = num;
 }
 
-// #3 Todas las OPs incluyen IVA (16%): muestra IVA y total con IVA en el modal
+// #3 Todas las OPs incluyen IVA (16%). La OP se CAPTURA con el total (con IVA)
+// y el sistema desglosa el subtotal (÷1.16) y el IVA. Internamente se guarda
+// SIEMPRE el subtotal sin IVA en 'cotizado' (única fuente de verdad para
+// Utilidad/Dashboard/Reportes) — solo cambia lo que se teclea y cómo se ve.
 const IVA_RATE = 0.16;
+// Total con IVA → subtotal neto sin IVA (redondeado a 2 decimales).
+function netoSinIva(total) { return Math.round(((Number(total) || 0) / (1 + IVA_RATE)) * 100) / 100; }
+// Subtotal neto → total con IVA (para mostrar en formularios de edición).
+function totalConIva(neto) { return Math.round(((Number(neto) || 0) * (1 + IVA_RATE)) * 100) / 100; }
+
+// Preview de la OP: se teclea el TOTAL con IVA y se muestra el desglose.
 function _previewOPIva() {
-  const sub = parseFloat(document.getElementById('op-monto')?.value) || 0;
-  const iva = sub * IVA_RATE;
+  const total = parseFloat(document.getElementById('op-monto')?.value) || 0;
+  const neto = netoSinIva(total);
+  const iva  = total - neto;
   const el = document.getElementById('op-iva-prev');
   const lbl = document.getElementById('op-iva-label');
-  if (lbl) lbl.textContent = 'IVA 16% Y TOTAL CON IVA';
-  if (el) el.textContent = sub ? `IVA 16%: ${fmx(iva)}  ·  Total con IVA: ${fmx(sub + iva)}` : '';
+  if (lbl) lbl.textContent = 'DESGLOSE';
+  if (el) el.textContent = total ? `Subtotal: ${fmx(neto)}  ·  IVA 16%: ${fmx(iva)}` : '';
+}
+
+// Mismo desglose para el modal de Editar OP.
+function _previewEopIva() {
+  const total = parseFloat(document.getElementById('eop-monto')?.value) || 0;
+  const neto = netoSinIva(total);
+  const el = document.getElementById('eop-iva-prev');
+  if (el) el.textContent = total ? `Subtotal: ${fmx(neto)}  ·  IVA 16%: ${fmx(total - neto)}` : '';
 }
 
 // Monto de EFECTIVO de una deuda a proveedor = lo que realmente se le paga
@@ -476,10 +512,24 @@ function _previewDeudaIva() {
     `<div style="display:flex;justify-content:space-between;color:var(--green);font-weight:700;margin-top:3px"><span>Neto sin IVA → utilidad</span><span>${fmx(neto)}</span></div>`;
 }
 
+// Si se abrió "Registrar pago" desde una OP concreta, ese id se preselecciona
+// aquí una sola vez (mismo patrón que _deudaPrefillOpId para pago a proveedor).
+let _pagoPrefillOpId = null;
+
 async function _refreshPagoOPSelect() {
   const list = await db.ops.list();
   const s = document.getElementById('pg-op');
-  if (s) s.innerHTML = '<option value="">— Ninguna —</option>' + list.map(o => `<option value="${o.id}">${esc(o.numero)} — ${esc(o.desc)}</option>`).join('');
+  if (s) {
+    s.innerHTML = '<option value="">— Ninguna —</option>' + list.map(o => `<option value="${o.id}">${esc(o.numero)} — ${esc(o.desc)}</option>`).join('');
+    if (_pagoPrefillOpId) { s.value = _pagoPrefillOpId; _pagoPrefillOpId = null; }
+  }
+}
+
+// Abre "Registrar pago" (cobro a cliente) con la OP actual ya seleccionada.
+function abrirNuevoPagoParaOP(opId) {
+  _pagoPrefillOpId = opId || null;
+  closeM('detalle-op');
+  openM('nuevo-pago');
 }
 
 // Si se abrió "Registrar pago a proveedor" desde el Estado de Resultados de

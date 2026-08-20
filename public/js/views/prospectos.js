@@ -142,6 +142,12 @@ async function saveProspecto() {
     seguimiento: document.getElementById('np-fecha').value || new Date().toISOString().split('T')[0],
   };
 
+  // Propietario Externo: comisión manual (el backend la respeta tal cual — Regla 5).
+  if (data.propietario === PROPIETARIO_EXTERNO) {
+    const manual = document.getElementById('np-comision-manual')?.value;
+    data.comision = (manual !== '' && manual !== undefined) ? Number(manual) : null;
+  }
+
   const editingId = STATE.editingProspId || null;
 
   if (editingId && !soyOficinaTotal()) {

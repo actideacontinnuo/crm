@@ -514,6 +514,7 @@
       <div class="fg"><label class="fl">EJECUTIVO DE CUENTA</label><select class="fsel-full" id="np-ejeccuenta" onchange="refrescarComision('np')"></select></div>
     </div>
     <div class="fg"><label class="fl">EJECUTIVO ASIGNADO</label><select class="fsel-full" id="np-ejecasignado"></select></div>
+    <div class="fg" id="np-comision-manual-wrap" style="display:none"><label class="fl">% DE COMISIÓN (PROPIETARIO EXTERNO — CAPTÚRALO A MANO)</label><input class="fi" id="np-comision-manual" type="number" step="0.1" placeholder="Ej. 10" oninput="refrescarComision('np')"></div>
     <div id="np-comision-preview" style="margin:2px 0 12px"></div>
     <div class="fg"><label class="fl">TIPO DE EVENTO</label><input class="fi" id="np-evento" placeholder="Congreso anual, lanzamiento, gala..."></div>
     <div class="fgrid"><div class="fg"><label class="fl">PRÓXIMO SEGUIMIENTO</label><input class="fi" id="np-fecha" type="date"></div><div class="fg"><label class="fl">ESTATUS</label><select class="fsel-full" id="np-status"><option>Nuevo</option><option>Contactado</option><option>En conversación</option><option>Listo p/ cotizar</option></select></div></div>
@@ -594,6 +595,7 @@
       <div class="fg"><label class="fl">EJECUTIVO DE CUENTA</label><select class="fsel-full" id="nc-ejeccuenta" onchange="refrescarComision('nc');_actualizarCodigoCliente()"></select></div>
     </div>
     <div class="fg"><label class="fl">EJECUTIVO ASIGNADO</label><select class="fsel-full" id="nc-ejecasignado"></select></div>
+    <div class="fg" id="nc-comision-manual-wrap" style="display:none"><label class="fl">% DE COMISIÓN (PROPIETARIO EXTERNO — CAPTÚRALO A MANO)</label><input class="fi" id="nc-comision-manual" type="number" step="0.1" placeholder="Ej. 10" oninput="refrescarComision('nc')"></div>
     <div id="nc-comision-preview" style="margin:2px 0 4px"></div>
     <div id="nc-codigo-preview" style="margin:0 0 12px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--gray400)"></div>
     <div style="border-top:1px solid var(--border);padding-top:14px;margin-top:4px">
@@ -691,7 +693,7 @@
     <div id="op-cliente-wrap" class="fg"><label class="fl">CLIENTE</label><select class="fsel-full" id="op-cliente" onchange="previewOPNum()"></select></div>
     <div class="fg"><label class="fl">DESCRIPCIÓN</label><input class="fi" id="op-desc" placeholder="Congreso Nacional 2026 (sin acentos para el código)"></div>
     <div class="fgrid"><div class="fg"><label class="fl">FECHA DEL EVENTO</label><input class="fi" id="op-fecha" type="date"></div><div class="fg"><label class="fl">EJECUTIVO</label><select class="fsel-full" id="op-ejec"><option value="Natalia Gama">Natalia Gama</option><option value="Ximena">Ximena</option><option value="Alexia">Alexia</option></select></div></div>
-    <div class="fg"><label class="fl">SUBTOTAL COTIZADO (MXN, sin IVA)</label><input class="fi" id="op-monto" type="number" placeholder="0.00" oninput="_previewOPIva()"></div>
+    <div class="fg"><label class="fl">TOTAL COTIZADO (MXN, con IVA)</label><input class="fi" id="op-monto" type="number" placeholder="0.00" oninput="_previewOPIva()"></div>
     <div class="fg"><label class="fl" id="op-iva-label" style="color:var(--gray400)">IVA 16% + total con IVA aparecerán aquí</label><div id="op-iva-prev" style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--gray600);margin-bottom:10px"></div></div><div class="fg"><label class="fl">NÚMERO OP (autogenerado)</label><input class="fi" id="op-num-prev" readonly style="background:var(--gray50);color:var(--gray400);font-family:'JetBrains Mono',monospace;font-size:12px" placeholder="Se genera al seleccionar cliente"></div>
   </div>
   <div class="modal-footer"><button class="btn btn-ghost" onclick="closeM('nueva-op')">Cancelar</button><button class="btn btn-primary" onclick="saveOP()">Crear OP</button></div>
@@ -735,7 +737,7 @@
       <div class="fg" style="margin:0"><label class="fl">EJEC. DE CUENTA</label><select class="fsel-full" id="eop-ejeccuenta"></select></div>
       <div class="fg" style="margin:0"><label class="fl">EJEC. ASIGNADO</label><select class="fsel-full" id="eop-ejecasignado"></select></div>
     </div>
-    <div class="fg"><label class="fl">SUBTOTAL COTIZADO (sin IVA)</label><input class="fi" id="eop-monto" type="number"></div>
+    <div class="fg"><label class="fl">TOTAL COTIZADO (con IVA)</label><input class="fi" id="eop-monto" type="number" oninput="_previewEopIva()"><div id="eop-iva-prev" style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--gray600);margin-top:6px"></div></div>
     <div class="fg"><label class="fl">NÚMERO OP</label><input class="fi" id="eop-num" readonly style="font-family:'JetBrains Mono',monospace;font-size:12px;background:var(--gray50);color:var(--gray400)"></div>
     <div style="background:var(--cream);border-radius:7px;padding:9px 13px;font-size:11px;color:var(--gray600);line-height:1.6">
       El código de la OP es <strong>CÓDIGO-DE-CLIENTE-01, -02, -03…</strong>: se asigna una sola vez al crear la OP y ya NO cambia. Reasignar el Ejecutivo asignado solo actualiza quién lleva el proyecto (para el bono), no el código.

@@ -139,22 +139,23 @@ describe('Utilidad — ÚNICA fuente de verdad: cotizado − costos reales de pr
   });
 });
 
-describe('Propietario = Ejecutivo de cuenta SIEMPRE — se re-deriva también al editar la OP', () => {
-  test('oficina total cambia el Propietario → el ejec. de cuenta se deriva, no el que se mande', async () => {
+describe('El Propietario de la OP NUNCA cambia ni se reasigna (regla de negocio confirmada)', () => {
+  test('la oficina total intenta cambiar el Propietario por PATCH → no tiene efecto', async () => {
     const create = await request(app).post('/api/ops')
       .set('Authorization', `Bearer ${adminToken()}`)
       .send(OP_VALIDA);
     const opId = create.body.id;
+    const propietarioOriginal = create.body.propietario;
 
     const patch = await request(app).patch(`/api/ops/${opId}`)
       .set('Authorization', `Bearer ${adminToken()}`)
-      .send({ propietario: 'Ximena', ejecCuenta: 'Alexia' }); // 'Alexia' se ignora
+      .send({ propietario: 'Ximena', ejecCuenta: 'Alexia' });
     expect(patch.status).toBe(200);
-    expect(patch.body.propietario).toBe('Ximena');
-    expect(patch.body.ejecCuenta).toBe('Ximena');
+    expect(patch.body.propietario).toBe(propietarioOriginal); // sin cambio
+    expect(patch.body.ejecCuenta).toBe(create.body.ejecCuenta); // sin cambio
   });
 
-  test('propietario especial (Eduardo) → ejec. de cuenta se fuerza a Natalia también al editar', async () => {
+  test('lo único reasignable por la oficina total es el Ejecutivo ASIGNADO', async () => {
     const create = await request(app).post('/api/ops')
       .set('Authorization', `Bearer ${adminToken()}`)
       .send(OP_VALIDA);
@@ -162,9 +163,10 @@ describe('Propietario = Ejecutivo de cuenta SIEMPRE — se re-deriva también al
 
     const patch = await request(app).patch(`/api/ops/${opId}`)
       .set('Authorization', `Bearer ${adminToken()}`)
-      .send({ propietario: 'Eduardo Gama' });
-    expect(patch.body.propietario).toBe('Eduardo Gama');
-    expect(patch.body.ejecCuenta).toBe('Natalia Gama');
+      .send({ ejecAsignado: 'Alexia' });
+    expect(patch.status).toBe(200);
+    expect(patch.body.ejecAsignado).toBe('Alexia');
+    expect(patch.body.ejec).toBe('Alexia'); // el dueño operativo sigue al ejec. asignado
   });
 });
 
@@ -271,13 +273,13 @@ describe('Comisión — heredada del cliente al crear la OP (Regla 2 = 15%, Regl
     expect(res.body.comision).toBe(15);
   });
 
-  test('propietario especial Eduardo/Alfredo (Regla 3) → la OP hereda 7.5%', async () => {
+  test('propietario especial Eduardo/Alfredo (Regla 3) → la OP hereda 0 (su 7.5% no se paga, se queda como utilidad)', async () => {
     const cliente = await crearCliente('COM230814368', 'Eduardo Gama');
-    expect(cliente.comision).toBe(7.5);
+    expect(cliente.comision).toBe(0);
     const res = await request(app).post('/api/ops')
       .set('Authorization', `Bearer ${adminToken()}`)
       .send({ ...OP_VALIDA, clienteId: cliente.id });
-    expect(res.body.comision).toBe(7.5);
+    expect(res.body.comision).toBe(0);
   });
 
   test('lo que mande el request en comision se IGNORA — siempre se hereda del cliente', async () => {
@@ -307,7 +309,7 @@ describe('Comisión — heredada del cliente al crear la OP (Regla 2 = 15%, Regl
     expect(res.body.comision).toBe(15); // se ignora el 50 — se conserva la heredada
   });
 
-  test('PATCH SÍ re-deriva la comisión cuando oficina total reasigna el propietario', async () => {
+  test('el propietario/comisión de la OP quedan fijos para siempre — ni la oficina total los puede reasignar', async () => {
     const clienteXimena = await crearCliente('COM530814368', 'Ximena');
     const creada = await request(app).post('/api/ops')
       .set('Authorization', `Bearer ${adminToken()}`)
@@ -316,10 +318,11 @@ describe('Comisión — heredada del cliente al crear la OP (Regla 2 = 15%, Regl
 
     const res = await request(app).patch(`/api/ops/${creada.body.id}`)
       .set('Authorization', `Bearer ${adminToken()}`)
-      .send({ propietario: 'Eduardo Gama' }); // reasignación → cuenta como nueva asignación
+      .send({ propietario: 'Eduardo Gama' }); // intento de reasignación — sin efecto
     expect(res.status).toBe(200);
-    expect(res.body.comision).toBe(7.5);
-    expect(res.body.ejecCuenta).toBe('Natalia Gama'); // Regla 3
+    expect(res.body.propietario).toBe(creada.body.propietario);
+    expect(res.body.comision).toBe(15); // no cambió
+    expect(res.body.ejecCuenta).toBe(creada.body.ejecCuenta); // tampoco
   });
 });
 

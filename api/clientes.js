@@ -121,18 +121,14 @@ router.patch('/:id', async (req, res) => {
     const existingObj = toObj(existing);
     if (!assertRolAccess(req, res, existingObj)) return;
     const body = { ...req.body };
-    // §3.1 — la comisión no se recalcula retroactivamente; el código de cliente tampoco cambia
+    // El PROPIETARIO de un cliente NUNCA cambia ni se reasigna (regla de negocio
+    // confirmada). Como el Ejecutivo de cuenta se deriva del propietario, también
+    // queda fijo. La comisión y el código tampoco se recalculan. Lo ÚNICO que se
+    // puede reasignar por edición es el Ejecutivo ASIGNADO (quien lleva el evento).
     delete body.comision;
     delete body.codigo;
-    // Propietario = Ejecutivo de cuenta SIEMPRE (excepto Eduardo/Alfredo, Regla 3)
-    // — se re-deriva aquí para que editar nunca pueda dejar el registro
-    // inconsistente. No toca la comisión ya fijada (§3.1).
-    if (body.propietario !== undefined || body.ejecCuenta !== undefined) {
-      const propietarioEfectivo = body.propietario !== undefined ? body.propietario : existingObj.propietario;
-      const r = aplicarReglasComision({ propietario: propietarioEfectivo });
-      body.propietario = r.propietario;
-      body.ejecCuenta   = r.ejecCuenta;
-    }
+    delete body.propietario;
+    delete body.ejecCuenta;
     const page = await updatePage(req.params.id, toProps(body));
     res.json(toObj(page));
   } catch (err) { res.status(500).json({ error: err.message }); }

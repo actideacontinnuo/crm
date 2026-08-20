@@ -187,33 +187,34 @@ describe('PATCH /api/clientes/:id — ownership', () => {
   });
 });
 
-describe('PATCH /api/clientes/:id — Propietario = Ejecutivo de cuenta SIEMPRE', () => {
-  test('cambiar el propietario re-deriva el ejec. de cuenta (ignora el que se mande)', async () => {
+describe('PATCH /api/clientes/:id — el Propietario NUNCA cambia ni se reasigna', () => {
+  test('intentar cambiar el propietario por PATCH no tiene efecto (se ignora)', async () => {
     const creado = await request(app).post('/api/clientes')
       .set('Authorization', `Bearer ${adminToken()}`)
       .send({ ...CLIENTE_VALIDO, propietario: 'Natalia Gama', ejecCuenta: 'Natalia Gama' });
 
     const res = await request(app).patch(`/api/clientes/${creado.body.id}`)
       .set('Authorization', `Bearer ${adminToken()}`)
-      .send({ propietario: 'Ximena', ejecCuenta: 'Alexia' }); // 'Alexia' se ignora
+      .send({ propietario: 'Ximena', ejecCuenta: 'Alexia' });
     expect(res.status).toBe(200);
-    expect(res.body.propietario).toBe('Ximena');
-    expect(res.body.ejecCuenta).toBe('Ximena');
+    expect(res.body.propietario).toBe('Natalia Gama'); // no cambió
+    expect(res.body.ejecCuenta).toBe('Natalia Gama');  // tampoco
   });
 
-  test('propietario especial (Alfredo) → ejec. de cuenta se fuerza a Natalia también al editar', async () => {
+  test('propietario especial (Alfredo) también queda fijo — no se puede reasignar por edición', async () => {
     const creado = await request(app).post('/api/clientes')
       .set('Authorization', `Bearer ${adminToken()}`)
-      .send({ ...CLIENTE_VALIDO, propietario: 'Natalia Gama', ejecCuenta: 'Natalia Gama' });
+      .send({ ...CLIENTE_VALIDO, propietario: 'Alfredo' });
+    expect(creado.body.ejecCuenta).toBe('Natalia Gama');
 
     const res = await request(app).patch(`/api/clientes/${creado.body.id}`)
       .set('Authorization', `Bearer ${adminToken()}`)
-      .send({ propietario: 'Alfredo' });
-    expect(res.body.propietario).toBe('Alfredo');
+      .send({ propietario: 'Natalia Gama' }); // intento de reasignar
+    expect(res.body.propietario).toBe('Alfredo'); // sigue igual
     expect(res.body.ejecCuenta).toBe('Natalia Gama');
   });
 
-  test('editar SOLO el ejec. de cuenta (sin tocar propietario) no puede dejarlo inconsistente', async () => {
+  test('editar el ejec. de cuenta directamente tampoco tiene efecto', async () => {
     const creado = await request(app).post('/api/clientes')
       .set('Authorization', `Bearer ${adminToken()}`)
       .send({ ...CLIENTE_VALIDO, propietario: 'Ximena', ejecCuenta: 'Ximena' });
@@ -222,7 +223,26 @@ describe('PATCH /api/clientes/:id — Propietario = Ejecutivo de cuenta SIEMPRE'
       .set('Authorization', `Bearer ${adminToken()}`)
       .send({ ejecCuenta: 'Alexia' }); // intento de romper la regla
     expect(res.body.propietario).toBe('Ximena'); // no cambió
-    expect(res.body.ejecCuenta).toBe('Ximena');  // se re-derivó del propietario existente, no 'Alexia'
+    expect(res.body.ejecCuenta).toBe('Ximena');  // tampoco
+  });
+});
+
+describe('Propietario "Externo" — comisión manual', () => {
+  test('Externo con % capturado a mano se respeta tal cual', async () => {
+    const res = await request(app).post('/api/clientes')
+      .set('Authorization', `Bearer ${adminToken()}`)
+      .send({ ...CLIENTE_VALIDO, propietario: 'Externo', comision: 10 });
+    expect(res.body.propietario).toBe('Externo');
+    expect(res.body.ejecCuenta).toBe('Natalia Gama'); // default
+    expect(res.body.comision).toBe(10);
+  });
+
+  test('Externo con ejec. de cuenta elegido a mano — SÍ se respeta (a diferencia de Regla 2/3)', async () => {
+    const res = await request(app).post('/api/clientes')
+      .set('Authorization', `Bearer ${adminToken()}`)
+      .send({ ...CLIENTE_VALIDO, propietario: 'Externo', ejecCuenta: 'Ximena', comision: 8 });
+    expect(res.body.ejecCuenta).toBe('Ximena');
+    expect(res.body.comision).toBe(8);
   });
 });
 
