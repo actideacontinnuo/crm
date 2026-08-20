@@ -6,7 +6,7 @@ const {
   read_title, read_text, read_number, read_select, read_email, read_phone,
 } = require('./notion');
 const { filtroRolesNotion, assertRolAccess } = require('./_guard');
-const { aplicarReglasComision } = require('./_roles');
+const { aplicarReglasComision, obtenerRosterEjecutivos } = require('./_roles');
 
 // Código de cliente — FIJO al crear, jamás editable (ver PATCH: siempre se
 // descarta). Formato confirmado: RFC(3)-EJECUTIVO DE CUENTA(3)-DDMMAA de la
@@ -92,7 +92,8 @@ router.post('/', async (req, res) => {
   try {
     const data = { ...req.body };
     // Reglas de comisión (los clientes no vienen de Apollo; ese origen es de prospectos)
-    const r = aplicarReglasComision(data, { esApollo: false });
+    const ejecutivosRoster = await obtenerRosterEjecutivos();
+    const r = aplicarReglasComision(data, { esApollo: false, ejecutivosRoster });
     data.propietario  = r.propietario;
     data.ejecCuenta   = r.ejecCuenta;
     data.ejecAsignado = r.ejecAsignado;
@@ -103,7 +104,7 @@ router.post('/', async (req, res) => {
     }
     if (req.rolFilter && !data.propietario) {
       data.propietario = req.rolFilter;
-      const r2 = aplicarReglasComision(data, { esApollo: false });
+      const r2 = aplicarReglasComision(data, { esApollo: false, ejecutivosRoster });
       data.ejecCuenta = r2.ejecCuenta;
       if (data.comision === null || data.comision === undefined) data.comision = r2.comision;
     }

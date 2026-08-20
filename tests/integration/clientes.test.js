@@ -22,6 +22,12 @@ function ejecToken(ejec = 'Alexia') {
 let app;
 beforeEach(() => {
   mockNotion.resetStore();
+  // Ximena y Alexia como ejecutivas reales del sistema (Rol=ejecutivo,
+  // Activo=sí) — necesario para el roster dinámico de comisiones (Regla 2,
+  // api/_roles.js obtenerRosterEjecutivos). Natalia ya viene por defecto (admin).
+  mockNotion.addEjecutivo('Ximena', 'ximena');
+  mockNotion.addEjecutivo('Alexia', 'alexia-roster');
+  require('../../api/_roles')._resetRosterCacheForTests();
   app = buildApp();
 });
 
@@ -277,5 +283,50 @@ describe('Autenticación', () => {
     const res = await request(app).get('/api/clientes')
       .set('Authorization', 'Bearer token-falso');
     expect(res.status).toBe(401);
+  });
+});
+
+describe('Roster dinámico de ejecutivos — un usuario nuevo se habilita solo (Entrega 2)', () => {
+  test('un propietario que NO es ejecutivo ni socio → sin comisión (Regla 4), aunque exista como texto', async () => {
+    // "Nueva Ejecutiva" todavía no existe como usuario del sistema — no debe
+    // ganar 15% solo por escribirse en el campo Propietario.
+    const res = await request(app).post('/api/clientes')
+      .set('Authorization', `Bearer ${adminToken()}`)
+      .send({ ...CLIENTE_VALIDO, propietario: 'Nueva Ejecutiva' });
+    expect(res.body.propietario).toBe('Nueva Ejecutiva');
+    expect(res.body.ejecCuenta).toBe(''); // no se deriva nada — no es un ejecutivo real
+    expect(res.body.comision).toBeNull();
+  });
+
+  test('dar de alta a "Nueva Ejecutiva" como usuario Rol=ejecutivo la habilita SOLA, sin tocar código', async () => {
+    mockNotion.addEjecutivo('Nueva Ejecutiva', 'nueva');
+    require('../../api/_roles')._resetRosterCacheForTests(); // el roster real tarda ≤60s, aquí se fuerza al instante
+    const res = await request(app).post('/api/clientes')
+      .set('Authorization', `Bearer ${adminToken()}`)
+      .send({ ...CLIENTE_VALIDO, rfc: 'NEV130814368', propietario: 'Nueva Ejecutiva' });
+    expect(res.body.propietario).toBe('Nueva Ejecutiva');
+    expect(res.body.ejecCuenta).toBe('Nueva Ejecutiva'); // Regla 2 — ahora SÍ se deriva
+    expect(res.body.comision).toBe(15);
+  });
+
+  test('desactivar a un ejecutivo (Activo=no) lo saca del roster — ya no gana 15%', async () => {
+    mockNotion.addEjecutivo('Ex Ejecutiva', 'exejec');
+    const store = mockNotion.getStore();
+    const pagina = store.usuarios.find(u => u.properties['Nombre']?.rich_text?.[0]?.plain_text === 'Ex Ejecutiva');
+    pagina.properties['Activo'] = { checkbox: false };
+    require('../../api/_roles')._resetRosterCacheForTests();
+    const res = await request(app).post('/api/clientes')
+      .set('Authorization', `Bearer ${adminToken()}`)
+      .send({ ...CLIENTE_VALIDO, rfc: 'EXJ130814368', propietario: 'Ex Ejecutiva' });
+    expect(res.body.ejecCuenta).toBe(''); // ya no cuenta como ejecutivo real
+    expect(res.body.comision).toBeNull();
+  });
+
+  test('Natalia (Rol=admin) sigue contando como ejecutiva comercial — Regla 2 con 15%', async () => {
+    const res = await request(app).post('/api/clientes')
+      .set('Authorization', `Bearer ${adminToken()}`)
+      .send({ ...CLIENTE_VALIDO, rfc: 'NAT130814368', propietario: 'Natalia Gama' });
+    expect(res.body.ejecCuenta).toBe('Natalia Gama');
+    expect(res.body.comision).toBe(15);
   });
 });

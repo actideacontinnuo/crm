@@ -6,7 +6,7 @@ const {
   read_title, read_text, read_number, read_select, read_date, read_email, read_phone,
 } = require('./notion');
 const { filtroRolesNotion, assertRolAccess } = require('./_guard');
-const { aplicarReglasComision } = require('./_roles');
+const { aplicarReglasComision, obtenerRosterEjecutivos } = require('./_roles');
 
 function toObj(page) {
   const p = page.properties;
@@ -80,7 +80,8 @@ router.post('/', async (req, res) => {
     const data = { ...req.body };
     // Aplicar reglas de comisión y asignaciones automáticas (comisión FIJA al alta)
     const esApollo = data.fuente === 'Apollo';
-    const r = aplicarReglasComision(data, { esApollo });
+    const ejecutivosRoster = await obtenerRosterEjecutivos();
+    const r = aplicarReglasComision(data, { esApollo, ejecutivosRoster });
     data.propietario  = r.propietario;
     data.ejecCuenta   = r.ejecCuenta;
     data.ejecAsignado = r.ejecAsignado;
@@ -88,7 +89,7 @@ router.post('/', async (req, res) => {
     // Un usuario no-admin que crea, se pone como propietario si no vino ninguno
     if (req.rolFilter && !data.propietario) {
       data.propietario = req.rolFilter;
-      const r2 = aplicarReglasComision(data, { esApollo });
+      const r2 = aplicarReglasComision(data, { esApollo, ejecutivosRoster });
       data.ejecCuenta = r2.ejecCuenta; data.comision = r2.comision;
     }
     const page = await createPage('prospectos', toProps(data));
@@ -115,7 +116,8 @@ router.patch('/:id', async (req, res) => {
     // arrastrar su ejecutivo de cuenta). No toca la comisión ya fijada.
     if (body.propietario !== undefined || body.ejecCuenta !== undefined) {
       const propietarioEfectivo = body.propietario !== undefined ? body.propietario : existingObj.propietario;
-      const r = aplicarReglasComision({ propietario: propietarioEfectivo });
+      const ejecutivosRoster = await obtenerRosterEjecutivos();
+      const r = aplicarReglasComision({ propietario: propietarioEfectivo }, { ejecutivosRoster });
       body.propietario = r.propietario;
       body.ejecCuenta   = r.ejecCuenta;
     }

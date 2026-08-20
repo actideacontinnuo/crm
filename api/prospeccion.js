@@ -8,7 +8,7 @@ const express = require('express');
 const router = express.Router();
 const fetch = require('node-fetch');
 const { createPage, prop_title, prop_text, prop_phone, prop_email, prop_select, prop_number } = require('./notion');
-const { aplicarReglasComision } = require('./_roles');
+const { aplicarReglasComision, obtenerRosterEjecutivos } = require('./_roles');
 
 // q_keywords en Apollo exige que TODAS las palabras aparezcan en el perfil — por
 // eso una sola palabra clave (en inglés, como Apollo indexa) por sector.
@@ -264,6 +264,9 @@ router.post('/notion/upload', async (req, res) => {
   const { leads = [] } = req.body;
   const created = [];
   const errors  = [];
+  // Una sola lectura del roster para todo el lote (se cachea igual, pero evita
+  // N llamadas redundantes cuando se suben muchos leads de golpe).
+  const ejecutivosRoster = await obtenerRosterEjecutivos();
 
   for (const lead of leads) {
     try {
@@ -277,7 +280,7 @@ router.post('/notion/upload', async (req, res) => {
         status:   'Nuevo',
         notas:    [{ texto: _notaOrigen(lead), fecha: new Date().toISOString() }],
       };
-      const r = aplicarReglasComision(data, { esApollo: true });
+      const r = aplicarReglasComision(data, { esApollo: true, ejecutivosRoster });
       data.propietario  = r.propietario;
       data.ejecCuenta   = r.ejecCuenta;
       data.ejecAsignado = r.ejecAsignado;

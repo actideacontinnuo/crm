@@ -253,6 +253,18 @@ router.post('/cambiar-password', authMiddleware, async (req, res) => {
   }
 });
 
+// ── Cualquier usuario autenticado: nombres del roster de ejecutivos ────────
+// (Propietario/Ejec. de cuenta/Ejec. asignado) — solo nombres, sin datos
+// sensibles (email, 2FA, bloqueos). Nueva OP/Cliente/Prospecto la puede abrir
+// cualquier rol, así que este roster no puede quedar detrás de solo-admin
+// (a diferencia de /usuarios abajo, que sí expone datos de cuenta).
+router.get('/roster-ejecutivos', authMiddleware, async (req, res) => {
+  try {
+    const { obtenerRosterEjecutivos } = require('./_roles');
+    res.json(await obtenerRosterEjecutivos());
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 // ── Solo Admin: listar usuarios y resetear contraseñas ──────
 router.get('/usuarios', authMiddleware, async (req, res) => {
   if (req.user.role !== 'admin') return res.status(403).json({ error: 'Solo el Admin puede ver esto' });

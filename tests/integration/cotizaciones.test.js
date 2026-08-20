@@ -54,6 +54,11 @@ async function crearClienteYOp({ propietario = 'Natalia Gama' } = {}) {
 let app;
 beforeEach(() => {
   mockNotion.resetStore();
+  // Ximena y Alexia como ejecutivas reales del sistema — necesario para el
+  // roster dinámico de comisiones (Regla 2). Natalia ya viene por defecto (admin).
+  mockNotion.addEjecutivo('Ximena', 'ximena');
+  mockNotion.addEjecutivo('Alexia', 'alexia-roster');
+  require('../../api/_roles')._resetRosterCacheForTests();
   app = buildApp();
 });
 

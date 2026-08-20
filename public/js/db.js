@@ -152,6 +152,12 @@ const db = {
     update: async (id, data) => { const r = await API.patch('/tickets/' + id, data); _invalidate('tickets'); return r; },
   },
 
+  roster: {
+    // Nombres de ejecutivos activos (Rol=ejecutivo) — desde usuarios reales del
+    // sistema, no una lista fija en el código (ver public/js/app.js _cargarRosterEjecutivos).
+    ejecutivos: () => _cached('rosterEjecutivos', () => API.get('/auth/roster-ejecutivos')),
+  },
+
   // Invalidate one or more entity caches by name
   invalidate(...keys) { _invalidate(...keys); },
 

@@ -2,21 +2,61 @@
 // Roles comerciales y reglas de comisión — Brief v2 (14 jul 2026)
 // Propietario / Ejecutivo de cuenta / Ejecutivo asignado + comisión.
 // ════════════════════════════════════════════════════════════
+const { queryDB, read_text, read_select, read_checkbox } = require('./notion');
 
-// Rosters por rol:
-//  - Propietario: todos menos Oscar (Eduardo y Alfredo SOLO entran como propietario)
-//  - Ejecutivo de cuenta / asignado: solo ejecutivos reales (Natalia, Ximena, Alexia)
-const PERSONAS_PROPIETARIO = ['Natalia Gama', 'Ximena', 'Alexia', 'Eduardo Gama', 'Alfredo', 'Externo'];
-const PERSONAS_EJECUTIVO   = ['Natalia Gama', 'Ximena', 'Alexia'];
+// Roster de "ejecutivos reales" (quiénes pueden ser Ejec. de cuenta/asignado y
+// ganan 15% como Propietario, Regla 2) — YA NO son nombres fijos: se leen de
+// los usuarios del sistema con Rol=ejecutivo y Activo=sí, así que dar de alta
+// un ejecutivo nuevo lo habilita solo, sin tocar código. Se cachea 60s para no
+// pegarle a Notion en cada alta/edición; si Notion falla, se usa el último
+// roster conocido y, en última instancia, este respaldo fijo.
+const PERSONAS_EJECUTIVO_FALLBACK = ['Natalia Gama', 'Ximena', 'Alexia'];
+const ROSTER_TTL_MS = 60 * 1000;
+let _rosterCache = { list: null, expires: 0 };
+
+async function obtenerRosterEjecutivos() {
+  const ahora = Date.now();
+  if (_rosterCache.list && ahora < _rosterCache.expires) return _rosterCache.list;
+  try {
+    // Rol 'ejecutivo' O 'admin' — Natalia es admin en el sistema pero
+    // comercialmente cuenta como ejecutiva (Regla 2), igual que Ximena/Alexia.
+    // Un futuro segundo admin que NO deba entrar aquí se excluye a mano —
+    // no hay forma automática de distinguir "admin operativo" vs "admin comercial".
+    const pages = await queryDB('usuarios', {
+      and: [
+        { or: [
+            { property: 'Rol', select: { equals: 'ejecutivo' } },
+            { property: 'Rol', select: { equals: 'admin' } },
+          ] },
+        { property: 'Activo', checkbox: { equals: true } },
+      ],
+    });
+    const roster = pages
+      .map(p => (read_text(p.properties['Ejecutivo']) || read_text(p.properties['Nombre']) || '').trim())
+      .filter(Boolean);
+    const unico = [...new Set(roster)];
+    _rosterCache = { list: unico.length ? unico : PERSONAS_EJECUTIVO_FALLBACK, expires: ahora + ROSTER_TTL_MS };
+    return _rosterCache.list;
+  } catch (_) {
+    // Notion falló: no rompemos comisiones/roles — se usa el último roster
+    // conocido, o el respaldo fijo si nunca se pudo leer.
+    return _rosterCache.list || PERSONAS_EJECUTIVO_FALLBACK;
+  }
+}
+
+// Socios/externos — conceptos fijos, nunca son usuarios ejecutivos del sistema.
+const PROPIETARIOS_ESPECIALES = ['Eduardo Gama', 'Alfredo'];
 // Propietario "Externo": la cuenta la trajo alguien de fuera. No es ejecutivo
 // ni socio — el % de comisión se captura A MANO (Dirección) y el ejec. de
 // cuenta arranca en Natalia pero se puede cambiar.
 const PROPIETARIO_EXTERNO = 'Externo';
+// Roster de Propietario para referencia/fallback (el roster real y completo lo
+// arma el frontend/caller combinando obtenerRosterEjecutivos() + estos fijos).
+const PERSONAS_PROPIETARIO = [...PERSONAS_EJECUTIVO_FALLBACK, ...PROPIETARIOS_ESPECIALES, PROPIETARIO_EXTERNO];
+const PERSONAS_EJECUTIVO   = PERSONAS_EJECUTIVO_FALLBACK; // respaldo estático, ver arriba
 const PERSONAS = [...new Set([...PERSONAS_PROPIETARIO, ...PERSONAS_EJECUTIVO])];
 
 const NATALIA = 'Natalia Gama';
-// Regla 3 — propietarios especiales (Eduardo Gama y Alfredo; misma regla de negocio)
-const PROPIETARIOS_ESPECIALES = ['Eduardo Gama', 'Alfredo'];
 
 // Calcula asignaciones automáticas y comisión FIJA al momento de la asignación.
 // Devuelve los campos que el sistema debe imponer; los 'manual' se respetan tal cual vengan.
@@ -27,7 +67,11 @@ const PROPIETARIOS_ESPECIALES = ['Eduardo Gama', 'Alfredo'];
 // EXCEPTO Eduardo Gama y Alfredo, que son socios/externos, nunca ejecutivos:
 // para ellos el ejec. de cuenta se sigue forzando a Natalia (Regla 3, 7.5%).
 // El Ejecutivo ASIGNADO (quien lleva el evento) es el único que varía libre.
-function aplicarReglasComision(data, { esApollo = false } = {}) {
+// ejecutivosRoster: array dinámico (de obtenerRosterEjecutivos(), ya resuelto
+// por el caller con await) — quién es "ejecutivo real" para la Regla 2. Si no
+// se pasa, se usa el respaldo fijo (mantiene la función pura/sync para tests).
+function aplicarReglasComision(data, { esApollo = false, ejecutivosRoster } = {}) {
+  const rosterEjecutivo = ejecutivosRoster || PERSONAS_EJECUTIVO_FALLBACK;
   const out = {
     propietario:     data.propietario     || '',
     ejecCuenta:      data.ejecCuenta       || '',
@@ -65,7 +109,7 @@ function aplicarReglasComision(data, { esApollo = false } = {}) {
   // Regla 2 — Caso normal: el propietario de la cuenta ES el ejecutivo de
   // cuenta. Se FUERZA aquí (no se deja como selección independiente) — evita
   // que quede una combinación inconsistente. Comisión fija 15%.
-  if (out.propietario && PERSONAS_EJECUTIVO.includes(out.propietario)) {
+  if (out.propietario && rosterEjecutivo.includes(out.propietario)) {
     out.ejecCuenta = out.propietario;
     out.comision   = 15;
     out.regla      = 2;
@@ -79,4 +123,13 @@ function aplicarReglasComision(data, { esApollo = false } = {}) {
   return out;
 }
 
-module.exports = { PERSONAS, PERSONAS_PROPIETARIO, PERSONAS_EJECUTIVO, NATALIA, PROPIETARIOS_ESPECIALES, PROPIETARIO_EXTERNO, aplicarReglasComision };
+// Solo para tests — limpia la caché de 60s para que un usuario ejecutivo
+// recién agregado al store mock se refleje de inmediato en la siguiente
+// llamada, sin esperar el TTL.
+function _resetRosterCacheForTests() { _rosterCache = { list: null, expires: 0 }; }
+
+module.exports = {
+  PERSONAS, PERSONAS_PROPIETARIO, PERSONAS_EJECUTIVO, PERSONAS_EJECUTIVO_FALLBACK,
+  NATALIA, PROPIETARIOS_ESPECIALES, PROPIETARIO_EXTERNO,
+  aplicarReglasComision, obtenerRosterEjecutivos, _resetRosterCacheForTests,
+};

@@ -65,9 +65,16 @@ const CASOS = [
   ['put',    '/api/objetivos/2026', { metaVentas: 1 }],
 ];
 
+// POST /clientes y /prospectos leen el roster de ejecutivos (obtenerRosterEjecutivos,
+// api/_roles.js) ANTES de crear la página — una llamada extra a Notion por
+// request. Si Notion está REALMENTE caído (no un glitch de una sola llamada),
+// esa lectura también falla, así que se simulan 2 fallos seguidos para esos casos.
+const FALLOS_SOSTENIDOS = new Set(['post:/api/clientes', 'post:/api/prospectos']);
+
 describe.each(CASOS)('Notion caído → %s %s', (metodo, ruta, body) => {
   test('responde 500 con JSON de error', async () => {
-    mockNotion.setFailNext('Notion caído (simulado)');
+    const veces = FALLOS_SOSTENIDOS.has(`${metodo}:${ruta}`) ? 2 : 1;
+    mockNotion.setFailNext('Notion caído (simulado)', veces);
     let req = request(app)[metodo](ruta).set('Authorization', `Bearer ${adminToken()}`);
     if (body) req = req.send(body);
     const res = await req;

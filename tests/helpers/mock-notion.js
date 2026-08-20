@@ -10,6 +10,7 @@ let _store = {};
 
 function resetStore(seed = {}) {
   _failNext = null;
+  _failCount = 0;
   _store = {
     usuarios:     seed.usuarios     || [_defaultAdmin()],
     prospectos:   seed.prospectos   || [],
@@ -74,6 +75,33 @@ function _ejecutivoUser() {
   };
 }
 
+// Ejecutivo genérico (nombre/usuario a elección) para tests del roster
+// dinámico de comisiones (api/_roles.js obtenerRosterEjecutivos). Distinto de
+// _ejecutivoUser()/addEjecUser() (que siempre son "Alexia", usados en tests
+// de autenticación) para no chocar con esos ni cambiar su comportamiento.
+function _ejecutivoGenerico(nombre, usuario) {
+  const u = (usuario || nombre).toLowerCase().replace(/\s+/g, '');
+  return {
+    id: 'ejec-' + u,
+    properties: {
+      'Usuario':             { title: [{ plain_text: u }] },
+      'Nombre':              { rich_text: [{ plain_text: nombre }] },
+      'Email':               { email: u + '@actideacontinnuo.com' },
+      'Rol':                 { select: { name: 'ejecutivo' } },
+      'Ejecutivo':           { rich_text: [{ plain_text: nombre }] },
+      'PasswordHash':        { rich_text: [{ plain_text: bcrypt.hashSync('EjecTest123!', 4) }] },
+      'Activo':              { checkbox: true },
+      'DebeCambiarPassword': { checkbox: false },
+      'TwoFASecret':         { rich_text: [] },
+      'TwoFAEnabled':        { checkbox: false },
+      'IntentosFallidos':    { number: 0 },
+      'BloqueadoHasta':      { date: null },
+      'ResetToken':          { rich_text: [] },
+      'ResetExpira':         { date: null },
+    },
+  };
+}
+
 // ── Helpers de lectura de props (los mismos que notion.js) ─
 function _readTitle(prop)    { return prop?.title?.[0]?.plain_text    ?? ''; }
 function _readText(prop)     { return prop?.rich_text?.map(r => r.plain_text).join('') ?? ''; }
@@ -81,37 +109,47 @@ function _readSelect(prop)   { return prop?.select?.name              ?? ''; }
 function _readEmail(prop)    { return prop?.email                     ?? ''; }
 
 // ── Simulación de fallos (para cubrir los catch de error 500) ──
+// 'times' simula una caída sostenida de Notion (varias llamadas seguidas
+// fallan) — necesario para endpoints que ahora hacen más de una llamada a
+// Notion por request (p. ej. POST /clientes y /prospectos leen el roster de
+// ejecutivos ANTES de crear la página).
 let _failNext = null;
-function setFailNext(message = 'Notion caído (simulado)') { _failNext = message; }
+let _failCount = 0;
+function setFailNext(message = 'Notion caído (simulado)', times = 1) {
+  _failNext = message;
+  _failCount = times;
+}
 function _maybeFail() {
-  if (_failNext) {
+  if (_failNext && _failCount > 0) {
     const msg = _failNext;
-    _failNext = null;
+    _failCount -= 1;
+    if (_failCount === 0) _failNext = null;
     throw new Error(msg);
   }
 }
 
 // ── Implementaciones mock ─────────────────────────────────
+// Evaluador de filtros recursivo — soporta anidamiento and/or (como Notion
+// real) además de una condición simple (title/select/rich_text/checkbox
+// equals). Antes solo soportaba un 'or' plano o una condición suelta; no
+// alcanzaba para filtros compuestos como {and:[{or:[...]}, {property...}]}.
+function _matchesFilter(row, filter) {
+  if (!filter) return true;
+  if (Array.isArray(filter.and)) return filter.and.every(f => _matchesFilter(row, f));
+  if (Array.isArray(filter.or))  return filter.or.some(f => _matchesFilter(row, f));
+  const prop = row.properties[filter.property];
+  if (filter.title?.equals !== undefined)     return _readTitle(prop) === filter.title.equals;
+  if (filter.select?.equals !== undefined)    return (prop?.select?.name ?? '') === filter.select.equals;
+  if (filter.rich_text?.equals !== undefined) return _readText(prop) === filter.rich_text.equals;
+  if (filter.checkbox?.equals !== undefined)  return !!prop?.checkbox === filter.checkbox.equals;
+  return false;
+}
+
 async function queryDB(dbKey, filter = null) {
   _maybeFail();
   const rows = _store[dbKey] || [];
   if (!filter) return rows;
-
-  const coincide = (r, f) => {
-    if (f.title?.equals)     return _readTitle(r.properties[f.property]) === f.title.equals;
-    if (f.select?.equals)    return (r.properties[f.property]?.select?.name ?? '') === f.select.equals;
-    if (f.rich_text?.equals) return _readText(r.properties[f.property]) === f.rich_text.equals;
-    return false;
-  };
-  // Filtro OR (acceso por registro con 3 roles): coincide si alguna sub-condición aplica
-  if (Array.isArray(filter.or)) {
-    return rows.filter(r => filter.or.some(f => coincide(r, f)));
-  }
-  // Soportar filtros de título, select y rich_text (auth.js y routers legados)
-  if (filter.property && (filter.title?.equals || filter.select?.equals || filter.rich_text?.equals)) {
-    return rows.filter(r => coincide(r, filter));
-  }
-  return rows;
+  return rows.filter(r => _matchesFilter(r, filter));
 }
 
 async function createPage(dbKey, properties) {
@@ -201,6 +239,9 @@ module.exports = {
   getStore: () => _store,
   addUser: (user) => { _store.usuarios.push(user); },
   addEjecUser: () => { _store.usuarios.push(_ejecutivoUser()); },
+  // Da de alta un ejecutivo genérico (Rol=ejecutivo, Activo=sí) — para probar
+  // el roster dinámico de comisiones sin chocar con addEjecUser() ("Alexia").
+  addEjecutivo: (nombre, usuario) => { _store.usuarios.push(_ejecutivoGenerico(nombre, usuario)); },
   // Mock functions
   notion,
   queryDB,
@@ -212,7 +253,10 @@ module.exports = {
   // Prop builders — mismos que notion.js real
   prop_title:    (v) => ({ title: [{ text: { content: String(v ?? '') } }] }),
   prop_text:     (v) => ({ rich_text: v ? [{ text: { content: String(v) } }] : [] }),
-  prop_number:   (v) => ({ number: isNaN(Number(v)) ? null : Number(v) }),
+  // Espeja EXACTO a api/notion.js: null/''/undefined → {number:null}, nunca 0
+  // (Number(null) es 0, no NaN — sin este chequeo antes, una comisión "sin
+  // gestionar" se guardaba como 0 en vez de null).
+  prop_number:   (v) => (v === '' || v === null || v === undefined) ? { number: null } : { number: isNaN(Number(v)) ? null : Number(v) },
   prop_select:   (v) => (v ? { select: { name: String(v) } } : { select: null }),
   prop_date:     (v) => (v ? { date: { start: v } } : { date: null }),
   prop_checkbox: (v) => ({ checkbox: Boolean(v) }),

@@ -1,20 +1,50 @@
 // ══════════════════════════════════════
 // CONSTANTS
 // ══════════════════════════════════════
-const EJEC_LIST = ['Natalia Gama', 'Ximena', 'Alexia'];
-const EJEC_COL = { 'Natalia Gama': '#CC2200', 'Ximena': '#1A6B3C', 'Alexia': '#A0620A' };
+// EJEC_LIST/PERSONAS_EJECUTIVO/PERSONAS_PROPIETARIO arrancan con este respaldo
+// fijo (primer render, antes de que cargue el roster real) y luego se
+// SOBREESCRIBEN con los usuarios reales del sistema (Rol=ejecutivo, Activo=sí)
+// — ver _cargarRosterEjecutivos() más abajo. Dar de alta un ejecutivo nuevo lo
+// habilita solo en Propietario/Ejec. de cuenta/Ejec. asignado, sin tocar código.
+let EJEC_LIST = ['Natalia Gama', 'Ximena', 'Alexia'];
+const EJEC_COL_FIJO = { 'Natalia Gama': '#CC2200', 'Ximena': '#1A6B3C', 'Alexia': '#A0620A' };
+const EJEC_COL_PALETA = ['#0055AA', '#7A3FA0', '#0E7C7B', '#B5651D', '#6B4226', '#2E5E4E'];
+let EJEC_COL = { ...EJEC_COL_FIJO };
 
 // ── Roles comerciales y comisión (Brief v2) ──────────────────
 // Rosters por rol:
-//  - Propietario: todos menos Oscar (Eduardo y Alfredo SOLO como propietario)
-//  - Ejec. de cuenta / asignado: solo ejecutivos reales (Natalia, Ximena, Alexia)
-const PERSONAS_PROPIETARIO = ['Natalia Gama', 'Ximena', 'Alexia', 'Eduardo Gama', 'Alfredo', 'Externo'];
-const PERSONAS_EJECUTIVO   = ['Natalia Gama', 'Ximena', 'Alexia'];
+//  - Propietario: el roster de ejecutivos + Eduardo/Alfredo (socios, fijos) + Externo
+//  - Ejec. de cuenta / asignado: solo ejecutivos reales (roster dinámico)
 const NATALIA_ID = 'Natalia Gama';
 const PROPIETARIOS_ESPECIALES = ['Eduardo Gama', 'Alfredo'];
 const PROPIETARIO_EXTERNO = 'Externo';
+let PERSONAS_EJECUTIVO   = [...EJEC_LIST];
+let PERSONAS_PROPIETARIO = [...PERSONAS_EJECUTIVO, ...PROPIETARIOS_ESPECIALES, PROPIETARIO_EXTERNO];
 // Bono en OPs: siempre manual y solo para estas ejecutivas
 const BONO_ELEGIBLES = ['Alexia', 'Ximena'];
+
+// Trae el roster real de ejecutivos (usuarios del sistema, Rol=ejecutivo,
+// Activo=sí) y reconstruye EJEC_LIST/PERSONAS_EJECUTIVO/PERSONAS_PROPIETARIO a
+// partir de él. Se llama una vez al iniciar sesión (ver DOMContentLoaded) —
+// si Notion falla, se quedan los respaldos fijos de arriba, la app no se rompe.
+async function _cargarRosterEjecutivos() {
+  try {
+    const roster = await db.roster.ejecutivos();
+    if (!Array.isArray(roster) || !roster.length) return;
+    EJEC_LIST = roster;
+    PERSONAS_EJECUTIVO = [...roster];
+    PERSONAS_PROPIETARIO = [...roster, ...PROPIETARIOS_ESPECIALES, PROPIETARIO_EXTERNO];
+    // Color estable para cada ejecutivo — los 3 originales conservan el suyo;
+    // uno nuevo toma el siguiente color libre de la paleta (determinístico por
+    // posición, no aleatorio, para que no cambie de color entre recargas).
+    const nuevos = roster.filter(n => !EJEC_COL_FIJO[n]);
+    const colorMap = { ...EJEC_COL_FIJO };
+    nuevos.forEach((n, i) => { colorMap[n] = EJEC_COL_PALETA[i % EJEC_COL_PALETA.length]; });
+    EJEC_COL = colorMap;
+  } catch (_) {
+    // Notion no respondió — se sigue con el respaldo fijo, sin romper la app.
+  }
+}
 
 // "Oficina total": Natalia (admin) y Oscar (administración no-especial). Ven y
 // editan TODO en el CRM (espeja esOficinaTotal del backend). Eduardo/Alfredo son
@@ -651,7 +681,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   showSpinner();
   try {
-    await db.prefetch();
+    // El roster de ejecutivos va ANTES/junto al prefetch, no después — así el
+    // Dashboard y los formularios ya abren con los usuarios reales, no con el
+    // respaldo fijo de 3 nombres.
+    await Promise.allSettled([db.prefetch(), _cargarRosterEjecutivos()]);
   } catch (e) {
     console.error(e);
   } finally {

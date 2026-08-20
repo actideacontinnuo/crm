@@ -6,7 +6,6 @@ const {
   read_title, read_text, read_number, read_select, read_date,
 } = require('./notion');
 const { filtroRolesNotion, assertRolAccess, esOficinaTotal } = require('./_guard');
-const { aplicarReglasComision } = require('./_roles');
 
 function toObj(page) {
   const p = page.properties;
