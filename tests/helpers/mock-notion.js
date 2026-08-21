@@ -154,7 +154,10 @@ async function queryDB(dbKey, filter = null) {
 
 async function createPage(dbKey, properties) {
   _maybeFail();
-  const page = { id: _id(), properties: _materializeProps(properties) };
+  // created_time — Notion real lo trae en cada página automáticamente (no es
+  // una propiedad, es metadata del API). Necesario para filtros por fecha
+  // como el Panel Semanal de Prospección (api/prospeccion.js GET /semanal).
+  const page = { id: _id(), created_time: new Date().toISOString(), properties: _materializeProps(properties) };
   (_store[dbKey] = _store[dbKey] || []).push(page);
   return page;
 }

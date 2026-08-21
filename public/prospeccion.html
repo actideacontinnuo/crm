@@ -50,99 +50,160 @@
       <div class="ph-title">Prospección</div>
       <div class="ph-sub">Apollo busca contactos B2B · Claude verifica y redacta · se cargan como Prospectos reales del CRM</div>
     </div>
-    <div class="ph-actions">
-      <button class="btn btn-primary" id="btn-p" onclick="runProspect()">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-        Buscar y verificar hoy
-        <span id="spp" class="spinner-ring" style="display:none;width:13px;height:13px;border-width:2px;position:static;margin-left:2px"></span>
-      </button>
+  </div>
+
+  <div class="view-tabs">
+    <div class="vtab active" onclick="showTab('semanal',this)">PANEL SEMANAL</div>
+    <div class="vtab" onclick="showTab('buscar',this)">BUSCAR</div>
+    <div class="vtab" onclick="showTab('templates',this)">TEMPLATES</div>
+    <div class="vtab" onclick="showTab('correos',this)">CORREOS</div>
+    <div class="vtab" onclick="showTab('ajustes',this)">AJUSTES</div>
+  </div>
+
+  <!-- ══════════════════ PANEL SEMANAL ══════════════════ -->
+  <div id="tab-semanal" class="ptab">
+    <div class="kpis" style="grid-template-columns:repeat(4,1fr)">
+      <div class="kpi"><div class="kpi-top"><div class="kpi-label">PROSPECTOS ESTA SEMANA</div></div><div class="kpi-value" id="sem-total">0</div></div>
+      <div class="kpi"><div class="kpi-top"><div class="kpi-label">AUTOMÁTICO (≥7)</div></div><div class="kpi-value kv-green" id="sem-auto">0</div></div>
+      <div class="kpi"><div class="kpi-top"><div class="kpi-label">MANUAL (Natalia)</div></div><div class="kpi-value kv-amber" id="sem-manual">0</div></div>
+      <div class="kpi"><div class="kpi-top"><div class="kpi-label">SECTORES ACTIVOS</div></div><div class="kpi-value" id="sem-sectores">0</div></div>
+    </div>
+    <div class="panel" style="margin-top:16px">
+      <div class="panel-hdr">
+        <div class="panel-title"><span class="dot"></span>SECTORES ESTA SEMANA</div>
+        <button class="btn btn-ghost btn-sm" onclick="renderSemanal()">↻ Actualizar</button>
+      </div>
+      <div class="tbl-wrap" style="border:none;border-radius:0;box-shadow:none">
+        <table class="tbl">
+          <thead><tr><th>SECTOR</th><th>CONTACTOS</th><th>RESPONDIERON</th><th>TASA DE RESPUESTA</th></tr></thead>
+          <tbody id="sem-tbody"><tr><td colspan="4" style="text-align:center;color:var(--gray400);padding:20px">Cargando...</td></tr></tbody>
+        </table>
+      </div>
     </div>
   </div>
 
-  <div class="kpis" style="grid-template-columns:repeat(4,1fr)">
-    <div class="kpi"><div class="kpi-top"><div class="kpi-label">SECTORES DEL DÍA</div></div><div class="kpi-value" style="font-size:20px;line-height:1.2">Corp · Auto · Farma · Tech</div></div>
-    <div class="kpi"><div class="kpi-top"><div class="kpi-label">CONTACTOS ENCONTRADOS</div></div><div class="kpi-value" id="kpi-total">0</div></div>
-    <div class="kpi"><div class="kpi-top"><div class="kpi-label">ALTA CONFIANZA (≥7/10)</div></div><div class="kpi-value" id="kpi-conf">0</div></div>
-    <div class="kpi"><div class="kpi-top"><div class="kpi-label">BUFFER ACUMULADO</div></div><div class="kpi-value" id="sn">0</div></div>
-  </div>
-
-  <div class="grid2" style="align-items:start">
-    <div class="col-stack">
-      <div class="panel">
-        <div class="panel-hdr"><div class="panel-title"><span class="dot"></span>ACTIVIDAD</div></div>
-        <div class="panel-body" id="plog" style="font-family:'JetBrains Mono',monospace;font-size:11px;max-height:180px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;color:var(--gray600)"></div>
-      </div>
-
-      <div class="panel" id="rcard" style="display:none">
-        <div class="panel-hdr">
-          <div class="panel-title"><span class="dot"></span>RESULTADOS</div>
-          <div style="display:flex;gap:8px;align-items:center">
-            <span class="tag tag-gray" id="rchip">0 contactos</span>
-            <button class="btn btn-ghost btn-sm" onclick="addBuffer()">+ Añadir al buffer</button>
-          </div>
+  <!-- ══════════════════ BUSCAR ══════════════════ -->
+  <div id="tab-buscar" class="ptab" style="display:none">
+    <div class="panel">
+      <div class="panel-hdr"><div class="panel-title"><span class="dot"></span>SECTORES A BUSCAR HOY</div>
+        <div style="display:flex;gap:8px">
+          <span class="link-red" style="font-size:11px" onclick="_toggleAllSectors(true)">Seleccionar todos</span>
+          <span class="link-red" style="font-size:11px" onclick="_toggleAllSectors(false)">Ninguno</span>
         </div>
-        <div class="tbl-wrap" style="border:none;border-radius:0;box-shadow:none">
-          <table class="tbl">
-            <thead><tr><th>NOMBRE</th><th>PUESTO</th><th>EMPRESA</th><th>SECTOR</th><th>EMAIL</th><th>VERIFICACIÓN</th></tr></thead>
-            <tbody id="rbody"></tbody>
-          </table>
+      </div>
+      <div class="panel-body">
+        <div id="sgrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px"></div>
+        <div style="display:flex;gap:14px;align-items:flex-end;margin-top:16px;flex-wrap:wrap">
+          <div class="fg" style="margin:0;width:180px">
+            <label class="fl">CONTACTOS POR SECTOR</label>
+            <input class="fi" id="bp-percount" type="number" min="1" max="20" value="5">
+          </div>
+          <button class="btn btn-primary" id="btn-p" onclick="runProspect()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+            Buscar y verificar
+            <span id="spp" class="spinner-ring" style="display:none;width:13px;height:13px;border-width:2px;position:static;margin-left:2px"></span>
+          </button>
         </div>
       </div>
     </div>
 
-    <div class="col-stack">
-      <div class="panel">
-        <div class="panel-hdr">
-          <div class="panel-title"><span class="dot"></span>SUBIR A NOTION</div>
-        </div>
-        <div class="panel-body">
-          <div class="fg">
-            <label class="fl">STATUS DEL PROSPECTO</label>
-            <select class="fsel-full" id="notion-status">
-              <option value="Nuevo">Nuevo</option>
-              <option value="Contactado">Contactado</option>
-              <option value="En conversación">En conversación</option>
-            </select>
-          </div>
-          <button class="btn btn-primary" id="btn-n" onclick="runNotion()" style="width:100%;justify-content:center">
-            Subir buffer a Notion
-            <span id="spn" class="spinner-ring" style="display:none;width:13px;height:13px;border-width:2px;position:static;margin-left:2px"></span>
-          </button>
-          <div id="nlog" style="font-family:'JetBrains Mono',monospace;font-size:10.5px;margin-top:12px;display:flex;flex-direction:column;gap:5px;color:var(--gray600)"></div>
+    <div class="kpis" style="grid-template-columns:repeat(3,1fr);margin-top:16px">
+      <div class="kpi"><div class="kpi-top"><div class="kpi-label">CONTACTOS ENCONTRADOS</div></div><div class="kpi-value" id="kpi-total">0</div></div>
+      <div class="kpi"><div class="kpi-top"><div class="kpi-label">AUTO (≥7) YA EN NOTION</div></div><div class="kpi-value kv-green" id="kpi-auto">0</div></div>
+      <div class="kpi"><div class="kpi-top"><div class="kpi-label">PENDIENTES DE REVISIÓN</div></div><div class="kpi-value kv-amber" id="kpi-manual">0</div></div>
+    </div>
+
+    <div class="panel" style="margin-top:16px">
+      <div class="panel-hdr"><div class="panel-title"><span class="dot"></span>ACTIVIDAD</div></div>
+      <div class="panel-body" id="plog" style="font-family:'JetBrains Mono',monospace;font-size:11px;max-height:160px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;color:var(--gray600)"></div>
+    </div>
+
+    <div class="panel" id="autocard" style="display:none;margin-top:16px">
+      <div class="panel-hdr">
+        <div class="panel-title"><span class="dot"></span>ALTA CONFIANZA (≥7) — CARGADOS AUTOMÁTICO</div>
+        <span class="tag tag-green" id="autochip">0 contactos</span>
+      </div>
+      <div class="tbl-wrap" style="border:none;border-radius:0;box-shadow:none">
+        <table class="tbl">
+          <thead><tr><th>NOMBRE</th><th>PUESTO</th><th>EMPRESA</th><th>SECTOR</th><th>EMAIL</th><th>CONFIANZA</th></tr></thead>
+          <tbody id="autobody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="panel" id="manualcard" style="display:none;margin-top:16px">
+      <div class="panel-hdr">
+        <div class="panel-title"><span class="dot"></span>REVISIÓN MANUAL (&lt;7) — DECIDE NATALIA</div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <span class="tag tag-amber" id="manualchip">0 contactos</span>
+          <button class="btn btn-primary btn-sm" onclick="cargarSeleccionados()">+ Cargar seleccionados</button>
         </div>
       </div>
+      <div class="tbl-wrap" style="border:none;border-radius:0;box-shadow:none">
+        <table class="tbl">
+          <thead><tr><th style="width:1%"><input type="checkbox" id="chk-all-manual" onchange="_toggleAllManual(this.checked)"></th><th>NOMBRE</th><th>PUESTO</th><th>EMPRESA</th><th>SECTOR</th><th>EMAIL</th><th>CONFIANZA</th></tr></thead>
+          <tbody id="manualbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
 
+  <!-- ══════════════════ TEMPLATES ══════════════════ -->
+  <div id="tab-templates" class="ptab" style="display:none">
+    <div class="grid2" style="align-items:start">
       <div class="panel">
-        <div class="panel-hdr"><div class="panel-title"><span class="dot"></span>REDACTAR EMAIL DE PROSPECCIÓN</div></div>
+        <div class="panel-hdr"><div class="panel-title"><span class="dot"></span>SECTORES</div></div>
+        <div class="panel-body" id="tpl-list" style="display:flex;flex-direction:column;gap:4px;max-height:520px;overflow-y:auto"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-hdr"><div class="panel-title"><span class="dot"></span>EJEMPLO DE REFERENCIA</div></div>
         <div class="panel-body">
-          <div class="fg">
-            <label class="fl">SECTOR</label>
-            <select class="fsel-full" onchange="loadT(this.value,this)">
-              <option value="corp">Corporativo / FMCG</option>
-              <option value="auto">Automotriz</option>
-              <option value="pharma">Farmacéutica</option>
-              <option value="tech">Tecnología</option>
-            </select>
-          </div>
-          <div class="fg">
-            <label class="fl">PARA</label>
-            <input class="fi" id="pto" value="contacto@empresa.com">
-          </div>
-          <div class="fg">
-            <label class="fl">ASUNTO</label>
-            <input class="fi" id="psub" value="">
-          </div>
-          <div class="fg">
-            <label class="fl">CUERPO</label>
-            <textarea class="fta" id="pbody" style="min-height:160px"></textarea>
-          </div>
-          <button class="btn btn-ghost" id="btn-regen" onclick="regenClaude()" style="width:100%;justify-content:center">
-            ✦ Regenerar con Claude
-            <span id="sp-regen" class="spinner-ring" style="display:none;width:13px;height:13px;border-width:2px;position:static;margin-left:2px"></span>
-          </button>
-          <div id="regen-status" style="font-size:11px;text-align:center;margin-top:8px;min-height:14px"></div>
-          <textarea id="tsys" style="display:none"></textarea>
-          <textarea id="tusr" style="display:none"></textarea>
+          <div class="fg"><label class="fl">ASUNTO</label><input class="fi" id="tpl-asunto" readonly style="background:var(--gray50)"></div>
+          <div class="fg"><label class="fl">CUERPO</label><textarea class="fta" id="tpl-cuerpo" readonly style="min-height:220px;background:var(--gray50)"></textarea></div>
+          <div style="font-size:11px;color:var(--gray400)">Solo de referencia — el correo real se redacta con Claude en la pestaña "Correos", personalizado a cada contacto.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════ CORREOS ══════════════════ -->
+  <div id="tab-correos" class="ptab" style="display:none">
+    <div class="ph-sub" style="margin-bottom:14px">Genera el asunto y cuerpo con Claude para cada prospecto — cópialo y envíalo tú misma desde Outlook. El sistema no envía nada automáticamente.</div>
+    <div class="panel">
+      <div class="panel-hdr">
+        <div class="panel-title"><span class="dot"></span>PROSPECTOS DE ESTA SESIÓN</div>
+        <button class="btn btn-ghost btn-sm" id="btn-genall" onclick="generarTodos()">✦ Generar todos</button>
+      </div>
+      <div class="tbl-wrap" style="border:none;border-radius:0;box-shadow:none">
+        <table class="tbl">
+          <thead><tr><th>NOMBRE</th><th>EMPRESA</th><th>SECTOR</th><th>EMAIL</th><th></th></tr></thead>
+          <tbody id="correos-tbody"><tr><td colspan="5" style="text-align:center;color:var(--gray400);padding:20px">Sin prospectos todavía — ve a "Buscar" primero.</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+    <div id="correos-detalle"></div>
+  </div>
+
+  <!-- ══════════════════ AJUSTES ══════════════════ -->
+  <div id="tab-ajustes" class="ptab" style="display:none">
+    <div class="panel">
+      <div class="panel-hdr"><div class="panel-title"><span class="dot"></span>COMPORTAMIENTO</div></div>
+      <div class="panel-body" style="display:flex;flex-direction:column;gap:16px">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+          <div><div style="font-weight:600;font-size:13px">Evitar duplicados</div><div style="font-size:11px;color:var(--gray400)">Antes de subir un contacto a Notion, revisa si ya existe un Prospecto con ese email — si sí, lo omite.</div></div>
+          <label style="cursor:pointer"><input type="checkbox" style="width:18px;height:18px;accent-color:var(--red);cursor:pointer" id="ajuste-dedupe" onchange="_guardarAjustes()"></label>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+          <div><div style="font-weight:600;font-size:13px">Personalización por sector con Claude</div><div style="font-size:11px;color:var(--gray400)">Si está apagado, "Generar correo" usa el template estático de la pestaña Templates en vez de Claude.</div></div>
+          <label style="cursor:pointer"><input type="checkbox" style="width:18px;height:18px;accent-color:var(--red);cursor:pointer" id="ajuste-claude" onchange="_guardarAjustes()"></label>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+          <div><div style="font-weight:600;font-size:13px">Marcar en Notion al generar correo</div><div style="font-size:11px;color:var(--gray400)">Cuando generas el correo de un prospecto, lo marca como "correo generado" para no perder la cuenta.</div></div>
+          <label style="cursor:pointer"><input type="checkbox" style="width:18px;height:18px;accent-color:var(--red);cursor:pointer" id="ajuste-marcar" onchange="_guardarAjustes()"></label>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+          <div><div style="font-weight:600;font-size:13px">Espaciar generación con Claude</div><div style="font-size:11px;color:var(--gray400)">Al usar "Generar todos", espera unos segundos entre cada contacto para no saturar la API.</div></div>
+          <label style="cursor:pointer"><input type="checkbox" style="width:18px;height:18px;accent-color:var(--red);cursor:pointer" id="ajuste-ratelimit" onchange="_guardarAjustes()"></label>
         </div>
       </div>
     </div>
@@ -186,9 +247,49 @@ function toast(msg,type='ok'){
   t.className='toast show'+(type==='red'?' err':'');
   setTimeout(()=>t.classList.remove('show'),3200);
 }
+function esc(s){ return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
-const SNAME={corp:'Corporativo',auto:'Automotriz',pharma:'Farmacéutica',tech:'Tecnología',fin:'Financiero',retail:'Retail',gov:'Gobierno',media:'Medios',logis:'Logística',salud:'Salud',edu:'Educación',constr:'Construcción',mfg:'Manufactura'};
-const TODAY=[0,1,2,3];
+// ══════════════════ TABS ══════════════════
+function showTab(name,el){
+  document.querySelectorAll('.ptab').forEach(t=>t.style.display='none');
+  document.getElementById('tab-'+name).style.display='block';
+  document.querySelectorAll('.view-tabs .vtab').forEach(t=>t.classList.remove('active'));
+  el?.classList.add('active');
+  if(name==='semanal') renderSemanal();
+  if(name==='correos') renderCorreos();
+}
+
+// ══════════════════ SECTORES (20, mismos ids que api/prospeccion.js SECTOR_MAP) ══════════════════
+const SECTORS=[
+  {id:'corp',i:'🏢',n:'Corporativo'},{id:'auto',i:'🚗',n:'Automotriz'},{id:'pharma',i:'💊',n:'Farmacéutica'},
+  {id:'tech',i:'💻',n:'Tecnología'},{id:'fin',i:'💳',n:'Financiero'},{id:'retail',i:'🛒',n:'Retail'},
+  {id:'gov',i:'🏛',n:'Gobierno'},{id:'media',i:'📺',n:'Medios'},{id:'logis',i:'🚚',n:'Logística'},
+  {id:'salud',i:'🏥',n:'Salud'},{id:'edu',i:'🎓',n:'Educación'},{id:'constr',i:'🏗',n:'Construcción'},
+  {id:'mfg',i:'🏭',n:'Manufactura'},{id:'hosp',i:'🏨',n:'Hospitalidad'},{id:'agro',i:'🌱',n:'Agroindustria'},
+  {id:'energia',i:'⚡',n:'Energía'},{id:'deporte',i:'⚽',n:'Deportivo'},{id:'ong',i:'🤝',n:'ONG / Asoc.'},
+  {id:'food',i:'🍽',n:'Alimentos'},{id:'law',i:'⚖️',n:'Legal'},
+];
+const SNAME=Object.fromEntries(SECTORS.map(s=>[s.id,s.n]));
+const DEFAULT_SECTORS=['corp','auto','pharma','tech'];
+
+function renderSGrid(){
+  const g=document.getElementById('sgrid');
+  g.innerHTML=SECTORS.map(s=>`<label class="op-card" style="display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 6px;cursor:pointer;text-align:center">
+      <input type="checkbox" class="sc-check" value="${s.id}" autocomplete="off" style="margin-bottom:2px">
+      <div style="font-size:20px">${s.i}</div>
+      <div style="font-size:10.5px;font-weight:600">${esc(s.n)}</div>
+      <div class="sc-status" id="sc-status-${s.id}" style="font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--gray400)">—</div>
+    </label>`).join('');
+  // El estado inicial se fija por JS (propiedad .checked), NO por el atributo
+  // HTML "checked" — el navegador puede restaurar el estado de un formulario
+  // anterior al recargar y pisar el atributo, dejando la selección vacía sin
+  // avisar. Esto es robusto sin importar el historial de la pestaña.
+  document.querySelectorAll('.sc-check').forEach(c=>{ c.checked=DEFAULT_SECTORS.includes(c.value); });
+}
+renderSGrid();
+
+function _toggleAllSectors(val){ document.querySelectorAll('.sc-check').forEach(c=>c.checked=val); }
+function _selectedSectors(){ return Array.from(document.querySelectorAll('.sc-check:checked')).map(c=>c.value); }
 
 function alog(id,type,msg){
   const log=document.getElementById(id);
@@ -200,24 +301,53 @@ function alog(id,type,msg){
   log.scrollTop=log.scrollHeight;
 }
 
-// PROSPECT — flujo real: Apollo → Claude verify → tabla → buffer
-let _verifiedLeads=[];
+// ══════════════════ AJUSTES (persistidos en localStorage — página de un solo
+// usuario, Natalia; cada acción abajo LEE estos valores en el momento) ══════
+const AJUSTES_DEFAULT={dedupe:true, claude:true, marcar:true, ratelimit:true};
+function _leerAjustes(){
+  try{ return {...AJUSTES_DEFAULT, ...JSON.parse(localStorage.getItem('prospeccion_ajustes')||'{}')}; }
+  catch(_){ return {...AJUSTES_DEFAULT}; }
+}
+function _guardarAjustes(){
+  const a={
+    dedupe:document.getElementById('ajuste-dedupe').checked,
+    claude:document.getElementById('ajuste-claude').checked,
+    marcar:document.getElementById('ajuste-marcar').checked,
+    ratelimit:document.getElementById('ajuste-ratelimit').checked,
+  };
+  localStorage.setItem('prospeccion_ajustes',JSON.stringify(a));
+  toast('✓ Ajustes guardados');
+}
+(function _initAjustesUI(){
+  const a=_leerAjustes();
+  document.getElementById('ajuste-dedupe').checked=a.dedupe;
+  document.getElementById('ajuste-claude').checked=a.claude;
+  document.getElementById('ajuste-marcar').checked=a.marcar;
+  document.getElementById('ajuste-ratelimit').checked=a.ratelimit;
+})();
+
+// ══════════════════ BUSCAR — flujo real: Apollo → Claude verifica → split
+// automático (≥7, sube solo) / manual (<7, decide Natalia) ══════════════════
+let _autoLeads=[];   // confianza ≥7 — ya subidos a Notion en cuanto se verifican
+let _manualLeads=[]; // confianza <7 — esperan revisión
 
 async function runProspect(){
+  const sectors=_selectedSectors();
+  if(!sectors.length){ toast('Selecciona al menos un sector','red'); return; }
+  const perSector=parseInt(document.getElementById('bp-percount').value)||5;
+
   const btn=document.getElementById('btn-p'); const sp=document.getElementById('spp');
   btn.disabled=true; sp.style.display='inline-block';
   const plog=document.getElementById('plog'); plog.innerHTML='';
+  document.getElementById('autocard').style.display='none';
+  document.getElementById('manualcard').style.display='none';
 
-  const todaySectors=['corp','auto','pharma','tech'];
-
-  // Flujo síncrono directo al servidor — sin cola de jobs ni humano de por
-  // medio: busca en Apollo y verifica con Claude en la misma petición.
   alog('plog','li','Buscando contactos en Apollo...');
-  alog('plog','la','Sectores del día: Corporativo · Automotriz · Farmacéutica · Tecnología');
+  alog('plog','la',`Sectores: ${sectors.map(s=>SNAME[s]).join(' · ')} · ${perSector} contactos c/u`);
 
   let leads=[];
   try{
-    const resp=await fetch('/api/prospeccion/buscar',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sectors:todaySectors,perSector:5})});
+    const resp=await fetch('/api/prospeccion/buscar',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sectors,perSector})});
     const data=await resp.json();
     if(!resp.ok) throw new Error(data.error||resp.statusText);
     leads=data.leads||[];
@@ -236,151 +366,247 @@ async function runProspect(){
   }
 
   alog('plog','li','Verificando y enriqueciendo con Claude...');
+  let verified=[];
   try{
     const resp=await fetch('/api/prospeccion/verificar',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({leads})});
     const data=await resp.json();
     if(!resp.ok) throw new Error(data.error||resp.statusText);
     if(data.warning) alog('plog','lw','⚠ '+data.warning);
-    finishProspect(data.leads||[],todaySectors,btn,sp);
+    verified=data.leads||[];
   }catch(err){
     alog('plog','lw','⚠ Error verificando con Claude: '+err.message);
     btn.disabled=false; sp.style.display='none';
+    return;
   }
-}
 
-function finishProspect(leads,todaySectors,btn,sp){
-  _verifiedLeads=leads;
-  const total=_verifiedLeads.length;
-  if(total===0){ alog('plog','lw','⚠ No se encontraron leads.'); btn.disabled=false; sp.style.display='none'; return; }
+  if(!verified.length){ alog('plog','lw','⚠ No se encontraron leads.'); btn.disabled=false; sp.style.display='none'; return; }
 
-  const highConf=_verifiedLeads.filter(l=>l.confidence>=7).length;
-  alog('plog','ls',`Claude entregó ${total} contactos verificados · ${highConf} con alta confianza (≥7/10)`);
-  document.getElementById('kpi-total').textContent=total;
-  document.getElementById('kpi-conf').textContent=highConf;
-
-  const tb=document.getElementById('rbody'); tb.innerHTML='';
-  _verifiedLeads.forEach(p=>{
-    const conf=p.confidence||7;
-    const confTag=conf>=8?'tag-green':conf>=6?'tag-amber':'tag-red';
-    const emailOk=p.emailStatus==='verified'||p.emailStatus==='likely to engage'||p.verified;
-    tb.innerHTML+=`<tr>
-      <td style="font-weight:600">${esc(p.name)}</td>
-      <td style="color:var(--gray600)">${esc(p.title)}</td>
-      <td>${esc(p.company)}</td>
-      <td><span class="tag tag-blue">${esc(p.sectorTitle||SNAME[p.sector]||p.sector||'')}</span></td>
-      <td class="m" style="color:var(--blue)">${esc(p.email)||'—'}</td>
-      <td><span class="tag ${emailOk?'tag-green':'tag-amber'}">${emailOk?'✓ válido':'? pendiente'}</span> <span class="tag ${confTag}" title="${esc(p.verificationNotes||'')}">${conf}/10</span></td>
-    </tr>`;
+  document.getElementById('kpi-total').textContent=verified.length;
+  sectors.forEach(s=>{
+    const n=verified.filter(l=>l.sector===s).length;
+    const el=document.getElementById('sc-status-'+s);
+    if(el) el.textContent=n?`✓ ${n}`:'sin resultados';
   });
 
-  document.getElementById('rchip').textContent=`${total} contactos`;
-  document.getElementById('rcard').style.display='block';
+  // Split: confianza ≥7 → sube SOLA a Notion. confianza <7 → espera revisión.
+  _autoLeads=verified.filter(l=>(l.confidence||0)>=7);
+  _manualLeads=verified.filter(l=>(l.confidence||0)<7);
+  alog('plog','ls',`Claude verificó ${verified.length} · ${_autoLeads.length} alta confianza (≥7) · ${_manualLeads.length} para revisión manual`);
 
-  alog('plog','ls',`✅ ${total} prospectos listos — presiona "Añadir al buffer" para continuar`);
-  btn.disabled=false; sp.style.display='none';
-}
-
-let _weekBuffer=[];
-
-function addBuffer(){
-  if(!_verifiedLeads.length){ toast('No hay prospectos verificados. Ejecuta la prospección primero.','red'); return; }
-  _weekBuffer=[..._weekBuffer,..._verifiedLeads];
-  document.getElementById('sn').textContent=_weekBuffer.length;
-  toast(`✓ ${_verifiedLeads.length} prospectos añadidos al buffer. Total: ${_weekBuffer.length}`);
-}
-
-// NOTION — flujo real: buffer → Notion API (crea Prospectos reales del CRM)
-async function runNotion(){
-  const btn=document.getElementById('btn-n'); const sp=document.getElementById('spn');
-  btn.disabled=true; sp.style.display='inline-block';
-  const log=document.getElementById('nlog'); log.innerHTML='';
-
-  try{
-    const cfg=await fetch('/api/prospeccion/config/status').then(r=>r.json());
-    if(!cfg.notion){ alog('nlog','lw','⚠ NOTION_TOKEN no configurado en el servidor'); btn.disabled=false; sp.style.display='none'; return; }
-  }catch(e){ alog('nlog','lw','⚠ No se pudo conectar con el servidor.'); btn.disabled=false; sp.style.display='none'; return; }
-
-  const leadsToUpload=_weekBuffer.length>0?_weekBuffer:_verifiedLeads;
-  if(!leadsToUpload.length){ alog('nlog','lw','⚠ No hay prospectos en el buffer. Ejecuta la prospección primero.'); btn.disabled=false; sp.style.display='none'; return; }
-
-  const status=document.getElementById('notion-status').value;
-  alog('nlog','la',`Subiendo ${leadsToUpload.length} prospectos con status "${status}"...`);
-
-  const BATCH=25;
-  let totalCreated=0, totalErrors=0;
-  for(let i=0;i<leadsToUpload.length;i+=BATCH){
-    const batch=leadsToUpload.slice(i,i+BATCH);
+  if(_autoLeads.length){
+    alog('plog','li',`Subiendo ${_autoLeads.length} de alta confianza a Notion automáticamente...`);
+    const ajustes=_leerAjustes();
     try{
-      const resp=await fetch('/api/prospeccion/notion/upload',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({leads:batch,status})});
+      const resp=await fetch('/api/prospeccion/notion/upload',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({leads:_autoLeads,origen:'Automático',evitarDuplicados:ajustes.dedupe})});
       const data=await resp.json();
-      totalCreated+=data.created||0;
-      totalErrors+=(data.errors||[]).length;
-      alog('nlog','ls',`Lote: ${data.created} creados en Notion ✓`);
-    }catch(err){
-      alog('nlog','lw',`⚠ Error: ${err.message}`);
-      totalErrors+=batch.length;
-    }
+      alog('plog','ls',`✅ ${data.created} creados en Notion automáticamente`);
+      if(data.omitidos?.length) alog('plog','lw',`⚠ ${data.omitidos.length} omitidos por duplicado`);
+    }catch(err){ alog('plog','lw','⚠ Error subiendo automáticos: '+err.message); }
   }
 
-  if(totalErrors>0) alog('nlog','lw',`⚠ ${totalErrors} registros no pudieron subirse.`);
-  alog('nlog','ls',`✅ ${totalCreated} prospectos creados en el CRM`);
-  toast(`✓ ${totalCreated} prospectos subidos a Notion`);
-  _weekBuffer=[]; document.getElementById('sn').textContent=0;
+  renderAutoTable();
+  renderManualTable();
+  document.getElementById('kpi-auto').textContent=_autoLeads.length;
+  document.getElementById('kpi-manual').textContent=_manualLeads.length;
+
   btn.disabled=false; sp.style.display='none';
 }
 
-// TEMPLATES — sector → asunto/cuerpo base
-const TPLS={
-  corp:{s:'Corporativo / FMCG',u:{asunto:'¿Su próximo evento corporativo merece más que lo esperado?',cuerpo:'Hola,\n\nEn Actidea Continnuo llevamos 25 años produciendo eventos corporativos para marcas como Danone, Bimbo y Colgate.\n\n¿Tienen 20 minutos esta semana para platicar sobre su próximo evento?\n\nActidea Continnuo · Eventos que conectan\ncontacto@actideacontinnuo.com'}},
-  auto:{s:'Automotriz',u:{asunto:'Lanzamientos automotrices que sí generan impacto',cuerpo:'Hola,\n\nProducimos lanzamientos y eventos de distribuidores para marcas como GM y Honda.\n\n¿20 minutos esta semana?\n\nActidea Continnuo · Eventos que conectan\ncontacto@actideacontinnuo.com'}},
-  pharma:{s:'Farmacéutica',u:{asunto:'Congresos médicos sin margen de error',cuerpo:'Hola,\n\nExpertos en congresos médicos para GSK, Grunenthal y J&J.\n\n¿20 minutos esta semana?\n\nActidea Continnuo · Eventos que conectan\ncontacto@actideacontinnuo.com'}},
-  tech:{s:'Tecnología',u:{asunto:'Partner summits que su canal va a recordar',cuerpo:'Hola,\n\nProducimos partner summits y lanzamientos tech para Microsoft, HP e Intel.\n\n¿20 minutos esta semana?\n\nActidea Continnuo · Eventos que conectan\ncontacto@actideacontinnuo.com'}},
-};
-function loadT(sector){
-  const t=TPLS[sector]; if(!t) return;
-  window._currentSector=sector;
-  document.getElementById('psub').value=t.u.asunto;
-  document.getElementById('pbody').value=t.u.cuerpo;
+function _rowHtml(p,extra=''){
+  const conf=p.confidence||0;
+  const confTag=conf>=8?'tag-green':conf>=6?'tag-amber':'tag-red';
+  return `<tr>
+    ${extra}
+    <td style="font-weight:600">${esc(p.name)}</td>
+    <td style="color:var(--gray600)">${esc(p.title)}</td>
+    <td>${esc(p.company)}</td>
+    <td><span class="tag tag-blue">${esc(p.sectorTitle||SNAME[p.sector]||p.sector||'')}</span></td>
+    <td class="m" style="color:var(--blue)">${esc(p.email)||'—'}</td>
+    <td><span class="tag ${confTag}">${conf}/10</span></td>
+  </tr>`;
 }
-loadT('corp');
 
-// REGENERAR CON CLAUDE — vive en el servidor (api/prospeccion.js), nunca en
-// el navegador (ahí no hay forma segura de tener la llave de Anthropic).
-async function regenClaude(){
-  const btn=document.getElementById('btn-regen');
-  const sp=document.getElementById('sp-regen');
-  const status=document.getElementById('regen-status');
-  const sector=window._currentSector||'corp';
-  const sectorNames={corp:'Corporativo / FMCG',auto:'Automotriz',pharma:'Farmacéutica',tech:'Tecnología'};
-  const sectorName=sectorNames[sector]||'Corporativo';
-  const to=document.getElementById('pto').value;
-  const empresa=to.split('@')[1]?.split('.')[0]||'la empresa';
+function renderAutoTable(){
+  const card=document.getElementById('autocard');
+  if(!_autoLeads.length){ card.style.display='none'; return; }
+  card.style.display='block';
+  document.getElementById('autochip').textContent=`${_autoLeads.length} contactos`;
+  document.getElementById('autobody').innerHTML=_autoLeads.map(p=>_rowHtml(p)).join('');
+}
 
-  btn.disabled=true; sp.style.display='inline-block';
-  status.textContent='Generando con Claude...'; status.style.color='var(--gray400)';
+function renderManualTable(){
+  const card=document.getElementById('manualcard');
+  if(!_manualLeads.length){ card.style.display='none'; return; }
+  card.style.display='block';
+  document.getElementById('manualchip').textContent=`${_manualLeads.length} contactos`;
+  document.getElementById('manualbody').innerHTML=_manualLeads.map((p,i)=>_rowHtml(p,`<td><input type="checkbox" class="manual-check" value="${i}"></td>`)).join('');
+}
 
+function _toggleAllManual(val){ document.querySelectorAll('.manual-check').forEach(c=>c.checked=val); }
+
+async function cargarSeleccionados(){
+  const idxs=Array.from(document.querySelectorAll('.manual-check:checked')).map(c=>parseInt(c.value));
+  if(!idxs.length){ toast('Selecciona al menos un contacto','red'); return; }
+  const seleccionados=idxs.map(i=>_manualLeads[i]);
+  const ajustes=_leerAjustes();
   try{
-    const resp=await fetch('/api/prospeccion/generar-email',{
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({ empresa, sectorName })
-    });
-    const parsed=await resp.json();
-    if(!resp.ok) throw new Error(parsed.error||resp.statusText);
-
-    if(parsed.asunto) document.getElementById('psub').value=parsed.asunto;
-    if(parsed.cuerpo) document.getElementById('pbody').value=parsed.cuerpo;
-    status.textContent='✓ Regenerado con Claude';
-    status.style.color='var(--green)';
-  }catch(err){
-    status.textContent='⚠ Error de conexión con Claude';
-    status.style.color='var(--amber)';
-  }
-
-  btn.disabled=false; sp.style.display='none';
-  setTimeout(()=>{ status.textContent=''; },5000);
+    const resp=await fetch('/api/prospeccion/notion/upload',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({leads:seleccionados,origen:'Manual',evitarDuplicados:ajustes.dedupe})});
+    const data=await resp.json();
+    toast(`✓ ${data.created} prospectos cargados a Notion`);
+    if(data.omitidos?.length) toast(`⚠ ${data.omitidos.length} omitidos por duplicado`,'red');
+    // Mover los cargados de _manualLeads a _autoLeads (ya están en Notion) y
+    // quitarlos de la tabla de revisión pendiente.
+    _autoLeads=[..._autoLeads,...seleccionados];
+    _manualLeads=_manualLeads.filter((_,i)=>!idxs.includes(i));
+    renderAutoTable(); renderManualTable();
+    document.getElementById('kpi-auto').textContent=_autoLeads.length;
+    document.getElementById('kpi-manual').textContent=_manualLeads.length;
+  }catch(err){ toast('Error al cargar: '+err.message,'red'); }
 }
 
-function esc(s){ return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+// ══════════════════ TEMPLATES — ejemplos de referencia por sector (estáticos;
+// el correo real lo redacta Claude en la pestaña Correos, personalizado) ═════
+const TPLS={
+  corp:{sub:'El evento que su empresa no ha producido todavía',body:'Hola,\n\nEn Actidea Continnuo llevamos 25 años produciendo eventos corporativos para marcas como Danone, Bimbo y Colgate.\n\n¿Tienen 20 minutos esta semana para explorar su próximo proyecto?\n\nActidea Continnuo · Eventos que conectan\ncontacto@actideacontinnuo.com'},
+  auto:{sub:'La producción detrás del lanzamiento que necesitan',body:'Hola,\n\nUn lanzamiento necesita más que un venue — producción técnica impecable y operación sin fallas.\n\nHemos producido eventos de lanzamiento para General Motors y Honda en México.\n\n¿Tienen proyectos en agenda este año?\n\nActidea Continnuo · Eventos que conectan'},
+  pharma:{sub:'Congresos médicos que elevan la credibilidad de su marca',body:'Hola,\n\nLos congresos médicos exigen rigor y protocolo. En Actidea producimos eventos para GSK, Grunenthal y J&J.\n\n¿20 minutos esta semana para ver cómo podemos colaborar?\n\nActidea Continnuo · Eventos que conectan'},
+  tech:{sub:'Partner summits a la altura de su marca',body:'Hola,\n\nProducimos partner summits y lanzamientos tech para Microsoft, HP e Intel.\n\n¿20 minutos para ver qué tienen en agenda este año?\n\nActidea Continnuo · Eventos que conectan'},
+  fin:{sub:'El evento corporativo que su institución merece producir bien',body:'Hola,\n\nLos eventos de banca exigen precisión e imagen impecable. Hemos producido eventos para HSBC México e Inbursa.\n\n¿15 minutos esta semana?\n\nActidea Continnuo · Eventos que conectan'},
+  retail:{sub:'Activaciones de marca que el retail no olvida',body:'Hola,\n\nLas activaciones de retail necesitan impacto visual inmediato. Diseñamos y producimos brand experiences para grandes retailers en México.\n\n¿Tienes agenda esta semana?\n\nActidea Continnuo · Eventos que conectan'},
+  gov:{sub:'Producción institucional que habla por la dependencia',body:'Estimado(a),\n\nLos eventos institucionales comunican el peso de una dependencia. Producimos el Grito de Independencia en el Zócalo (2013-2015) y la Semana del Emprendedor con Secretaría de Economía.\n\n¿Podemos agendar una presentación?\n\nActidea Continnuo · Eventos que conectan'},
+  media:{sub:'Premieres y eventos de prensa que se recuerdan',body:'Hola,\n\nLas premieres necesitan producción a la altura de la marca. Producimos la Premier de WALL·E para Walt Disney Pictures México.\n\n¿Tienen proyectos en agenda este año?\n\nActidea Continnuo · Eventos que conectan'},
+  logis:{sub:'Eventos de operación que reflejan su estándar logístico',body:'Hola,\n\nEn Actidea entendemos la precisión que exige el sector logístico — la aplicamos también a la producción de sus eventos.\n\n¿20 minutos esta semana?\n\nActidea Continnuo · Eventos que conectan'},
+  salud:{sub:'Eventos del sector salud sin margen de error',body:'Hola,\n\nProducimos eventos institucionales y congresos para el sector salud con el rigor que exige la industria.\n\n¿Tienen proyectos en puerta?\n\nActidea Continnuo · Eventos que conectan'},
+  edu:{sub:'Eventos educativos que dejan huella',body:'Hola,\n\nGraduaciones, congresos académicos y eventos institucionales — producción que respalda el prestigio de su institución.\n\n¿20 minutos esta semana?\n\nActidea Continnuo · Eventos que conectan'},
+  constr:{sub:'Eventos que muestran la escala de su operación',body:'Hola,\n\nProducimos eventos corporativos e institucionales para el sector construcción, con la solidez que la industria exige.\n\n¿Tienen agenda este año?\n\nActidea Continnuo · Eventos que conectan'},
+  mfg:{sub:'Eventos de planta y corporativos con estándar industrial',body:'Hola,\n\nDesde lanzamientos de línea hasta convenciones corporativas — producción con el estándar que su operación exige.\n\n¿20 minutos esta semana?\n\nActidea Continnuo · Eventos que conectan'},
+  hosp:{sub:'Eventos que elevan la experiencia de su marca',body:'Hola,\n\nEn hospitalidad, cada detalle comunica. Producimos experiencias de marca con ese mismo estándar.\n\n¿Tienen proyectos en agenda?\n\nActidea Continnuo · Eventos que conectan'},
+  agro:{sub:'Eventos que respaldan la escala de su operación',body:'Hola,\n\nConvenciones, lanzamientos y eventos corporativos para el sector agroindustrial, con producción de primer nivel.\n\n¿20 minutos esta semana?\n\nActidea Continnuo · Eventos que conectan'},
+  energia:{sub:'Eventos institucionales para el sector energético',body:'Hola,\n\nProducimos eventos corporativos e institucionales con el rigor técnico que el sector energético exige.\n\n¿Tienen proyectos en puerta?\n\nActidea Continnuo · Eventos que conectan'},
+  deporte:{sub:'Eventos deportivos que generan impacto real',body:'Hola,\n\nActivaciones y eventos deportivos con producción de alto nivel — impacto de marca donde más se ve.\n\n¿20 minutos esta semana?\n\nActidea Continnuo · Eventos que conectan'},
+  ong:{sub:'Eventos que comunican el impacto de su causa',body:'Hola,\n\nGalas, foros y eventos institucionales para organizaciones con causa — producción que respalda su mensaje.\n\n¿Podemos platicar esta semana?\n\nActidea Continnuo · Eventos que conectan'},
+  food:{sub:'Eventos que reflejan el estándar de su marca',body:'Hola,\n\nLanzamientos, activaciones y eventos corporativos para el sector alimentos y bebidas.\n\n¿20 minutos esta semana?\n\nActidea Continnuo · Eventos que conectan'},
+  law:{sub:'Eventos institucionales con la seriedad que su firma exige',body:'Estimado(a),\n\nForos, congresos y eventos corporativos para firmas legales — producción a la altura de su reputación.\n\n¿Podemos agendar una presentación?\n\nActidea Continnuo · Eventos que conectan'},
+};
+function renderTplList(){
+  const c=document.getElementById('tpl-list');
+  c.innerHTML=SECTORS.map(s=>`<div class="nav-item" style="border-radius:8px;color:var(--black)" onclick="loadTpl('${s.id}',this)">${s.i} ${esc(s.n)}</div>`).join('');
+  loadTpl('corp');
+}
+function loadTpl(id,el){
+  document.querySelectorAll('#tpl-list .nav-item').forEach(x=>x.classList.remove('active'));
+  el?.classList.add('active');
+  const t=TPLS[id]||TPLS.corp;
+  document.getElementById('tpl-asunto').value=t.sub;
+  document.getElementById('tpl-cuerpo').value=t.body;
+}
+renderTplList();
+
+// ══════════════════ CORREOS — genera (Claude o template estático según
+// Ajustes), Natalia copia y envía ella misma. Nunca se envía nada aquí. ══════
+function _todosLosProspectos(){ return [..._autoLeads,..._manualLeads.filter((_,i)=>Array.from(document.querySelectorAll('.manual-check:checked')).map(c=>parseInt(c.value)).includes(i))]; }
+
+function renderCorreos(){
+  const list=_autoLeads; // los que ya están en Notion en esta sesión
+  const tb=document.getElementById('correos-tbody');
+  if(!list.length){ tb.innerHTML=`<tr><td colspan="5" style="text-align:center;color:var(--gray400);padding:20px">Sin prospectos todavía — ve a "Buscar" primero.</td></tr>`; return; }
+  tb.innerHTML=list.map((p,i)=>`<tr>
+    <td style="font-weight:600">${esc(p.name)}</td>
+    <td>${esc(p.company)}</td>
+    <td><span class="tag tag-blue">${esc(p.sectorTitle||SNAME[p.sector]||'')}</span></td>
+    <td class="m" style="color:var(--blue)">${esc(p.email)||'—'}</td>
+    <td><button class="btn btn-ghost btn-sm" onclick="generarCorreo(${i})">✦ Generar</button></td>
+  </tr>`).join('');
+}
+
+async function generarCorreo(idx){
+  const p=_autoLeads[idx];
+  const ajustes=_leerAjustes();
+  const sectorName=p.sectorTitle||SNAME[p.sector]||'Corporativo';
+  let asunto, cuerpo;
+
+  if(ajustes.claude){
+    try{
+      const resp=await fetch('/api/prospeccion/generar-email',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({empresa:p.company,sectorName,nombre:p.name,puesto:p.title})});
+      const data=await resp.json();
+      if(!resp.ok) throw new Error(data.error||resp.statusText);
+      asunto=data.asunto; cuerpo=data.cuerpo;
+    }catch(err){ toast('Error generando con Claude: '+err.message,'red'); return; }
+  }else{
+    const t=TPLS[p.sector]||TPLS.corp;
+    asunto=t.sub; cuerpo=t.body.replace('Hola,',`Hola ${p.name.split(' ')[0]},`);
+  }
+
+  const box=document.getElementById('correos-detalle');
+  box.innerHTML=`<div class="panel" style="margin-top:16px">
+    <div class="panel-hdr"><div class="panel-title"><span class="dot"></span>CORREO PARA ${esc(p.name).toUpperCase()}</div></div>
+    <div class="panel-body">
+      <div class="fg"><label class="fl">PARA</label><input class="fi" readonly value="${esc(p.email)}"></div>
+      <div class="fg"><label class="fl">ASUNTO</label><input class="fi" id="gc-asunto" value="${esc(asunto)}"></div>
+      <div class="fg"><label class="fl">CUERPO</label><textarea class="fta" id="gc-cuerpo" style="min-height:180px">${esc(cuerpo)}</textarea></div>
+      <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="copiarCorreo('${p.id}')">📋 Copiar (asunto + cuerpo)</button>
+    </div>
+  </div>`;
+  box.scrollIntoView({behavior:'smooth'});
+}
+
+async function copiarCorreo(leadId){
+  const asunto=document.getElementById('gc-asunto').value;
+  const cuerpo=document.getElementById('gc-cuerpo').value;
+  try{
+    await navigator.clipboard.writeText(`Asunto: ${asunto}\n\n${cuerpo}`);
+    toast('✓ Copiado — pégalo en Outlook');
+  }catch(_){
+    toast('No se pudo copiar automáticamente — selecciona el texto manualmente','red');
+  }
+  const ajustes=_leerAjustes();
+  if(ajustes.marcar){
+    // Encuentra el prospecto recién creado en Notion por email para marcarlo.
+    try{
+      const lista=await fetch('/api/prospectos').then(r=>r.json());
+      const lead=_autoLeads.find(l=>l.id===leadId);
+      const match=lista.find(pr=>pr.email && lead && pr.email.toLowerCase()===String(lead.email).toLowerCase());
+      if(match) await fetch(`/api/prospeccion/marcar-correo-generado/${match.id}`,{method:'PATCH'});
+    }catch(_){ /* no bloquea la copia si falla marcar en Notion */ }
+  }
+}
+
+async function generarTodos(){
+  if(!_autoLeads.length){ toast('No hay prospectos — ve a "Buscar" primero','red'); return; }
+  const btn=document.getElementById('btn-genall');
+  btn.disabled=true;
+  const ajustes=_leerAjustes();
+  for(let i=0;i<_autoLeads.length;i++){
+    await generarCorreo(i);
+    if(ajustes.ratelimit && i<_autoLeads.length-1) await new Promise(r=>setTimeout(r,2000));
+  }
+  btn.disabled=false;
+  toast('✓ Correos generados para todos');
+}
+
+// ══════════════════ PANEL SEMANAL ══════════════════
+async function renderSemanal(){
+  const tb=document.getElementById('sem-tbody');
+  tb.innerHTML=`<tr><td colspan="4" style="text-align:center;color:var(--gray400);padding:20px">Cargando...</td></tr>`;
+  try{
+    const data=await fetch('/api/prospeccion/semanal').then(r=>r.json());
+    document.getElementById('sem-total').textContent=data.totalSemana||0;
+    document.getElementById('sem-auto').textContent=data.auto||0;
+    document.getElementById('sem-manual').textContent=data.manual||0;
+    document.getElementById('sem-sectores').textContent=(data.sectores||[]).length;
+    tb.innerHTML=(data.sectores||[]).length
+      ? data.sectores.map(s=>`<tr>
+          <td style="font-weight:600">${esc(s.sector)}</td>
+          <td class="m">${s.total}</td>
+          <td class="m">${s.respondieron}</td>
+          <td><div style="display:flex;align-items:center;gap:8px"><div class="prog" style="width:80px"><div class="prog-fill ${s.tasaRespuesta>=30?'green':s.tasaRespuesta>=10?'amber':'red'}" style="width:${s.tasaRespuesta}%"></div></div>${s.tasaRespuesta}%</div></td>
+        </tr>`).join('')
+      : `<tr><td colspan="4" style="text-align:center;color:var(--gray400);padding:20px">Sin prospección esta semana todavía</td></tr>`;
+  }catch(err){
+    tb.innerHTML=`<tr><td colspan="4" style="text-align:center;color:var(--red);padding:20px">Error cargando el panel: ${esc(err.message)}</td></tr>`;
+  }
+}
+renderSemanal();
 </script>
 </body>
 </html>

@@ -7,7 +7,11 @@
 const express = require('express');
 const router = express.Router();
 const fetch = require('node-fetch');
-const { createPage, prop_title, prop_text, prop_phone, prop_email, prop_select, prop_number } = require('./notion');
+const {
+  createPage, updatePage, queryDB,
+  prop_title, prop_text, prop_phone, prop_email, prop_select, prop_number, prop_checkbox,
+  read_text, read_email, read_select,
+} = require('./notion');
 const { aplicarReglasComision, obtenerRosterEjecutivos } = require('./_roles');
 
 // q_keywords en Apollo exige que TODAS las palabras aparezcan en el perfil — por
@@ -205,7 +209,13 @@ router.post('/generar-email', async (req, res) => {
   const anthropicKey = process.env.ANTHROPIC_API_KEY;
   if (!anthropicKey) return res.status(400).json({ error: 'ANTHROPIC_API_KEY no configurada en .env' });
 
-  const { empresa = 'la empresa', sectorName = 'Corporativo' } = req.body;
+  // nombre/puesto son opcionales — cuando vienen (generador de correos por
+  // prospecto real) el email se dirige a esa persona; si no, queda genérico
+  // (uso del formulario de "Redactar email" con un sector suelto, sin contacto).
+  const { empresa = 'la empresa', sectorName = 'Corporativo', nombre = '', puesto = '' } = req.body;
+  const contactoLinea = nombre
+    ? `- Contacto: ${nombre}${puesto ? ' (' + puesto + ')' : ''} — dirígete a esta persona por su nombre de pila`
+    : '- Contacto: no se conoce el nombre — usa un saludo genérico ("Hola,")';
   try {
     const resp = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -219,11 +229,12 @@ router.post('/generar-email', async (req, res) => {
           content: `Genera un email frío de prospección para:
 - Empresa: ${empresa}
 - Sector: ${sectorName}
+${contactoLinea}
 - Remitente: Actidea Continnuo (productora de eventos, CDMX, 25 años)
 
 Requisitos:
 1. Asunto nuevo, impactante y personalizado (máx 9 palabras, sin emojis)
-2. Apertura con referencia al sector o empresa
+2. Apertura con referencia al sector o empresa (y al contacto por nombre si se conoce)
 3. Menciona un cliente real de Actidea del mismo sector como credencial
 4. Propuesta de valor específica en 2 líneas
 5. CTA preguntando por 20 minutos esta semana
@@ -261,15 +272,42 @@ function _notaOrigen(lead) {
 // usa exactamente las mismas reglas de comisión (Fuente="Apollo") que ya aplica
 // POST /api/prospectos, para que no queden registros con roles/notas mal formados.
 router.post('/notion/upload', async (req, res) => {
-  const { leads = [] } = req.body;
+  // origen: 'Automático' (confianza ≥7, sin revisión) o 'Manual' (Natalia
+  // decidió cargarlo desde la lista de revisión) — queda registrado en Notion
+  // para que el Panel Semanal pueda reportar el desglose real.
+  // evitarDuplicados: toggle de Ajustes — si viene true (default), no crea un
+  // prospecto si YA existe uno con el mismo email.
+  const { leads = [], origen = 'Manual', evitarDuplicados = true } = req.body;
   const created = [];
   const errors  = [];
+  const omitidos = [];
   // Una sola lectura del roster para todo el lote (se cachea igual, pero evita
   // N llamadas redundantes cuando se suben muchos leads de golpe).
   const ejecutivosRoster = await obtenerRosterEjecutivos();
 
+  // Emails ya existentes en Prospectos — una sola lectura para todo el lote
+  // (mismo criterio que el roster: evita N consultas redundantes a Notion).
+  let emailsExistentes = new Set();
+  if (evitarDuplicados) {
+    try {
+      const pages = await queryDB('prospectos', null);
+      emailsExistentes = new Set(
+        pages.map(p => (read_email(p.properties['Email']) || '').toLowerCase()).filter(Boolean)
+      );
+    } catch (_) {
+      // Si Notion falla leyendo el dedupe, no bloqueamos la carga — se sube
+      // sin filtrar (mismo criterio de resiliencia que el resto del sistema).
+    }
+  }
+
   for (const lead of leads) {
     try {
+      const emailNorm = (lead.email || '').toLowerCase();
+      if (evitarDuplicados && emailNorm && emailsExistentes.has(emailNorm)) {
+        omitidos.push({ leadId: lead.id, email: lead.email, motivo: 'Ya existe un prospecto con este email' });
+        continue;
+      }
+
       const data = {
         empresa:  lead.company || '',
         contacto: lead.name || '',
@@ -299,15 +337,69 @@ router.post('/notion/upload', async (req, res) => {
         'EjecutivoCuenta':   prop_select(data.ejecCuenta),
         'EjecutivoAsignado': prop_select(data.ejecAsignado),
         'Comision':     prop_number(data.comision),
+        'Sector':       prop_select(lead.sectorTitle || lead.sector || ''),
+        'ConfianzaIA':  prop_number(lead.confidence),
+        'OrigenCarga':  prop_select(origen),
       };
       const page = await createPage('prospectos', props);
+      if (emailNorm) emailsExistentes.add(emailNorm); // evita duplicados DENTRO del mismo lote también
       created.push({ leadId: lead.id, notionPageId: page.id });
     } catch (err) {
       errors.push({ leadId: lead.id, error: err.message });
     }
   }
 
-  res.json({ created: created.length, errors, total: leads.length });
+  res.json({ created: created.length, errors, omitidos, total: leads.length });
+});
+
+// PATCH /api/prospeccion/marcar-correo-generado/:id  →  toggle "Actualizar
+// Notion post-envío": cuando Natalia genera y copia el correo de un prospecto,
+// se marca aquí para no perder la cuenta de a quién ya se le redactó uno.
+router.patch('/marcar-correo-generado/:id', async (req, res) => {
+  try {
+    await updatePage(req.params.id, { 'CorreoGenerado': prop_checkbox(true) });
+    res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// GET /api/prospeccion/semanal  →  Panel Semanal: sectores buscados esta
+// semana (lunes de la semana en curso en adelante), contactos por sector,
+// desglose automático/manual, y tasa de respuesta (prospectos que avanzaron
+// de "Nuevo" a cualquier otro status = alguien contestó o se les dio seguimiento).
+router.get('/semanal', async (req, res) => {
+  try {
+    const pages = await queryDB('prospectos', { property: 'Fuente', select: { equals: 'Apollo' } });
+
+    const ahora = new Date();
+    const diaSemana = (ahora.getDay() + 6) % 7; // lunes=0 ... domingo=6
+    const inicioSemana = new Date(ahora); inicioSemana.setHours(0, 0, 0, 0);
+    inicioSemana.setDate(inicioSemana.getDate() - diaSemana);
+
+    const porSector = {};
+    let autoCount = 0, manualCount = 0, totalSemana = 0;
+
+    pages.forEach(page => {
+      const creado = new Date(page.created_time);
+      if (creado < inicioSemana) return; // solo esta semana
+      totalSemana++;
+      const p = page.properties;
+      const sector = read_select(p['Sector']) || 'Sin sector';
+      const status = read_select(p['Status']) || 'Nuevo';
+      const origen = read_select(p['OrigenCarga']) || 'Manual';
+      if (origen === 'Automático') autoCount++; else manualCount++;
+
+      if (!porSector[sector]) porSector[sector] = { sector, total: 0, respondieron: 0 };
+      porSector[sector].total++;
+      if (status !== 'Nuevo') porSector[sector].respondieron++;
+    });
+
+    const sectores = Object.values(porSector).map(s => ({
+      ...s,
+      tasaRespuesta: s.total ? Math.round((s.respondieron / s.total) * 100) : 0,
+    })).sort((a, b) => b.total - a.total);
+
+    res.json({ totalSemana, auto: autoCount, manual: manualCount, sectores });
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 module.exports = router;

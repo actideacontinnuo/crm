@@ -3,7 +3,7 @@ const router = express.Router();
 const {
   notion, queryDB, createPage, updatePage, archivePage,
   prop_title, prop_text, prop_number, prop_select, prop_date, prop_email, prop_phone,
-  read_title, read_text, read_number, read_select, read_date, read_email, read_phone,
+  read_title, read_text, read_number, read_select, read_date, read_email, read_phone, read_checkbox,
 } = require('./notion');
 const { filtroRolesNotion, assertRolAccess } = require('./_guard');
 const { aplicarReglasComision, obtenerRosterEjecutivos } = require('./_roles');
@@ -31,6 +31,13 @@ function toObj(page) {
     status:       read_select(p['Status']),
     seguimiento:  read_date(p['Seguimiento']),
     notas,
+    // Metadata de Prospección por Apollo (api/prospeccion.js) — solo lectura
+    // aquí, nunca se escriben desde este router; null en registros que no
+    // vienen de Apollo o son de antes de que existieran estas columnas.
+    sector:         read_select(p['Sector']) || null,
+    confianzaIA:    p['ConfianzaIA']?.number ?? null,
+    origenCarga:    read_select(p['OrigenCarga']) || null,
+    correoGenerado: read_checkbox(p['CorreoGenerado']),
   };
 }
 

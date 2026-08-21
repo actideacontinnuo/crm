@@ -221,6 +221,93 @@ describe('Prospección — POST /notion/upload crea Prospectos reales con roles 
   });
 });
 
+describe('Prospección — Panel Semanal: sector, confianza y origen de carga', () => {
+  test('el lead guarda Sector, ConfianzaIA y OrigenCarga en Notion', async () => {
+    const res = await request(app).post('/api/prospeccion/notion/upload')
+      .set('Authorization', `Bearer ${natToken()}`)
+      .send({ origen: 'Automático', leads: [{ id: 'p2', company: 'Acme2', name: 'Ana Ruiz', email: 'ana@acme2.com', sectorTitle: 'Automotriz', confidence: 9 }] });
+    expect(res.status).toBe(200);
+    expect(res.body.created).toBe(1);
+    const store = mockNotion.getStore();
+    const pagina = store.prospectos.find(p => p.properties['Email']?.email === 'ana@acme2.com');
+    expect(pagina.properties['Sector']?.select?.name).toBe('Automotriz');
+    expect(pagina.properties['ConfianzaIA']?.number).toBe(9);
+    expect(pagina.properties['OrigenCarga']?.select?.name).toBe('Automático');
+  });
+
+  test('evitarDuplicados=true NO crea un prospecto con email ya existente', async () => {
+    await request(app).post('/api/prospeccion/notion/upload')
+      .set('Authorization', `Bearer ${natToken()}`)
+      .send({ leads: [{ id: 'd1', company: 'Dup SA', name: 'Primero', email: 'dup@x.com' }] });
+    const res = await request(app).post('/api/prospeccion/notion/upload')
+      .set('Authorization', `Bearer ${natToken()}`)
+      .send({ evitarDuplicados: true, leads: [{ id: 'd2', company: 'Dup SA', name: 'Segundo', email: 'dup@x.com' }] });
+    expect(res.body.created).toBe(0);
+    expect(res.body.omitidos).toHaveLength(1);
+    expect(res.body.omitidos[0].motivo).toMatch(/ya existe/i);
+  });
+
+  test('evitarDuplicados=false SÍ crea aunque el email ya exista', async () => {
+    await request(app).post('/api/prospeccion/notion/upload')
+      .set('Authorization', `Bearer ${natToken()}`)
+      .send({ leads: [{ id: 'd3', company: 'Dup SA 2', name: 'Primero', email: 'dup2@x.com' }] });
+    const res = await request(app).post('/api/prospeccion/notion/upload')
+      .set('Authorization', `Bearer ${natToken()}`)
+      .send({ evitarDuplicados: false, leads: [{ id: 'd4', company: 'Dup SA 2', name: 'Segundo', email: 'dup2@x.com' }] });
+    expect(res.body.created).toBe(1);
+  });
+
+  test('duplicados DENTRO del mismo lote también se filtran (no solo contra Notion)', async () => {
+    const res = await request(app).post('/api/prospeccion/notion/upload')
+      .set('Authorization', `Bearer ${natToken()}`)
+      .send({ leads: [
+        { id: 'e1', company: 'Mismo Lote', name: 'A', email: 'mismolote@x.com' },
+        { id: 'e2', company: 'Mismo Lote', name: 'B', email: 'mismolote@x.com' },
+      ] });
+    expect(res.body.created).toBe(1);
+    expect(res.body.omitidos).toHaveLength(1);
+  });
+
+  test('PATCH /marcar-correo-generado marca CorreoGenerado=true', async () => {
+    const creado = await request(app).post('/api/prospeccion/notion/upload')
+      .set('Authorization', `Bearer ${natToken()}`)
+      .send({ leads: [{ id: 'f1', company: 'Flag SA', name: 'X', email: 'flag@x.com' }] });
+    const pageId = creado.body.errors.length ? null : (await request(app).get('/api/prospectos').set('Authorization', `Bearer ${natToken()}`)).body.find(p => p.empresa === 'Flag SA').id;
+    const res = await request(app).patch(`/api/prospeccion/marcar-correo-generado/${pageId}`)
+      .set('Authorization', `Bearer ${natToken()}`);
+    expect(res.status).toBe(200);
+    const lista = await request(app).get('/api/prospectos').set('Authorization', `Bearer ${natToken()}`);
+    const pagina = lista.body.find(p => p.id === pageId);
+    // read_checkbox no está expuesto en toObj de prospectos.js — se verifica
+    // directo contra el store mock, que es la fuente de verdad del PATCH.
+    const store = mockNotion.getStore();
+    const raw = store.prospectos.find(p => p.id === pageId);
+    expect(raw.properties['CorreoGenerado']?.checkbox).toBe(true);
+  });
+
+  test('GET /semanal agrupa por sector y calcula tasa de respuesta', async () => {
+    await request(app).post('/api/prospeccion/notion/upload')
+      .set('Authorization', `Bearer ${natToken()}`)
+      .send({ origen: 'Automático', leads: [
+        { id: 'g1', company: 'Sem1', name: 'A', email: 'sem1@x.com', sectorTitle: 'Tecnología', confidence: 8 },
+        { id: 'g2', company: 'Sem2', name: 'B', email: 'sem2@x.com', sectorTitle: 'Tecnología', confidence: 9 },
+      ] });
+    // Uno de los dos "respondió" — su Status pasa de Nuevo a otro valor.
+    const lista = await request(app).get('/api/prospectos').set('Authorization', `Bearer ${natToken()}`);
+    const p1 = lista.body.find(p => p.empresa === 'Sem1');
+    await request(app).patch(`/api/prospectos/${p1.id}`).set('Authorization', `Bearer ${natToken()}`).send({ status: 'Contactado' });
+
+    const res = await request(app).get('/api/prospeccion/semanal').set('Authorization', `Bearer ${natToken()}`);
+    expect(res.status).toBe(200);
+    expect(res.body.totalSemana).toBeGreaterThanOrEqual(2);
+    expect(res.body.auto).toBeGreaterThanOrEqual(2);
+    const tech = res.body.sectores.find(s => s.sector === 'Tecnología');
+    expect(tech.total).toBe(2);
+    expect(tech.respondieron).toBe(1);
+    expect(tech.tasaRespuesta).toBe(50);
+  });
+});
+
 describe('Prospección — POST /generar-email (reemplaza la llamada rota desde el navegador)', () => {
   test('sin ANTHROPIC_API_KEY responde 400', async () => {
     delete process.env.ANTHROPIC_API_KEY;
