@@ -133,6 +133,38 @@ describe('Prospección — POST /buscar (Apollo)', () => {
     expect(res.body.leads[0].email).toBe('juan@acme.com');
     expect(res.body.leads[0].company).toBe('Acme');
   });
+
+  test('filtros "espejo de Apollo" se mandan a la API real en vez del default', async () => {
+    fetch
+      .mockResolvedValueOnce(jsonResp(200, { people: [] }));
+    await request(app).post('/api/prospeccion/buscar')
+      .set('Authorization', `Bearer ${natToken()}`)
+      .send({ sectors: ['corp'], perSector: 1, filtros: {
+        titles: ['CEO'], seniorities: ['c_suite'], personLocations: ['CDMX'],
+        organizationLocations: ['Jalisco'], employeeRanges: ['51,200'],
+        emailStatus: ['verified'], keywords: 'eventos', organizationDomains: ['acme.com'],
+      } });
+    const sentBody = JSON.parse(fetch.mock.calls[0][1].body);
+    expect(sentBody.person_titles).toEqual(['CEO']);
+    expect(sentBody.person_seniorities).toEqual(['c_suite']);
+    expect(sentBody.person_locations).toEqual(['CDMX']);
+    expect(sentBody.organization_locations).toEqual(['Jalisco']);
+    expect(sentBody.organization_num_employees_ranges).toEqual(['51,200']);
+    expect(sentBody.contact_email_status).toEqual(['verified']);
+    expect(sentBody.q_keywords).toBe('eventos');
+    expect(sentBody.q_organization_domains_list).toEqual(['acme.com']);
+  });
+
+  test('sin filtros, usa los defaults de siempre (títulos fijos + keyword del sector)', async () => {
+    fetch.mockResolvedValueOnce(jsonResp(200, { people: [] }));
+    await request(app).post('/api/prospeccion/buscar')
+      .set('Authorization', `Bearer ${natToken()}`).send({ sectors: ['corp'], perSector: 1 });
+    const sentBody = JSON.parse(fetch.mock.calls[0][1].body);
+    expect(sentBody.person_titles).toContain('Director de Eventos');
+    expect(sentBody.person_locations).toEqual(['Mexico']);
+    expect(sentBody.q_keywords).toBe('corporate');
+    expect(sentBody.person_seniorities).toBeUndefined();
+  });
 });
 
 describe('Prospección — POST /buscar, ramas de error', () => {

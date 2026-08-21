@@ -98,11 +98,81 @@
             <label class="fl">CONTACTOS POR SECTOR</label>
             <input class="fi" id="bp-percount" type="number" min="1" max="20" value="5">
           </div>
+          <button class="btn btn-ghost" onclick="_toggleFiltrosAvanzados()">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 6h16M7 12h10M10 18h4"/></svg>
+            <span id="fa-toggle-label">Filtros avanzados</span>
+          </button>
           <button class="btn btn-primary" id="btn-p" onclick="runProspect()">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
             Buscar y verificar
             <span id="spp" class="spinner-ring" style="display:none;width:13px;height:13px;border-width:2px;position:static;margin-left:2px"></span>
           </button>
+        </div>
+
+        <div id="filtros-avanzados" style="display:none;margin-top:16px;padding-top:16px;border-top:1px solid var(--border)">
+          <div class="fgrid">
+            <div class="fg">
+              <label class="fl">TÍTULOS DE PUESTO <span style="color:var(--gray400)">(separados por coma — vacío = default)</span></label>
+              <input class="fi" id="fa-titles" placeholder="Director de Eventos, Gerente de Marketing...">
+            </div>
+            <div class="fg">
+              <label class="fl">PALABRAS CLAVE <span style="color:var(--gray400)">(vacío = el keyword del sector)</span></label>
+              <input class="fi" id="fa-keywords" placeholder="ej. hospitality, real estate...">
+            </div>
+          </div>
+          <div class="fgrid">
+            <div class="fg">
+              <label class="fl">UBICACIÓN DE LA PERSONA <span style="color:var(--gray400)">(coma — default: Mexico)</span></label>
+              <input class="fi" id="fa-personloc" placeholder="Mexico, CDMX, Guadalajara...">
+            </div>
+            <div class="fg">
+              <label class="fl">UBICACIÓN DE LA EMPRESA <span style="color:var(--gray400)">(coma — opcional)</span></label>
+              <input class="fi" id="fa-orgloc" placeholder="Mexico, Jalisco...">
+            </div>
+          </div>
+          <div class="fg">
+            <label class="fl">DOMINIO DE EMPRESA <span style="color:var(--gray400)">(coma — ej. si ya sabes a qué empresas apuntar)</span></label>
+            <input class="fi" id="fa-domains" placeholder="microsoft.com, hsbc.com.mx...">
+          </div>
+
+          <div class="fg">
+            <label class="fl">ANTIGÜEDAD (SENIORITY)</label>
+            <div style="display:flex;gap:6px;flex-wrap:wrap">
+              <label class="tag tag-gray" style="cursor:pointer"><input type="checkbox" class="fa-seniority" value="owner" style="margin-right:4px">Owner</label>
+              <label class="tag tag-gray" style="cursor:pointer"><input type="checkbox" class="fa-seniority" value="founder" style="margin-right:4px">Founder</label>
+              <label class="tag tag-gray" style="cursor:pointer"><input type="checkbox" class="fa-seniority" value="c_suite" style="margin-right:4px">C-Suite</label>
+              <label class="tag tag-gray" style="cursor:pointer"><input type="checkbox" class="fa-seniority" value="partner" style="margin-right:4px">Partner</label>
+              <label class="tag tag-gray" style="cursor:pointer"><input type="checkbox" class="fa-seniority" value="vp" style="margin-right:4px">VP</label>
+              <label class="tag tag-gray" style="cursor:pointer"><input type="checkbox" class="fa-seniority" value="head" style="margin-right:4px">Head</label>
+              <label class="tag tag-gray" style="cursor:pointer"><input type="checkbox" class="fa-seniority" value="director" style="margin-right:4px">Director</label>
+              <label class="tag tag-gray" style="cursor:pointer"><input type="checkbox" class="fa-seniority" value="manager" style="margin-right:4px">Manager</label>
+              <label class="tag tag-gray" style="cursor:pointer"><input type="checkbox" class="fa-seniority" value="senior" style="margin-right:4px">Senior</label>
+              <label class="tag tag-gray" style="cursor:pointer"><input type="checkbox" class="fa-seniority" value="entry" style="margin-right:4px">Entry</label>
+            </div>
+          </div>
+
+          <div class="fg">
+            <label class="fl">TAMAÑO DE LA EMPRESA (EMPLEADOS)</label>
+            <div style="display:flex;gap:6px;flex-wrap:wrap">
+              <label class="tag tag-gray" style="cursor:pointer"><input type="checkbox" class="fa-empsize" value="1,10" style="margin-right:4px">1-10</label>
+              <label class="tag tag-gray" style="cursor:pointer"><input type="checkbox" class="fa-empsize" value="11,50" style="margin-right:4px">11-50</label>
+              <label class="tag tag-gray" style="cursor:pointer"><input type="checkbox" class="fa-empsize" value="51,200" style="margin-right:4px">51-200</label>
+              <label class="tag tag-gray" style="cursor:pointer"><input type="checkbox" class="fa-empsize" value="201,500" style="margin-right:4px">201-500</label>
+              <label class="tag tag-gray" style="cursor:pointer"><input type="checkbox" class="fa-empsize" value="501,1000" style="margin-right:4px">501-1000</label>
+              <label class="tag tag-gray" style="cursor:pointer"><input type="checkbox" class="fa-empsize" value="1001,5000" style="margin-right:4px">1001-5000</label>
+              <label class="tag tag-gray" style="cursor:pointer"><input type="checkbox" class="fa-empsize" value="5001,10000" style="margin-right:4px">5001-10000</label>
+              <label class="tag tag-gray" style="cursor:pointer"><input type="checkbox" class="fa-empsize" value="10001," style="margin-right:4px">10001+</label>
+            </div>
+          </div>
+
+          <div class="fg" style="margin-bottom:0">
+            <label class="fl">ESTADO DEL EMAIL</label>
+            <div style="display:flex;gap:6px;flex-wrap:wrap">
+              <label class="tag tag-gray" style="cursor:pointer"><input type="checkbox" class="fa-emailstatus" value="verified" style="margin-right:4px">Verificado</label>
+              <label class="tag tag-gray" style="cursor:pointer"><input type="checkbox" class="fa-emailstatus" value="likely to engage" style="margin-right:4px">Probable</label>
+              <label class="tag tag-gray" style="cursor:pointer"><input type="checkbox" class="fa-emailstatus" value="unverified" style="margin-right:4px">Sin verificar</label>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -291,6 +361,33 @@ renderSGrid();
 function _toggleAllSectors(val){ document.querySelectorAll('.sc-check').forEach(c=>c.checked=val); }
 function _selectedSectors(){ return Array.from(document.querySelectorAll('.sc-check:checked')).map(c=>c.value); }
 
+// ══════════════════ FILTROS AVANZADOS — espejo de los filtros "fáciles" que
+// Apollo permite en su propia interfaz (títulos, seniority, ubicación de
+// persona/empresa, tamaño de empresa, estado de email, keywords, dominio).
+// "Departamento" se probó contra la API real y Apollo lo ignora en silencio
+// con cualquier valor — no se ofrece un filtro que aparenta funcionar y no
+// filtra nada. Vacío en cualquier campo = usa el comportamiento de siempre.
+function _toggleFiltrosAvanzados(){
+  const el=document.getElementById('filtros-avanzados');
+  const abierto=el.style.display!=='none';
+  el.style.display=abierto?'none':'block';
+  document.getElementById('fa-toggle-label').textContent=abierto?'Filtros avanzados':'Ocultar filtros avanzados';
+}
+function _csv(id){ return document.getElementById(id).value.split(',').map(s=>s.trim()).filter(Boolean); }
+function _checkedVals(cls){ return Array.from(document.querySelectorAll('.'+cls+':checked')).map(c=>c.value); }
+function _leerFiltrosAvanzados(){
+  return {
+    titles: _csv('fa-titles'),
+    keywords: document.getElementById('fa-keywords').value.trim(),
+    personLocations: _csv('fa-personloc'),
+    organizationLocations: _csv('fa-orgloc'),
+    organizationDomains: _csv('fa-domains'),
+    seniorities: _checkedVals('fa-seniority'),
+    employeeRanges: _checkedVals('fa-empsize'),
+    emailStatus: _checkedVals('fa-emailstatus'),
+  };
+}
+
 function alog(id,type,msg){
   const log=document.getElementById(id);
   const ts=new Date().toLocaleTimeString('es-MX',{hour12:false,hour:'2-digit',minute:'2-digit',second:'2-digit'});
@@ -347,7 +444,8 @@ async function runProspect(){
 
   let leads=[];
   try{
-    const resp=await fetch('/api/prospeccion/buscar',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sectors,perSector})});
+    const filtros=_leerFiltrosAvanzados();
+    const resp=await fetch('/api/prospeccion/buscar',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sectors,perSector,filtros})});
     const data=await resp.json();
     if(!resp.ok) throw new Error(data.error||resp.statusText);
     leads=data.leads||[];

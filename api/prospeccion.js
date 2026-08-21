@@ -47,9 +47,40 @@ router.get('/config/status', (req, res) => {
   });
 });
 
-// POST /api/prospeccion/buscar  →  busca leads en Apollo por sectores
+const TITULOS_DEFAULT = ['Director de Eventos', 'Director de Marketing', 'Gerente de Eventos',
+  'VP Marketing', 'Director de Comunicación', 'Jefe de Eventos',
+  'Events Manager', 'Marketing Manager', 'Director Comercial'];
+
+// Filtros "espejo de Apollo" — cada uno verificado contra la API real antes de
+// exponerlo (ver conversación): person_departments NO se incluye porque Apollo
+// lo ignora en silencio con cualquier valor probado (no filtra nada, aunque no
+// da error) — mejor no ofrecer un filtro que aparenta funcionar y no hace nada.
+function _construirBusquedaApollo({ filtros = {}, sectorId, perSector }) {
+  const info = SECTOR_MAP[sectorId];
+  const body = {
+    person_titles:    filtros.titles?.length ? filtros.titles : TITULOS_DEFAULT,
+    person_locations: filtros.personLocations?.length ? filtros.personLocations : ['Mexico'],
+    // Palabras clave: si Natalia mandó las suyas, se usan tal cual (libres);
+    // si no, se cae al keyword fijo del sector (comportamiento de siempre).
+    q_keywords: filtros.keywords || info?.apollo || '',
+    per_page: perSector * 3,
+    page: 1,
+  };
+  if (filtros.seniorities?.length)          body.person_seniorities = filtros.seniorities;
+  if (filtros.organizationLocations?.length) body.organization_locations = filtros.organizationLocations;
+  if (filtros.employeeRanges?.length)        body.organization_num_employees_ranges = filtros.employeeRanges;
+  if (filtros.emailStatus?.length)           body.contact_email_status = filtros.emailStatus;
+  if (filtros.organizationDomains?.length)   body.q_organization_domains_list = filtros.organizationDomains;
+  return body;
+}
+
+// POST /api/prospeccion/buscar  →  busca leads en Apollo por sectores.
+// filtros (opcional): espejo de los filtros "fáciles" de Apollo — títulos,
+// antigüedad, ubicación de persona/empresa, tamaño de empresa, estado del
+// email, palabras clave, dominio de empresa. Si no se manda nada, se comporta
+// exactamente igual que antes (títulos fijos + keyword del sector).
 router.post('/buscar', async (req, res) => {
-  const { sectors = ['corp', 'auto', 'pharma', 'tech'], perSector = 5 } = req.body;
+  const { sectors = ['corp', 'auto', 'pharma', 'tech'], perSector = 5, filtros = {} } = req.body;
   const apolloKey = process.env.APOLLO_API_KEY;
   if (!apolloKey) return res.status(400).json({ error: 'APOLLO_API_KEY no configurada en .env' });
 
@@ -64,15 +95,7 @@ router.post('/buscar', async (req, res) => {
       const searchResp = await fetch('https://api.apollo.io/api/v1/mixed_people/api_search', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-Api-Key': apolloKey },
-        body: JSON.stringify({
-          person_titles: ['Director de Eventos', 'Director de Marketing', 'Gerente de Eventos',
-                          'VP Marketing', 'Director de Comunicación', 'Jefe de Eventos',
-                          'Events Manager', 'Marketing Manager', 'Director Comercial'],
-          person_locations: ['Mexico'],
-          q_keywords: info.apollo,
-          per_page: perSector * 3,
-          page: 1,
-        }),
+        body: JSON.stringify(_construirBusquedaApollo({ filtros, sectorId, perSector })),
       });
 
       if (!searchResp.ok) {
