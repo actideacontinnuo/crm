@@ -15,6 +15,7 @@ function toObj(page) {
   if (!Array.isArray(notas)) notas = [];
   return {
     id: page.id,
+    creado:       page.created_time || null, // metadata del API de Notion, no una propiedad
     empresa:      read_title(p['Empresa']),
     contacto:     read_text(p['Contacto']),
     cargo:        read_text(p['Cargo']),

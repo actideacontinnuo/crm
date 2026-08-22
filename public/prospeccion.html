@@ -57,6 +57,7 @@
     <div class="vtab" onclick="showTab('buscar',this)">BUSCAR</div>
     <div class="vtab" onclick="showTab('templates',this)">TEMPLATES</div>
     <div class="vtab" onclick="showTab('correos',this)">CORREOS</div>
+    <div class="vtab" onclick="showTab('generados',this)">GENERADOS</div>
     <div class="vtab" onclick="showTab('ajustes',this)">AJUSTES</div>
   </div>
 
@@ -254,6 +255,42 @@
     <div id="correos-detalle"></div>
   </div>
 
+  <!-- ══════════════════ GENERADOS — historial COMPLETO y PERSISTENTE (Notion
+       real, Fuente=Apollo) de todos los prospectos que ha generado esta
+       herramienta, para no perder de vista ninguno aunque se recargue la
+       página o pase el tiempo — a diferencia de "Correos", que solo muestra
+       los de la sesión actual en el navegador. ══════════════════ -->
+  <div id="tab-generados" class="ptab" style="display:none">
+    <div class="ph-sub" style="margin-bottom:14px">Todos los prospectos generados por esta herramienta, en cualquier sesión — para que ninguno se pierda de vista.</div>
+    <div class="toolbar">
+      <select class="fsel" id="gen-filtro-sector" onchange="renderGenerados()"><option value="">TODOS LOS SECTORES</option></select>
+      <select class="fsel" id="gen-filtro-origen" onchange="renderGenerados()">
+        <option value="">TODOS LOS ORÍGENES</option>
+        <option value="Automático">Automático</option>
+        <option value="Manual">Manual</option>
+      </select>
+      <select class="fsel" id="gen-filtro-correo" onchange="renderGenerados()">
+        <option value="">CON O SIN CORREO GENERADO</option>
+        <option value="si">Con correo generado</option>
+        <option value="no">Sin correo generado</option>
+      </select>
+      <button class="btn btn-ghost btn-sm" onclick="renderGenerados()">↻ Actualizar</button>
+    </div>
+    <div class="panel">
+      <div class="panel-hdr">
+        <div class="panel-title"><span class="dot"></span>HISTORIAL COMPLETO</div>
+        <span class="tag tag-gray" id="gen-chip">0 prospectos</span>
+      </div>
+      <div class="tbl-wrap" style="border:none;border-radius:0;box-shadow:none">
+        <table class="tbl">
+          <thead><tr><th>FECHA</th><th>NOMBRE</th><th>EMPRESA</th><th>SECTOR</th><th>CONFIANZA</th><th>ORIGEN</th><th>STATUS</th><th>CORREO</th><th></th></tr></thead>
+          <tbody id="gen-tbody"><tr><td colspan="9" style="text-align:center;color:var(--gray400);padding:20px">Cargando...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+    <div id="gen-detalle"></div>
+  </div>
+
   <!-- ══════════════════ AJUSTES ══════════════════ -->
   <div id="tab-ajustes" class="ptab" style="display:none">
     <div class="panel">
@@ -327,6 +364,7 @@ function showTab(name,el){
   el?.classList.add('active');
   if(name==='semanal') renderSemanal();
   if(name==='correos') renderCorreos();
+  if(name==='generados') renderGenerados();
 }
 
 // ══════════════════ SECTORES (20, mismos ids que api/prospeccion.js SECTOR_MAP) ══════════════════
@@ -680,6 +718,124 @@ async function generarTodos(){
   }
   btn.disabled=false;
   toast('✓ Correos generados para todos');
+}
+
+// ══════════════════ GENERADOS — historial persistente desde Notion ══════════
+// A diferencia de "Correos" (que vive en memoria del navegador y se pierde al
+// recargar), esta pestaña lee SIEMPRE de Notion: todos los prospectos que ha
+// generado esta herramienta (Fuente=Apollo), de cualquier sesión y fecha.
+let _generados=[];
+
+async function renderGenerados(){
+  const tb=document.getElementById('gen-tbody');
+  tb.innerHTML=`<tr><td colspan="9" style="text-align:center;color:var(--gray400);padding:20px">Cargando...</td></tr>`;
+  try{
+    const todos=await fetch('/api/prospectos').then(r=>r.json());
+    // Solo los generados por esta herramienta — un prospecto capturado a mano
+    // en el CRM no pertenece a este historial.
+    _generados=(todos||[]).filter(p=>p.fuente==='Apollo')
+      .sort((a,b)=>new Date(b.creado||0)-new Date(a.creado||0)); // más reciente primero
+
+    // Llenar el filtro de sectores con los que realmente existen
+    const sel=document.getElementById('gen-filtro-sector');
+    if(sel.options.length<=1){
+      const sectores=[...new Set(_generados.map(p=>p.sector).filter(Boolean))].sort();
+      sel.innerHTML='<option value="">TODOS LOS SECTORES</option>'+sectores.map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join('');
+    }
+
+    const fSector=document.getElementById('gen-filtro-sector').value;
+    const fOrigen=document.getElementById('gen-filtro-origen').value;
+    const fCorreo=document.getElementById('gen-filtro-correo').value;
+    const lista=_generados.filter(p=>
+      (!fSector || p.sector===fSector) &&
+      (!fOrigen || p.origenCarga===fOrigen) &&
+      (!fCorreo || (fCorreo==='si'? p.correoGenerado : !p.correoGenerado))
+    );
+
+    document.getElementById('gen-chip').textContent=`${lista.length} prospecto${lista.length===1?'':'s'}`;
+    tb.innerHTML=lista.length ? lista.map(p=>{
+      const conf=p.confianzaIA;
+      const confTag=conf==null?'tag-gray':conf>=8?'tag-green':conf>=6?'tag-amber':'tag-red';
+      const fecha=p.creado?new Date(p.creado).toLocaleDateString('es-MX',{day:'2-digit',month:'short',year:'2-digit'}):'—';
+      return `<tr>
+        <td class="m" style="font-size:11px;color:var(--gray600)">${esc(fecha)}</td>
+        <td style="font-weight:600">${esc(p.contacto)||'—'}<div style="font-size:10px;color:var(--gray400)">${esc(p.cargo)||''}</div></td>
+        <td>${esc(p.empresa)||'—'}</td>
+        <td>${p.sector?`<span class="tag tag-blue">${esc(p.sector)}</span>`:'—'}</td>
+        <td><span class="tag ${confTag}">${conf==null?'—':conf+'/10'}</span></td>
+        <td><span class="tag ${p.origenCarga==='Automático'?'tag-green':'tag-amber'}">${esc(p.origenCarga)||'—'}</span></td>
+        <td>${pillHTML(p.status||'Nuevo')}</td>
+        <td>${p.correoGenerado?'<span class="tag tag-green">✓ generado</span>':'<span class="tag tag-gray">pendiente</span>'}</td>
+        <td><button class="btn btn-ghost btn-xs" onclick="generarCorreoDesdeHistorial('${p.id}')">✦ Correo</button></td>
+      </tr>`;
+    }).join('') : `<tr><td colspan="9" style="text-align:center;color:var(--gray400);padding:20px">Sin prospectos que coincidan con el filtro</td></tr>`;
+  }catch(err){
+    tb.innerHTML=`<tr><td colspan="9" style="text-align:center;color:var(--red);padding:20px">Error cargando el historial: ${esc(err.message)}</td></tr>`;
+  }
+}
+
+// Pill de status — el CSS del CRM las estiliza por clase (ver main.css .pill).
+function pillHTML(status){
+  const cls=String(status||'').toLowerCase().replace(/\s+/g,'');
+  return `<span class="pill ${cls}"><span class="pill-dot"></span>${esc(status)}</span>`;
+}
+
+// Genera el correo de un prospecto del historial (no de la sesión actual) —
+// mismo criterio que la pestaña Correos: Claude si el ajuste está activo, si
+// no el template estático del sector. Nunca envía, solo redacta para copiar.
+async function generarCorreoDesdeHistorial(prospectoId){
+  const p=_generados.find(x=>x.id===prospectoId);
+  if(!p){ toast('No se encontró el prospecto','red'); return; }
+  const ajustes=_leerAjustes();
+  const sectorName=p.sector||'Corporativo';
+  let asunto, cuerpo;
+
+  if(ajustes.claude){
+    try{
+      const resp=await fetch('/api/prospeccion/generar-email',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({empresa:p.empresa,sectorName,nombre:p.contacto,puesto:p.cargo})});
+      const data=await resp.json();
+      if(!resp.ok) throw new Error(data.error||resp.statusText);
+      asunto=data.asunto; cuerpo=data.cuerpo;
+    }catch(err){ toast('Error generando con Claude: '+err.message,'red'); return; }
+  }else{
+    // El template se elige por el id de sector; el historial guarda el nombre
+    // visible (p. ej. "Legal"), así que se busca su id equivalente.
+    const sid=(SECTORS.find(s=>s.n===p.sector)||{}).id||'corp';
+    const t=TPLS[sid]||TPLS.corp;
+    asunto=t.sub; cuerpo=t.body.replace('Hola,',`Hola ${String(p.contacto||'').split(' ')[0]},`);
+  }
+
+  const box=document.getElementById('gen-detalle');
+  box.innerHTML=`<div class="panel" style="margin-top:16px">
+    <div class="panel-hdr"><div class="panel-title"><span class="dot"></span>CORREO PARA ${esc(p.contacto).toUpperCase()}</div></div>
+    <div class="panel-body">
+      <div class="fg"><label class="fl">PARA</label><input class="fi" readonly value="${esc(p.email)}"></div>
+      <div class="fg"><label class="fl">ASUNTO</label><input class="fi" id="gh-asunto" value="${esc(asunto)}"></div>
+      <div class="fg"><label class="fl">CUERPO</label><textarea class="fta" id="gh-cuerpo" style="min-height:180px">${esc(cuerpo)}</textarea></div>
+      <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="copiarCorreoHistorial('${p.id}')">📋 Copiar (asunto + cuerpo)</button>
+    </div>
+  </div>`;
+  box.scrollIntoView({behavior:'smooth'});
+}
+
+async function copiarCorreoHistorial(prospectoId){
+  const asunto=document.getElementById('gh-asunto').value;
+  const cuerpo=document.getElementById('gh-cuerpo').value;
+  try{
+    await navigator.clipboard.writeText(`Asunto: ${asunto}\n\n${cuerpo}`);
+    toast('✓ Copiado — pégalo en Outlook');
+  }catch(_){
+    toast('No se pudo copiar automáticamente — selecciona el texto manualmente','red');
+  }
+  const ajustes=_leerAjustes();
+  if(ajustes.marcar){
+    // Aquí SÍ tenemos el id de Notion directo (viene del historial), no hay
+    // que buscarlo por email como en la pestaña Correos.
+    try{
+      await fetch(`/api/prospeccion/marcar-correo-generado/${prospectoId}`,{method:'PATCH'});
+      renderGenerados();
+    }catch(_){ /* no bloquea la copia si falla marcar en Notion */ }
+  }
 }
 
 // ══════════════════ PANEL SEMANAL ══════════════════
