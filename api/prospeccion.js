@@ -127,11 +127,22 @@ router.post('/buscar', async (req, res) => {
         (enrichData.matches || []).forEach(m => { if (m.id) enrichedMap[m.id] = m; });
       }
 
+      // Regla de negocio confirmada: si Apollo no confirma el email como
+      // "verified" (deliverable de verdad, no "probable" ni "sin verificar"),
+      // el contacto NO puede convertirse en Prospecto — se descarta aquí,
+      // antes de que llegue siquiera a la revisión manual de Natalia. Esto
+      // también resuelve de raíz los apellidos truncados ("Pe***z"): cuando
+      // el enriquecimiento de Apollo SÍ encuentra al contacto (y por tanto
+      // puede confirmar el email), siempre trae el apellido completo — el
+      // apellido corto solo aparece cuando el enriquecimiento falla, y en
+      // ese caso tampoco hay un email confiable que ofrecer.
+      const antesDeEsteSector = results.length;
       for (const p of candidates) {
-        const enriched = enrichedMap[p.id] || {};
+        const enriched = enrichedMap[p.id];
+        if (!enriched || enriched.email_status !== 'verified') continue;
         results.push({
           id:          p.id,
-          name:        `${p.first_name || ''} ${enriched.last_name || p.last_name_obfuscated || ''}`.trim(),
+          name:        `${p.first_name || ''} ${enriched.last_name || ''}`.trim(),
           title:       enriched.title || p.title || '',
           company:     enriched.organization?.name || p.organization?.name || '',
           email:       enriched.email || enriched.sanitized_email || '',
@@ -139,12 +150,15 @@ router.post('/buscar', async (req, res) => {
           phone:       enriched.phone_numbers?.[0]?.raw_number || '',
           sector:      sectorId,
           sectorTitle: info.title,
-          emailStatus: enriched.email_status || 'unknown',
+          emailStatus: enriched.email_status,
           apolloId:    p.id,
           city:        enriched.city || '',
           country:     enriched.country || 'México',
           verified:    false,
         });
+      }
+      if (results.length === antesDeEsteSector) {
+        errors.push({ sector: sectorId, error: 'Apollo no confirmó ("verified") el email de ningún contacto para este sector' });
       }
     } catch (err) {
       errors.push({ sector: sectorId, error: err.message });
@@ -261,7 +275,7 @@ Requisitos:
 3. Menciona un cliente real de Actidea del mismo sector como credencial
 4. Propuesta de valor específica en 2 líneas
 5. CTA preguntando por 20 minutos esta semana
-6. Firma fija: "Actidea Continnuo · Eventos que conectan\\ncontacto@actideacontinnuo.com"
+6. Firma fija: "Actidea Continnuo · Eventos que conectan\\nngama@actideacontinnuo.com"
 7. Máximo 160 palabras
 
 JSON exacto: {"asunto":"...","cuerpo":"..."}`,

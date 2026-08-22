@@ -93,8 +93,8 @@
         </div>
       </div>
       <div class="panel-body">
-        <div id="sgrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px"></div>
-        <div style="display:flex;gap:14px;align-items:flex-end;margin-top:16px;flex-wrap:wrap">
+        <div id="sgrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:var(--gap-sm)"></div>
+        <div style="display:flex;gap:var(--gap-lg);align-items:flex-end;margin-top:var(--gap-lg);flex-wrap:wrap">
           <div class="fg" style="margin:0;width:180px">
             <label class="fl">CONTACTOS POR SECTOR</label>
             <input class="fi" id="bp-percount" type="number" min="1" max="20" value="5">
@@ -138,7 +138,7 @@
 
           <div class="fg">
             <label class="fl">ANTIGÜEDAD (SENIORITY)</label>
-            <div style="display:flex;gap:6px;flex-wrap:wrap">
+            <div style="display:flex;gap:var(--gap-sm);flex-wrap:wrap;margin-top:var(--gap-xs)">
               <label class="tag tag-gray" style="cursor:pointer"><input type="checkbox" class="fa-seniority" value="owner" style="margin-right:4px">Owner</label>
               <label class="tag tag-gray" style="cursor:pointer"><input type="checkbox" class="fa-seniority" value="founder" style="margin-right:4px">Founder</label>
               <label class="tag tag-gray" style="cursor:pointer"><input type="checkbox" class="fa-seniority" value="c_suite" style="margin-right:4px">C-Suite</label>
@@ -154,7 +154,7 @@
 
           <div class="fg">
             <label class="fl">TAMAÑO DE LA EMPRESA (EMPLEADOS)</label>
-            <div style="display:flex;gap:6px;flex-wrap:wrap">
+            <div style="display:flex;gap:var(--gap-sm);flex-wrap:wrap;margin-top:var(--gap-xs)">
               <label class="tag tag-gray" style="cursor:pointer"><input type="checkbox" class="fa-empsize" value="1,10" style="margin-right:4px">1-10</label>
               <label class="tag tag-gray" style="cursor:pointer"><input type="checkbox" class="fa-empsize" value="11,50" style="margin-right:4px">11-50</label>
               <label class="tag tag-gray" style="cursor:pointer"><input type="checkbox" class="fa-empsize" value="51,200" style="margin-right:4px">51-200</label>
@@ -168,7 +168,7 @@
 
           <div class="fg" style="margin-bottom:0">
             <label class="fl">ESTADO DEL EMAIL</label>
-            <div style="display:flex;gap:6px;flex-wrap:wrap">
+            <div style="display:flex;gap:var(--gap-sm);flex-wrap:wrap;margin-top:var(--gap-xs)">
               <label class="tag tag-gray" style="cursor:pointer"><input type="checkbox" class="fa-emailstatus" value="verified" style="margin-right:4px">Verificado</label>
               <label class="tag tag-gray" style="cursor:pointer"><input type="checkbox" class="fa-emailstatus" value="likely to engage" style="margin-right:4px">Probable</label>
               <label class="tag tag-gray" style="cursor:pointer"><input type="checkbox" class="fa-emailstatus" value="unverified" style="margin-right:4px">Sin verificar</label>
@@ -239,7 +239,7 @@
 
   <!-- ══════════════════ CORREOS ══════════════════ -->
   <div id="tab-correos" class="ptab" style="display:none">
-    <div class="ph-sub" style="margin-bottom:14px">Genera el asunto y cuerpo con Claude para cada prospecto — cópialo y envíalo tú misma desde Outlook. El sistema no envía nada automáticamente.</div>
+    <div class="ph-sub" style="margin-bottom:var(--gap-lg)">Genera el asunto y cuerpo con Claude para cada prospecto — cópialo y envíalo tú misma desde Outlook. El sistema no envía nada automáticamente.</div>
     <div class="panel">
       <div class="panel-hdr">
         <div class="panel-title"><span class="dot"></span>PROSPECTOS DE ESTA SESIÓN</div>
@@ -261,12 +261,12 @@
        página o pase el tiempo — a diferencia de "Correos", que solo muestra
        los de la sesión actual en el navegador. ══════════════════ -->
   <div id="tab-generados" class="ptab" style="display:none">
-    <div class="ph-sub" style="margin-bottom:14px">Todos los prospectos generados por esta herramienta, en cualquier sesión — para que ninguno se pierda de vista.</div>
+    <div class="ph-sub" style="margin-bottom:var(--gap-lg)">Todos los prospectos generados por esta herramienta, en cualquier sesión — para que ninguno se pierda de vista.</div>
     <div class="toolbar">
       <select class="fsel" id="gen-filtro-sector" onchange="renderGenerados()"><option value="">TODOS LOS SECTORES</option></select>
       <select class="fsel" id="gen-filtro-origen" onchange="renderGenerados()">
-        <option value="">TODOS LOS ORÍGENES</option>
-        <option value="Automático">Automático</option>
+        <option value="">TIPO DE PROSPECCIÓN: TODOS</option>
+        <option value="Automático">Automática</option>
         <option value="Manual">Manual</option>
       </select>
       <select class="fsel" id="gen-filtro-correo" onchange="renderGenerados()">
@@ -281,9 +281,9 @@
         <div class="panel-title"><span class="dot"></span>HISTORIAL COMPLETO</div>
         <span class="tag tag-gray" id="gen-chip">0 prospectos</span>
       </div>
-      <div class="tbl-wrap" style="border:none;border-radius:0;box-shadow:none">
-        <table class="tbl">
-          <thead><tr><th>FECHA</th><th>NOMBRE</th><th>EMPRESA</th><th>SECTOR</th><th>CONFIANZA</th><th>ORIGEN</th><th>STATUS</th><th>CORREO</th><th></th></tr></thead>
+      <div class="tbl-wrap" style="border:none;border-radius:0;box-shadow:none;overflow-x:auto">
+        <table class="tbl" style="min-width:900px">
+          <thead><tr><th>FECHA</th><th>NOMBRE</th><th>EMPRESA</th><th>SECTOR</th><th>CONFIANZA</th><th>TIPO DE PROSPECCIÓN</th><th>STATUS</th><th>CORREO</th><th></th></tr></thead>
           <tbody id="gen-tbody"><tr><td colspan="9" style="text-align:center;color:var(--gray400);padding:20px">Cargando...</td></tr></tbody>
         </table>
       </div>
@@ -295,22 +295,22 @@
   <div id="tab-ajustes" class="ptab" style="display:none">
     <div class="panel">
       <div class="panel-hdr"><div class="panel-title"><span class="dot"></span>COMPORTAMIENTO</div></div>
-      <div class="panel-body" style="display:flex;flex-direction:column;gap:16px">
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
-          <div><div style="font-weight:600;font-size:13px">Evitar duplicados</div><div style="font-size:11px;color:var(--gray400)">Antes de subir un contacto a Notion, revisa si ya existe un Prospecto con ese email — si sí, lo omite.</div></div>
-          <label style="cursor:pointer"><input type="checkbox" style="width:18px;height:18px;accent-color:var(--red);cursor:pointer" id="ajuste-dedupe" onchange="_guardarAjustes()"></label>
+      <div class="panel-body" style="display:flex;flex-direction:column">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:var(--gap-lg);padding:var(--gap-md) 0;border-bottom:1px solid var(--border)">
+          <div><div style="font-weight:600;font-size:13px;margin-bottom:var(--gap-xs)">Evitar duplicados</div><div style="font-size:11px;color:var(--gray400);line-height:1.5">Antes de subir un contacto a Notion, revisa si ya existe un Prospecto con ese email — si sí, lo omite.</div></div>
+          <label style="cursor:pointer;flex-shrink:0"><input type="checkbox" style="width:18px;height:18px;accent-color:var(--red);cursor:pointer" id="ajuste-dedupe" onchange="_guardarAjustes()"></label>
         </div>
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
-          <div><div style="font-weight:600;font-size:13px">Personalización por sector con Claude</div><div style="font-size:11px;color:var(--gray400)">Si está apagado, "Generar correo" usa el template estático de la pestaña Templates en vez de Claude.</div></div>
-          <label style="cursor:pointer"><input type="checkbox" style="width:18px;height:18px;accent-color:var(--red);cursor:pointer" id="ajuste-claude" onchange="_guardarAjustes()"></label>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:var(--gap-lg);padding:var(--gap-md) 0;border-bottom:1px solid var(--border)">
+          <div><div style="font-weight:600;font-size:13px;margin-bottom:var(--gap-xs)">Personalización por sector con Claude</div><div style="font-size:11px;color:var(--gray400);line-height:1.5">Si está apagado, "Generar correo" usa el template estático de la pestaña Templates en vez de Claude.</div></div>
+          <label style="cursor:pointer;flex-shrink:0"><input type="checkbox" style="width:18px;height:18px;accent-color:var(--red);cursor:pointer" id="ajuste-claude" onchange="_guardarAjustes()"></label>
         </div>
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
-          <div><div style="font-weight:600;font-size:13px">Marcar en Notion al generar correo</div><div style="font-size:11px;color:var(--gray400)">Cuando generas el correo de un prospecto, lo marca como "correo generado" para no perder la cuenta.</div></div>
-          <label style="cursor:pointer"><input type="checkbox" style="width:18px;height:18px;accent-color:var(--red);cursor:pointer" id="ajuste-marcar" onchange="_guardarAjustes()"></label>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:var(--gap-lg);padding:var(--gap-md) 0;border-bottom:1px solid var(--border)">
+          <div><div style="font-weight:600;font-size:13px;margin-bottom:var(--gap-xs)">Marcar en Notion al generar correo</div><div style="font-size:11px;color:var(--gray400);line-height:1.5">Cuando generas el correo de un prospecto, lo marca como "correo generado" para no perder la cuenta.</div></div>
+          <label style="cursor:pointer;flex-shrink:0"><input type="checkbox" style="width:18px;height:18px;accent-color:var(--red);cursor:pointer" id="ajuste-marcar" onchange="_guardarAjustes()"></label>
         </div>
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
-          <div><div style="font-weight:600;font-size:13px">Espaciar generación con Claude</div><div style="font-size:11px;color:var(--gray400)">Al usar "Generar todos", espera unos segundos entre cada contacto para no saturar la API.</div></div>
-          <label style="cursor:pointer"><input type="checkbox" style="width:18px;height:18px;accent-color:var(--red);cursor:pointer" id="ajuste-ratelimit" onchange="_guardarAjustes()"></label>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:var(--gap-lg);padding:var(--gap-md) 0 0">
+          <div><div style="font-weight:600;font-size:13px;margin-bottom:var(--gap-xs)">Espaciar generación con Claude</div><div style="font-size:11px;color:var(--gray400);line-height:1.5">Al usar "Generar todos", espera unos segundos entre cada contacto para no saturar la API.</div></div>
+          <label style="cursor:pointer;flex-shrink:0"><input type="checkbox" style="width:18px;height:18px;accent-color:var(--red);cursor:pointer" id="ajuste-ratelimit" onchange="_guardarAjustes()"></label>
         </div>
       </div>
     </div>
@@ -517,16 +517,26 @@ async function runProspect(){
 
   if(!verified.length){ alog('plog','lw','⚠ No se encontraron leads.'); btn.disabled=false; sp.style.display='none'; return; }
 
-  document.getElementById('kpi-total').textContent=verified.length;
+  // Regla de negocio: solo un contacto con email confirmado por Apollo
+  // ("verified", ya filtrado en el backend en /buscar) Y coherente para
+  // Claude (verified:true en /verificar) puede llegar a ser Prospecto — los
+  // que Claude marca como no coherentes se descartan aquí, ni siquiera pasan
+  // a revisión manual. El conteo por sector y el KPI reflejan solo los
+  // elegibles — un descartado no cuenta como "encontrado".
+  const noVerificados=verified.filter(l=>l.verified===false);
+  const elegibles=verified.filter(l=>l.verified!==false);
+  if(noVerificados.length) alog('plog','lw',`⚠ ${noVerificados.length} descartados — Claude no pudo confirmar que los datos sean coherentes`);
+
+  document.getElementById('kpi-total').textContent=elegibles.length;
   sectors.forEach(s=>{
-    const n=verified.filter(l=>l.sector===s).length;
+    const n=elegibles.filter(l=>l.sector===s).length;
     const el=document.getElementById('sc-status-'+s);
     if(el) el.textContent=n?`✓ ${n}`:'sin resultados';
   });
 
   // Split: confianza ≥7 → sube SOLA a Notion. confianza <7 → espera revisión.
-  _autoLeads=verified.filter(l=>(l.confidence||0)>=7);
-  _manualLeads=verified.filter(l=>(l.confidence||0)<7);
+  _autoLeads=elegibles.filter(l=>(l.confidence||0)>=7);
+  _manualLeads=elegibles.filter(l=>(l.confidence||0)<7);
   alog('plog','ls',`Claude verificó ${verified.length} · ${_autoLeads.length} alta confianza (≥7) · ${_manualLeads.length} para revisión manual`);
 
   if(_autoLeads.length){
@@ -603,7 +613,7 @@ async function cargarSeleccionados(){
 // ══════════════════ TEMPLATES — ejemplos de referencia por sector (estáticos;
 // el correo real lo redacta Claude en la pestaña Correos, personalizado) ═════
 const TPLS={
-  corp:{sub:'El evento que su empresa no ha producido todavía',body:'Hola,\n\nEn Actidea Continnuo llevamos 25 años produciendo eventos corporativos para marcas como Danone, Bimbo y Colgate.\n\n¿Tienen 20 minutos esta semana para explorar su próximo proyecto?\n\nActidea Continnuo · Eventos que conectan\ncontacto@actideacontinnuo.com'},
+  corp:{sub:'El evento que su empresa no ha producido todavía',body:'Hola,\n\nEn Actidea Continnuo llevamos 25 años produciendo eventos corporativos para marcas como Danone, Bimbo y Colgate.\n\n¿Tienen 20 minutos esta semana para explorar su próximo proyecto?\n\nActidea Continnuo · Eventos que conectan\nngama@actideacontinnuo.com'},
   auto:{sub:'La producción detrás del lanzamiento que necesitan',body:'Hola,\n\nUn lanzamiento necesita más que un venue — producción técnica impecable y operación sin fallas.\n\nHemos producido eventos de lanzamiento para General Motors y Honda en México.\n\n¿Tienen proyectos en agenda este año?\n\nActidea Continnuo · Eventos que conectan'},
   pharma:{sub:'Congresos médicos que elevan la credibilidad de su marca',body:'Hola,\n\nLos congresos médicos exigen rigor y protocolo. En Actidea producimos eventos para GSK, Grunenthal y J&J.\n\n¿20 minutos esta semana para ver cómo podemos colaborar?\n\nActidea Continnuo · Eventos que conectan'},
   tech:{sub:'Partner summits a la altura de su marca',body:'Hola,\n\nProducimos partner summits y lanzamientos tech para Microsoft, HP e Intel.\n\n¿20 minutos para ver qué tienen en agenda este año?\n\nActidea Continnuo · Eventos que conectan'},
@@ -759,8 +769,8 @@ async function renderGenerados(){
       const fecha=p.creado?new Date(p.creado).toLocaleDateString('es-MX',{day:'2-digit',month:'short',year:'2-digit'}):'—';
       return `<tr>
         <td class="m" style="font-size:11px;color:var(--gray600)">${esc(fecha)}</td>
-        <td style="font-weight:600">${esc(p.contacto)||'—'}<div style="font-size:10px;color:var(--gray400)">${esc(p.cargo)||''}</div></td>
-        <td>${esc(p.empresa)||'—'}</td>
+        <td style="font-weight:600;max-width:180px"><div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(p.contacto)}">${esc(p.contacto)||'—'}</div><div style="font-size:10px;color:var(--gray400);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:2px" title="${esc(p.cargo)}">${esc(p.cargo)||''}</div></td>
+        <td style="max-width:180px"><div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(p.empresa)}">${esc(p.empresa)||'—'}</div></td>
         <td>${p.sector?`<span class="tag tag-blue">${esc(p.sector)}</span>`:'—'}</td>
         <td><span class="tag ${confTag}">${conf==null?'—':conf+'/10'}</span></td>
         <td><span class="tag ${p.origenCarga==='Automático'?'tag-green':'tag-amber'}">${esc(p.origenCarga)||'—'}</span></td>

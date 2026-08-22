@@ -117,13 +117,13 @@ describe('Prospección — POST /buscar (Apollo)', () => {
     expect(res.status).toBe(400);
   });
 
-  test('mapea los leads que Apollo devuelve con has_email=true', async () => {
+  test('mapea los leads que Apollo devuelve con has_email=true y email_status=verified', async () => {
     fetch
       .mockResolvedValueOnce(jsonResp(200, { people: [
         { id: 'p1', first_name: 'Juan', last_name_obfuscated: 'P.', title: 'Director', organization: { name: 'Acme' }, has_email: true },
       ] }))
       .mockResolvedValueOnce(jsonResp(200, { matches: [
-        { id: 'p1', last_name: 'Pérez', email: 'juan@acme.com', organization: { name: 'Acme' } },
+        { id: 'p1', last_name: 'Pérez', email: 'juan@acme.com', email_status: 'verified', organization: { name: 'Acme' } },
       ] }));
 
     const res = await request(app).post('/api/prospeccion/buscar')
@@ -132,6 +132,25 @@ describe('Prospección — POST /buscar (Apollo)', () => {
     expect(res.body.leads).toHaveLength(1);
     expect(res.body.leads[0].email).toBe('juan@acme.com');
     expect(res.body.leads[0].company).toBe('Acme');
+    expect(res.body.leads[0].name).toBe('Juan Pérez'); // apellido COMPLETO, no el obfuscado
+  });
+
+  test('regla de negocio: un contacto sin email_status=verified NUNCA puede ser Prospecto — se descarta, no baja a "unverified"', async () => {
+    fetch
+      .mockResolvedValueOnce(jsonResp(200, { people: [
+        { id: 'p1', first_name: 'Juan', last_name_obfuscated: 'P.', title: 'Director', organization: { name: 'Acme' }, has_email: true },
+        { id: 'p2', first_name: 'Ana', last_name_obfuscated: 'G.', title: 'Gerente', organization: { name: 'Beta' }, has_email: true },
+      ] }))
+      .mockResolvedValueOnce(jsonResp(200, { matches: [
+        { id: 'p1', last_name: 'Pérez', email: 'juan@acme.com', email_status: 'likely to engage', organization: { name: 'Acme' } },
+        // p2 no aparece en 'matches' — el enriquecimiento falló, sin poder confirmar nada.
+      ] }));
+
+    const res = await request(app).post('/api/prospeccion/buscar')
+      .set('Authorization', `Bearer ${natToken()}`).send({ sectors: ['corp'], perSector: 2 });
+    expect(res.status).toBe(200);
+    expect(res.body.leads).toHaveLength(0); // ninguno de los dos califica
+    expect(res.body.errors[0].error).toMatch(/no confirmó/i);
   });
 
   test('filtros "espejo de Apollo" se mandan a la API real en vez del default', async () => {
