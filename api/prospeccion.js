@@ -350,25 +350,65 @@ async function _empresasProspectosExistentes() {
   }
 }
 
-// Filtra leads cuya empresa (normalizada) ya está en Prospectos, o que se
-// repite dentro del propio lote (misma empresa en dos sectores/contactos
-// distintos de una sola corrida). Se usa TANTO al buscar (para no ni mostrar
-// una empresa ya prospectada) COMO al subir (última barrera antes de crear
-// el registro en Notion).
+// Empresas ya MOSTRADAS en una búsqueda anterior, se hayan subido o no como
+// Prospecto — sin esto, una empresa que Apollo enseñó antes pero que Natalia
+// no seleccionó (o que quedó pendiente de revisar) no dejaba ningún rastro, y
+// reaparecía en la siguiente búsqueda apenas Apollo la volviera a traer. Se
+// guarda en Auditoría (accion='prospeccion_empresa_vista'), no en Prospectos,
+// para no ensuciar esa base con empresas que nunca se llegaron a cargar.
+async function _empresasVistasEnBusquedasAnteriores() {
+  try {
+    const registros = await queryDB('auditoria', { property: 'Accion', select: { equals: 'prospeccion_empresa_vista' } });
+    const set = new Set();
+    registros.forEach(page => {
+      read_text(page.properties['Entidad']).split(',').map(s => s.trim()).filter(Boolean).forEach(k => set.add(k));
+    });
+    return set;
+  } catch (_) {
+    return new Set(); // si Notion falla leyendo el historial, no bloqueamos la búsqueda
+  }
+}
+
+// Dejar constancia de que estas empresas ya se mostraron, para que ninguna
+// búsqueda futura (manual o del cron) las vuelva a traer — pase lo que pase
+// con la decisión de Natalia de subirlas o no.
+async function _registrarEmpresasVistas(empresasNorm) {
+  const unicas = [...new Set(empresasNorm.filter(Boolean))];
+  if (!unicas.length) return;
+  await logAudit({
+    usuario: 'Sistema (prospección)',
+    accion: 'prospeccion_empresa_vista',
+    entidad: unicas.join(', ').slice(0, 1990),
+    detalle: `${unicas.length} empresa(s) mostrada(s) en una búsqueda`,
+    exito: true,
+  });
+}
+
+// Filtra leads cuya empresa (normalizada) ya está en Prospectos o ya se
+// mostró en una búsqueda anterior (aunque no se haya subido), o que se repite
+// dentro del propio lote (misma empresa en dos sectores/contactos distintos
+// de una sola corrida). Se usa TANTO al buscar (para no ni mostrar una
+// empresa ya prospectada) COMO al subir (última barrera antes de crear el
+// registro en Notion). Registra como "vistas" las que sí pasan el filtro,
+// para que la PRÓXIMA búsqueda tampoco las repita.
 async function _filtrarEmpresasDuplicadas(leads) {
-  const existentes = await _empresasProspectosExistentes();
+  const [existentes, vistas] = await Promise.all([
+    _empresasProspectosExistentes(),
+    _empresasVistasEnBusquedasAnteriores(),
+  ]);
   const vistasEnLote = new Set();
   const aceptados = [];
   const descartados = [];
   for (const lead of leads) {
     const key = _normEmpresa(lead.company);
-    if (key && (existentes.has(key) || vistasEnLote.has(key))) {
+    if (key && (existentes.has(key) || vistas.has(key) || vistasEnLote.has(key))) {
       descartados.push({ ...lead, motivoDescartado: 'Empresa ya prospectada' });
       continue;
     }
     if (key) vistasEnLote.add(key);
     aceptados.push(lead);
   }
+  await _registrarEmpresasVistas(aceptados.map(l => _normEmpresa(l.company)));
   return { aceptados, descartados };
 }
 
