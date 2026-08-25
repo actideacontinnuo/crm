@@ -860,24 +860,31 @@
 <!-- NUEVO PAGO -->
 <div class="modal-overlay" id="m-nuevo-pago" onclick="closeM('nuevo-pago')">
 <div class="modal" onclick="event.stopPropagation()" style="width:520px">
-  <div class="modal-hdr"><div><div class="modal-eye">REGISTRAR MOVIMIENTO</div><div class="modal-title">Nuevo Pago</div></div><button class="modal-close" onclick="closeM('nuevo-pago')">✕</button></div>
+  <div class="modal-hdr"><div><div class="modal-eye">REGISTRAR MOVIMIENTO</div><div class="modal-title">Nuevo Movimiento</div></div><button class="modal-close" onclick="closeM('nuevo-pago')">✕</button></div>
   <div class="modal-body">
     <div class="fgrid">
-      <div class="fg"><label class="fl">TIPO</label><select class="fsel-full" id="pg-tipo"><option>Cobro a cliente</option><option>Pago a proveedor</option></select></div>
+      <div class="fg"><label class="fl">TIPO</label><select class="fsel-full" id="pg-tipo" onchange="togglePagoTipo()"><option value="Cobro">Cobro (entra a Actidea)</option><option value="Pago">Pago (sale de Actidea)</option></select></div>
       <div class="fg"><label class="fl">OP RELACIONADA</label><select class="fsel-full" id="pg-op"></select></div>
     </div>
+    <!-- Solo cuando TIPO=Pago: a quién se le paga. Sin esto un "Pago" quedaba
+         huérfano — no ligado a ningún proveedor. Se guarda en Deudas (misma
+         base que ya calcula IVA/neto y alimenta la Utilidad de la OP), no en
+         Pagos — un pago a proveedor sin este dato no puede contar para la
+         Utilidad ni el Estado de Resultados. -->
+    <div class="fg" id="pg-prov-wrap" style="display:none"><label class="fl">PROVEEDOR</label><select class="fsel-full" id="pg-prov"></select></div>
     <div class="fg"><label class="fl">CONCEPTO</label><input class="fi" id="pg-concepto" placeholder="Anticipo 50%, Liquidación final..."></div>
     <div class="fgrid">
-      <div class="fg"><label class="fl">MONTO (MXN)</label><input class="fi" id="pg-monto" type="number" placeholder="0.00"></div>
+      <div class="fg"><label class="fl" id="pg-monto-label">MONTO (MXN)</label><input class="fi" id="pg-monto" type="number" placeholder="0.00" oninput="_previewPagoIva()"></div>
       <div class="fg"><label class="fl">FECHA ACORDADA</label><input class="fi" id="pg-fecha" type="date"></div>
     </div>
+    <div id="pg-iva-prev" style="display:none;font-size:11px;margin:-6px 0 12px"></div>
     <div class="fgrid">
       <div class="fg"><label class="fl">ESTATUS</label><select class="fsel-full" id="pg-status"><option>Pendiente</option><option>Pagado</option><option>Vencido</option></select></div>
       <div class="fg"><label class="fl">FORMA DE PAGO</label><select class="fsel-full" id="pg-forma"><option>Transferencia SPEI</option><option>Cheque</option><option>Efectivo</option><option>Por definir</option></select></div>
     </div>
     <div class="fg"><label class="fl">REFERENCIA / NÚMERO TRANSFERENCIA</label><input class="fi" id="pg-ref" placeholder="SPEI 20260610 123456789 (si ya se realizó)"></div>
   </div>
-  <div class="modal-footer"><button class="btn btn-ghost" onclick="closeM('nuevo-pago')">Cancelar</button><button class="btn btn-primary" onclick="savePago()">Registrar Pago</button></div>
+  <div class="modal-footer"><button class="btn btn-ghost" onclick="closeM('nuevo-pago')">Cancelar</button><button class="btn btn-primary" onclick="savePago()">Guardar</button></div>
 </div></div>
 
 <!-- DETALLE PAGO -->

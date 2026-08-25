@@ -8,14 +8,62 @@ function setPagosTab(f, el) {
   renderPagos();
 }
 
+// "Vencido" para una Deuda (Pago a proveedor) se calcula igual que en Pagos:
+// pendiente + fecha acordada ya pasada = Vencido. Deudas solo guarda
+// 'pendiente'/'pagado' en Notion — el resto (Vencido) es un estatus EFECTIVO
+// calculado aquí, para que el filtro/columna de la tabla fusionada sea
+// consistente entre Cobros y Pagos.
+function _statusEfectivoDeuda(d) {
+  if (d.status === 'pagado') return 'Pagado';
+  const hoy = new Date().toISOString().split('T')[0];
+  return (d.fechaAcordada && d.fechaAcordada < hoy) ? 'Vencido' : 'Pendiente';
+}
+
+// Un solo flujo de caja: Cobros (base Pagos, dinero que entra) + Pagos a
+// proveedor (base Deudas, dinero que sale — ahí es donde se captura el IVA y
+// de donde sale la Utilidad real de la OP, ver withUtilidadReal en
+// api/ops.js). Los "Pago a proveedor" que hayan quedado en Pagos de ANTES de
+// este cambio también se muestran (de solo lectura, sin proveedor ligado) —
+// nada se borra; simplemente ya no se crean nuevos ahí, ver savePago().
+function _movimientosUnificados(pagos, deudas, opMap, cliMap, provMap) {
+  const deCobros = pagos.filter(p => p.tipo === 'Cobro a cliente').map(p => ({
+    id: p.id, source: 'pagos', tipo: 'Cobro',
+    concepto: p.concepto, monto: p.monto, status: p.status,
+    fechaAcordada: p.fechaAcordada, fechaReal: p.fechaReal,
+    opId: p.opId, provId: null,
+    contraparte: cliMap[opMap[p.opId]?.clienteId]?.nombre || '',
+    forma: p.forma, comprobante: p.comprobante,
+  }));
+  const dePagosLegado = pagos.filter(p => p.tipo === 'Pago a proveedor').map(p => ({
+    id: p.id, source: 'pagos-legado', tipo: 'Pago',
+    concepto: p.concepto, monto: p.monto, status: p.status,
+    fechaAcordada: p.fechaAcordada, fechaReal: p.fechaReal,
+    opId: p.opId, provId: null,
+    contraparte: '(registro anterior sin proveedor ligado)',
+    forma: p.forma, comprobante: p.comprobante,
+  }));
+  const dePagosDeudas = deudas.map(d => ({
+    id: d.id, source: 'deudas', tipo: 'Pago',
+    concepto: d.concepto, monto: efectivoDeuda(d), status: _statusEfectivoDeuda(d),
+    fechaAcordada: d.fechaAcordada, fechaReal: d.status === 'pagado' ? d.fechaAcordada : '',
+    opId: d.opId, provId: d.provId,
+    contraparte: provMap[d.provId]?.nombre || '',
+    forma: '', comprobante: false,
+  }));
+  return [...deCobros, ...dePagosLegado, ...dePagosDeudas]
+    .sort((a, b) => (b.fechaAcordada || '').localeCompare(a.fechaAcordada || ''));
+}
+
 async function renderPagos() {
   showSpinner();
-  let pagos, ops, clientes;
+  let pagos, deudas, ops, clientes, provs;
   try {
-    [pagos, ops, clientes] = await Promise.all([
+    [pagos, deudas, ops, clientes, provs] = await Promise.all([
       db.pagos.list(),
+      db.deudas.list().catch(() => []),
       db.ops.list(),
       db.clientes.list(),
+      db.proveedores.list(),
     ]);
   } catch (e) {
     toast('Error al cargar pagos', 'red');
@@ -24,33 +72,37 @@ async function renderPagos() {
     hideSpinner();
   }
 
-  const opMap  = Object.fromEntries(ops.map(o => [o.id, o]));
-  const cliMap = Object.fromEntries(clientes.map(c => [c.id, c]));
+  const opMap   = Object.fromEntries(ops.map(o => [o.id, o]));
+  const cliMap  = Object.fromEntries(clientes.map(c => [c.id, c]));
+  const provMap = Object.fromEntries(provs.map(p => [p.id, p]));
+  const movs = _movimientosUnificados(pagos, deudas, opMap, cliMap, provMap);
 
-  const totalPorCobrar = pagos.filter(p => p.tipo === 'Cobro a cliente' && p.status !== 'Pagado').reduce((a, p) => a + (p.monto||0), 0);
-  const totalCobrado   = pagos.filter(p => p.tipo === 'Cobro a cliente' && p.status === 'Pagado').reduce((a, p) => a + (p.monto||0), 0);
-  const totalPorPagar  = pagos.filter(p => p.tipo === 'Pago a proveedor' && p.status !== 'Pagado').reduce((a, p) => a + (p.monto||0), 0);
-  const vencidos       = pagos.filter(p => p.status === 'Vencido');
-  const cobrosPagados  = pagos.filter(p => p.tipo === 'Cobro a cliente' && p.status === 'Pagado');
+  const totalPorCobrar = movs.filter(m => m.tipo === 'Cobro' && m.status !== 'Pagado').reduce((a, m) => a + (m.monto||0), 0);
+  const totalCobrado   = movs.filter(m => m.tipo === 'Cobro' && m.status === 'Pagado').reduce((a, m) => a + (m.monto||0), 0);
+  const totalPorPagar  = movs.filter(m => m.tipo === 'Pago'  && m.status !== 'Pagado').reduce((a, m) => a + (m.monto||0), 0);
+  const vencidos       = movs.filter(m => m.status === 'Vencido');
+  const cobrosPagados  = movs.filter(m => m.tipo === 'Cobro' && m.status === 'Pagado');
 
   document.getElementById('pagos-kpis').innerHTML = `
-    <div class="kpi" style="border-top:2px solid var(--green)"><div class="kpi-label">${icoHTML('wallet',13)} POR COBRAR (CLIENTES)</div><div class="kpi-value kv-green">${fmx(totalPorCobrar)}</div><div class="kpi-delta up">${pagos.filter(p=>p.tipo==='Cobro a cliente'&&p.status!=='Pagado').length} pagos pendientes</div></div>
+    <div class="kpi" style="border-top:2px solid var(--green)"><div class="kpi-label">${icoHTML('wallet',13)} POR COBRAR (CLIENTES)</div><div class="kpi-value kv-green">${fmx(totalPorCobrar)}</div><div class="kpi-delta up">${movs.filter(m=>m.tipo==='Cobro'&&m.status!=='Pagado').length} pagos pendientes</div></div>
     <div class="kpi" style="border-top:2px solid #1A6B3C"><div class="kpi-label">${icoHTML('check',13)} YA COBRADO</div><div class="kpi-value" style="color:#1A6B3C">${fmx(totalCobrado)}</div><div class="kpi-delta">${cobrosPagados.length} cobros confirmados</div></div>
     <div class="kpi" style="border-top:2px solid var(--amber)"><div class="kpi-label">${icoHTML('send',13)} POR PAGAR (PROVEEDORES)</div><div class="kpi-value" style="color:var(--amber)">${fmx(totalPorPagar)}</div><div class="kpi-delta down">Salidas pendientes</div></div>
-    <div class="kpi" style="border-top:2px solid var(--red)"><div class="kpi-label">⚠ VENCIDOS</div><div class="kpi-value kv-red">${vencidos.length}</div><div class="kpi-delta down">${fmx(vencidos.reduce((a,p)=>a+(p.monto||0),0))} en riesgo</div></div>`;
+    <div class="kpi" style="border-top:2px solid var(--red)"><div class="kpi-label">⚠ VENCIDOS</div><div class="kpi-value kv-red">${vencidos.length}</div><div class="kpi-delta down">${fmx(vencidos.reduce((a,m)=>a+(m.monto||0),0))} en riesgo</div></div>`;
 
-  let list = pagos;
+  let list = movs;
   const tab = STATE.pagosTab;
-  if (tab === 'Cobro a cliente')    list = pagos.filter(p => p.tipo === 'Cobro a cliente');
-  else if (tab === 'Pago a proveedor') list = pagos.filter(p => p.tipo === 'Pago a proveedor');
-  else if (tab === 'vencido')       list = pagos.filter(p => p.status === 'Vencido');
+  if (tab === 'Cobro a cliente')       list = movs.filter(m => m.tipo === 'Cobro');
+  else if (tab === 'Pago a proveedor') list = movs.filter(m => m.tipo === 'Pago');
+  else if (tab === 'vencido')          list = movs.filter(m => m.status === 'Vencido');
 
   document.getElementById('pagos-tbody').innerHTML = list.length
-    ? list.map(p => {
-        const op  = opMap[p.opId] || {};
-        const cli = cliMap[op.clienteId] || {};
-        const isCobro = p.tipo === 'Cobro a cliente';
-        return `<tr onclick="openDetallePago('${p.id}')" style="background:${p.status==='Vencido'?'rgba(204,34,0,.03)':''}">
+    ? list.map(m => {
+        const op = opMap[m.opId] || {};
+        const isCobro = m.tipo === 'Cobro';
+        const verHandler = m.source === 'deudas'
+          ? (m.provId ? `openDetalleProveedor('${m.provId}')` : `void 0`)
+          : `openDetallePago('${m.id}')`;
+        return `<tr onclick="${verHandler}" style="background:${m.status==='Vencido'?'rgba(204,34,0,.03)':''}">
           <td>
             <div style="display:flex;align-items:center;gap:6px">
               <div style="width:8px;height:8px;border-radius:50%;background:${isCobro?'var(--green)':'var(--amber)'};flex-shrink:0"></div>
@@ -58,25 +110,27 @@ async function renderPagos() {
             </div>
           </td>
           <td>
-            <div style="font-size:13px;font-weight:500">${esc(p.concepto)}</div>
-            <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--gray400)">${esc(p.forma) || '—'}</div>
+            <div style="font-size:13px;font-weight:500">${esc(m.concepto)}</div>
+            <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--gray400)">${esc(m.forma) || '—'}</div>
           </td>
           <td>
             <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--red)">${esc(op.numero) || '—'}</div>
-            <div style="font-size:11px;color:var(--gray400)">${esc(cli.nombre) || '—'}</div>
+            <div style="font-size:11px;color:var(--gray400)">${esc(m.contraparte) || '—'}</div>
           </td>
-          <td class="monto" style="color:${p.status==='Vencido'?'var(--red)':isCobro?'var(--green)':'var(--amber)'}">${fmx(p.monto)}</td>
-          <td class="mono" style="color:${p.status==='Vencido'?'var(--red)':''}">
-            ${esc(p.fechaAcordada) || '—'}
-            ${p.status==='Vencido'?'<div style="font-family:\'JetBrains Mono\',monospace;font-size:8px;color:var(--red);font-weight:700;letter-spacing:.08em">VENCIDO</div>':''}
+          <td class="monto" style="color:${m.status==='Vencido'?'var(--red)':isCobro?'var(--green)':'var(--amber)'}">${fmx(m.monto)}</td>
+          <td class="mono" style="color:${m.status==='Vencido'?'var(--red)':''}">
+            ${esc(m.fechaAcordada) || '—'}
+            ${m.status==='Vencido'?'<div style="font-family:\'JetBrains Mono\',monospace;font-size:8px;color:var(--red);font-weight:700;letter-spacing:.08em">VENCIDO</div>':''}
           </td>
-          <td class="mono" style="color:var(--gray400)">${esc(p.fechaReal) || 'Pendiente'}</td>
-          <td>${pillHTML(p.status)}</td>
-          <td>${p.comprobante ? '<span class="tag tag-green" style="font-size:9px">PDF ✓</span>' : '<span style="color:var(--gray200);font-size:10px;font-family:\'JetBrains Mono\',monospace">Sin comprobante</span>'}</td>
+          <td class="mono" style="color:var(--gray400)">${esc(m.fechaReal) || 'Pendiente'}</td>
+          <td>${pillHTML(m.status)}</td>
+          <td>${m.comprobante ? '<span class="tag tag-green" style="font-size:9px">PDF ✓</span>' : '<span style="color:var(--gray200);font-size:10px;font-family:\'JetBrains Mono\',monospace">Sin comprobante</span>'}</td>
           <td>
-            ${p.status !== 'Pagado'
-              ? `<button class="btn btn-primary btn-xs" onclick="event.stopPropagation();openDetallePago('${p.id}')">Registrar</button>`
-              : `<button class="btn btn-ghost btn-xs" onclick="event.stopPropagation();openDetallePago('${p.id}')">Ver</button>`}
+            ${m.status !== 'Pagado'
+              ? (m.source === 'deudas'
+                  ? `<button class="btn btn-primary btn-xs" onclick="event.stopPropagation();marcarDeudaPagada('${m.id}')">Marcar pagado</button>`
+                  : `<button class="btn btn-primary btn-xs" onclick="event.stopPropagation();openDetallePago('${m.id}')">Registrar</button>`)
+              : `<button class="btn btn-ghost btn-xs" onclick="event.stopPropagation();${verHandler}">Ver</button>`}
           </td>
         </tr>`;
       }).join('')
@@ -84,36 +138,53 @@ async function renderPagos() {
 }
 
 async function savePago() {
+  const tipo = document.getElementById('pg-tipo').value; // 'Cobro' | 'Pago'
   const concepto = document.getElementById('pg-concepto').value.trim();
   if (!concepto) { toast('El concepto es requerido', 'red'); return; }
 
   const monto  = parseFloat(document.getElementById('pg-monto').value) || 0;
   const opId   = document.getElementById('pg-op').value || null;
   const status = document.getElementById('pg-status').value;
+  const provId = document.getElementById('pg-prov')?.value || '';
 
-  const data = {
-    tipo:          document.getElementById('pg-tipo').value,
-    concepto,
-    opId:          opId || '',
-    monto,
-    fechaAcordada: document.getElementById('pg-fecha').value || new Date().toISOString().split('T')[0],
-    fechaReal:     status === 'Pagado' ? new Date().toISOString().split('T')[0] : '',
-    status,
-    forma:         document.getElementById('pg-forma').value,
-    ref:           document.getElementById('pg-ref').value,
-    comprobante:   false,
-  };
+  // Un Pago (dinero que sale) SIEMPRE se liga a un proveedor — sin esto
+  // quedaba huérfano, que es justo el problema que se está arreglando.
+  if (tipo === 'Pago' && !provId) { toast('Selecciona a qué proveedor se le paga', 'red'); return; }
 
   showSpinner();
   try {
-    await db.pagos.create(data);
-    // El "cobrado" de la OP ya no se actualiza aquí: el servidor lo calcula
-    // siempre sumando los Pagos "Cobro a cliente" con status "Pagado" (única
-    // fuente de verdad, ver withCobradoReal en api/ops.js).
+    if (tipo === 'Pago') {
+      // Se guarda en Deudas, no en Pagos: es la única base que calcula
+      // IVA/neto y alimenta la Utilidad real de la OP (withUtilidadReal en
+      // api/ops.js). Un Pago a proveedor que no pase por ahí no contaría
+      // para la Utilidad ni el Estado de Resultados.
+      await db.deudas.create({
+        provId, opId: opId || '', concepto,
+        montoConIva:   monto,
+        fechaAcordada: document.getElementById('pg-fecha').value || new Date().toISOString().split('T')[0],
+        status:        status === 'Pagado' ? 'pagado' : 'pendiente',
+      });
+    } else {
+      await db.pagos.create({
+        tipo: 'Cobro a cliente', // valor interno fijo — ver api/ops.js/dashboard.js que filtran por este texto exacto
+        concepto,
+        opId:          opId || '',
+        monto,
+        fechaAcordada: document.getElementById('pg-fecha').value || new Date().toISOString().split('T')[0],
+        fechaReal:     status === 'Pagado' ? new Date().toISOString().split('T')[0] : '',
+        status,
+        forma:         document.getElementById('pg-forma').value,
+        ref:           document.getElementById('pg-ref').value,
+        comprobante:   false,
+      });
+      // El "cobrado" de la OP ya no se actualiza aquí: el servidor lo calcula
+      // siempre sumando los Pagos "Cobro a cliente" con status "Pagado"
+      // (única fuente de verdad, ver withCobradoReal en api/ops.js).
+    }
 
     closeM('nuevo-pago');
     ['pg-concepto','pg-monto','pg-fecha','pg-ref'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
-    toast('✓ Pago registrado');
+    toast(tipo === 'Pago' ? '✓ Pago a proveedor registrado' : '✓ Cobro registrado');
     renderPagos();
     updateBadges();
   } catch (e) {

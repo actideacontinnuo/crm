@@ -547,12 +547,44 @@ function _previewDeudaIva() {
 let _pagoPrefillOpId = null;
 
 async function _refreshPagoOPSelect() {
-  const list = await db.ops.list();
+  const [list, provs] = await Promise.all([db.ops.list(), db.proveedores.list()]);
   const s = document.getElementById('pg-op');
   if (s) {
     s.innerHTML = '<option value="">— Ninguna —</option>' + list.map(o => `<option value="${o.id}">${esc(o.numero)} — ${esc(o.desc)}</option>`).join('');
     if (_pagoPrefillOpId) { s.value = _pagoPrefillOpId; _pagoPrefillOpId = null; }
   }
+  const sp = document.getElementById('pg-prov');
+  if (sp) sp.innerHTML = provs.map(p => `<option value="${p.id}">${esc(p.nombre)}</option>`).join('');
+  togglePagoTipo();
+}
+
+// Un "Pago" (dinero que sale) SIEMPRE necesita a qué proveedor se le paga —
+// se guarda en Deudas, no en Pagos (ver savePago en views/pagos.js), así que
+// aquí solo se muestra/oculta el campo y se ajusta la etiqueta del monto
+// (Pago se captura CON IVA, igual que en "Nueva Deuda").
+function togglePagoTipo() {
+  const tipo = document.getElementById('pg-tipo')?.value;
+  const provWrap = document.getElementById('pg-prov-wrap');
+  const label = document.getElementById('pg-monto-label');
+  if (provWrap) provWrap.style.display = tipo === 'Pago' ? '' : 'none';
+  if (label) label.textContent = tipo === 'Pago' ? 'MONTO CON IVA (como viene en la factura)' : 'MONTO (MXN)';
+  _previewPagoIva();
+}
+
+// Preview en vivo del IVA cuando TIPO=Pago — mismo patrón que _previewDeudaIva.
+function _previewPagoIva() {
+  const tipo = document.getElementById('pg-tipo')?.value;
+  const box = document.getElementById('pg-iva-prev');
+  if (!box) return;
+  if (tipo !== 'Pago') { box.style.display = 'none'; box.innerHTML = ''; return; }
+  const conIva = parseFloat(document.getElementById('pg-monto')?.value) || 0;
+  if (!conIva) { box.style.display = 'none'; box.innerHTML = ''; return; }
+  const neto = conIva / (1 + IVA_RATE);
+  const iva  = conIva - neto;
+  box.style.display = 'block';
+  box.innerHTML =
+    `<div style="display:flex;justify-content:space-between;color:var(--gray600)"><span>IVA 16%</span><span>${fmx(iva)}</span></div>` +
+    `<div style="display:flex;justify-content:space-between;color:var(--green);font-weight:700;margin-top:3px"><span>Neto sin IVA → utilidad</span><span>${fmx(neto)}</span></div>`;
 }
 
 // Abre "Registrar pago" (cobro a cliente) con la OP actual ya seleccionada.
