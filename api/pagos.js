@@ -5,6 +5,21 @@ const {
   prop_title, prop_text, prop_number, prop_select, prop_date, prop_checkbox,
   read_title, read_text, read_number, read_select, read_date, read_checkbox,
 } = require('./notion');
+const { logAudit, clientIp } = require('./_audit');
+
+// Registra en Actividad Reciente (solo Dirección la ve) cuando un Cobro a
+// cliente queda en Pagado — es el evento de negocio real, no el CRUD crudo.
+function _logCobroSiAplica(req, obj) {
+  if (obj.tipo === 'Cobro a cliente' && obj.status === 'Pagado') {
+    logAudit({
+      usuario: req.user?.ejec || req.user?.nombre || req.user?.id,
+      accion: 'cobro_registrado',
+      entidad: String(obj.monto || 0),
+      detalle: obj.concepto || '',
+      ip: clientIp(req), exito: true,
+    });
+  }
+}
 
 // "Vencido" se calcula SIEMPRE por fecha, no depende de que alguien lo marque
 // a mano: un cobro/pago "Pendiente" cuya fecha acordada ya pasó es "Vencido".
@@ -66,14 +81,18 @@ router.get('/:id', async (req, res) => {
 router.post('/', async (req, res) => {
   try {
     const page = await createPage('pagos', toProps(req.body));
-    res.json(toObj(page));
+    const obj = toObj(page);
+    _logCobroSiAplica(req, obj);
+    res.json(obj);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 router.patch('/:id', async (req, res) => {
   try {
     const page = await updatePage(req.params.id, toProps(req.body));
-    res.json(toObj(page));
+    const obj = toObj(page);
+    _logCobroSiAplica(req, obj);
+    res.json(obj);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 

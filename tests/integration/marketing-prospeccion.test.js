@@ -113,7 +113,7 @@ describe('Prospección — POST /buscar (Apollo)', () => {
   test('sin APOLLO_API_KEY responde 400', async () => {
     delete process.env.APOLLO_API_KEY;
     const res = await request(app).post('/api/prospeccion/buscar')
-      .set('Authorization', `Bearer ${natToken()}`).send({ sectors: ['corp'] });
+      .set('Authorization', `Bearer ${natToken()}`).send({ sectors: ['events-services'] });
     expect(res.status).toBe(400);
   });
 
@@ -127,7 +127,7 @@ describe('Prospección — POST /buscar (Apollo)', () => {
       ] }));
 
     const res = await request(app).post('/api/prospeccion/buscar')
-      .set('Authorization', `Bearer ${natToken()}`).send({ sectors: ['corp'], perSector: 1 });
+      .set('Authorization', `Bearer ${natToken()}`).send({ sectors: ['events-services'], perSector: 1 });
     expect(res.status).toBe(200);
     expect(res.body.leads).toHaveLength(1);
     expect(res.body.leads[0].email).toBe('juan@acme.com');
@@ -147,7 +147,7 @@ describe('Prospección — POST /buscar (Apollo)', () => {
       ] }));
 
     const res = await request(app).post('/api/prospeccion/buscar')
-      .set('Authorization', `Bearer ${natToken()}`).send({ sectors: ['corp'], perSector: 2 });
+      .set('Authorization', `Bearer ${natToken()}`).send({ sectors: ['events-services'], perSector: 2 });
     expect(res.status).toBe(200);
     expect(res.body.leads).toHaveLength(0); // ninguno de los dos califica
     expect(res.body.errors[0].error).toMatch(/no confirmó/i);
@@ -158,7 +158,7 @@ describe('Prospección — POST /buscar (Apollo)', () => {
       .mockResolvedValueOnce(jsonResp(200, { people: [] }));
     await request(app).post('/api/prospeccion/buscar')
       .set('Authorization', `Bearer ${natToken()}`)
-      .send({ sectors: ['corp'], perSector: 1, filtros: {
+      .send({ sectors: ['events-services'], perSector: 1, filtros: {
         titles: ['CEO'], seniorities: ['c_suite'], personLocations: ['CDMX'],
         organizationLocations: ['Jalisco'], employeeRanges: ['51,200'],
         emailStatus: ['verified'], keywords: 'eventos', organizationDomains: ['acme.com'],
@@ -174,14 +174,16 @@ describe('Prospección — POST /buscar (Apollo)', () => {
     expect(sentBody.q_organization_domains_list).toEqual(['acme.com']);
   });
 
-  test('sin filtros, usa los defaults de siempre (títulos fijos + keyword del sector)', async () => {
+  test('sin filtros, usa los defaults de siempre (títulos fijos + industria oficial del sector)', async () => {
     fetch.mockResolvedValueOnce(jsonResp(200, { people: [] }));
     await request(app).post('/api/prospeccion/buscar')
-      .set('Authorization', `Bearer ${natToken()}`).send({ sectors: ['corp'], perSector: 1 });
+      .set('Authorization', `Bearer ${natToken()}`).send({ sectors: ['events-services'], perSector: 1 });
     const sentBody = JSON.parse(fetch.mock.calls[0][1].body);
     expect(sentBody.person_titles).toContain('Director de Eventos');
     expect(sentBody.person_locations).toEqual(['Mexico']);
-    expect(sentBody.q_keywords).toBe('corporate');
+    // Industria oficial de Apollo (q_organization_keyword_tags), no palabra libre.
+    expect(sentBody.q_organization_keyword_tags).toEqual(['events services']);
+    expect(sentBody.q_keywords).toBeUndefined();
     expect(sentBody.person_seniorities).toBeUndefined();
   });
 });
@@ -190,16 +192,16 @@ describe('Prospección — POST /buscar, ramas de error', () => {
   test('si Apollo responde error en la búsqueda, lo reporta por sector sin tronar', async () => {
     fetch.mockResolvedValueOnce(jsonResp(429, {})); // texto vacío simulando rate limit
     const res = await request(app).post('/api/prospeccion/buscar')
-      .set('Authorization', `Bearer ${natToken()}`).send({ sectors: ['corp'], perSector: 1 });
+      .set('Authorization', `Bearer ${natToken()}`).send({ sectors: ['events-services'], perSector: 1 });
     expect(res.status).toBe(200);
-    expect(res.body.errors[0].sector).toBe('corp');
+    expect(res.body.errors[0].sector).toBe('events-services');
     expect(res.body.leads).toHaveLength(0);
   });
 
   test('si ningún candidato tiene email, reporta el sector sin resultados', async () => {
     fetch.mockResolvedValueOnce(jsonResp(200, { people: [{ id: 'p1', has_email: false }] }));
     const res = await request(app).post('/api/prospeccion/buscar')
-      .set('Authorization', `Bearer ${natToken()}`).send({ sectors: ['corp'], perSector: 1 });
+      .set('Authorization', `Bearer ${natToken()}`).send({ sectors: ['events-services'], perSector: 1 });
     expect(res.status).toBe(200);
     expect(res.body.errors[0].error).toMatch(/No se encontraron contactos/);
   });
@@ -207,7 +209,7 @@ describe('Prospección — POST /buscar, ramas de error', () => {
   test('si la red truena buscando en Apollo, reporta el error del sector sin tronar el endpoint', async () => {
     fetch.mockRejectedValueOnce(new Error('timeout de red'));
     const res = await request(app).post('/api/prospeccion/buscar')
-      .set('Authorization', `Bearer ${natToken()}`).send({ sectors: ['corp'], perSector: 1 });
+      .set('Authorization', `Bearer ${natToken()}`).send({ sectors: ['events-services'], perSector: 1 });
     expect(res.status).toBe(200);
     expect(res.body.errors[0].error).toBe('timeout de red');
   });

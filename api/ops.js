@@ -6,6 +6,7 @@ const {
   read_title, read_text, read_number, read_select, read_date,
 } = require('./notion');
 const { filtroRolesNotion, assertRolAccess, esOficinaTotal } = require('./_guard');
+const { logAudit, clientIp } = require('./_audit');
 
 function toObj(page) {
   const p = page.properties;
@@ -190,6 +191,13 @@ router.post('/', async (req, res) => {
 
     const page = await createPage('ops', toProps(data));
     const [enriched] = await withCobradoReal(await withUtilidadReal([toObj(page)]));
+    // Actividad Reciente (solo Dirección la ve, ver dashboard.js) — evento de
+    // negocio real, no el CRUD crudo.
+    logAudit({
+      usuario: req.user?.ejec || req.user?.nombre || req.user?.id,
+      accion: 'op_creada', entidad: enriched.numero || '',
+      ip: clientIp(req), exito: true,
+    });
     res.json(enriched);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });

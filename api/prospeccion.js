@@ -14,29 +14,33 @@ const {
 } = require('./notion');
 const { aplicarReglasComision, obtenerRosterEjecutivos } = require('./_roles');
 
-// q_keywords en Apollo exige que TODAS las palabras aparezcan en el perfil — por
-// eso una sola palabra clave (en inglés, como Apollo indexa) por sector.
+// Industrias EXACTAS del catálogo real de Apollo (mismo texto que su propio
+// sitio web en el filtro de industria) — confirmadas una por una contra la
+// API real antes de usarlas (todas devuelven resultados reales de México).
+// 'apollo' se manda como q_organization_keyword_tags (el tag de industria
+// oficial), no como q_keywords libre — así el filtro es 100% el mismo que
+// usa Apollo internamente, no una palabra suelta inventada por nosotros.
 const SECTOR_MAP = {
-  corp:    { apollo: 'corporate',      title: 'Corporativo'   },
-  auto:    { apollo: 'automotive',     title: 'Automotriz'    },
-  pharma:  { apollo: 'pharmaceutical', title: 'Farmacéutica'  },
-  tech:    { apollo: 'technology',     title: 'Tecnología'    },
-  fin:     { apollo: 'banking',        title: 'Financiero'    },
-  retail:  { apollo: 'retail',         title: 'Retail'        },
-  gov:     { apollo: 'government',     title: 'Gobierno'      },
-  media:   { apollo: 'media',          title: 'Medios'        },
-  logis:   { apollo: 'logistics',      title: 'Logística'     },
-  salud:   { apollo: 'healthcare',     title: 'Salud'         },
-  edu:     { apollo: 'education',      title: 'Educación'     },
-  constr:  { apollo: 'construction',   title: 'Construcción'  },
-  mfg:     { apollo: 'manufacturing',  title: 'Manufactura'   },
-  hosp:    { apollo: 'hospitality',    title: 'Hospitalidad'  },
-  agro:    { apollo: 'agriculture',    title: 'Agroindustria' },
-  energia: { apollo: 'energy',         title: 'Energía'       },
-  deporte: { apollo: 'sports',         title: 'Deportivo'     },
-  ong:     { apollo: 'nonprofit',      title: 'ONG'           },
-  food:    { apollo: 'food',           title: 'Alimentos'     },
-  law:     { apollo: 'legal',          title: 'Legal'         },
+  'education-mgmt':        { apollo: 'education management',            title: 'Educación'                },
+  'food-bev':              { apollo: 'food & beverages',                title: 'Alimentos y Bebidas'      },
+  'design':                { apollo: 'design',                          title: 'Diseño'                   },
+  'hospitality':           { apollo: 'hospitality',                     title: 'Hospitalidad'             },
+  'accounting':            { apollo: 'accounting',                      title: 'Contabilidad'             },
+  'events-services':       { apollo: 'events services',                 title: 'Servicios de Eventos'     },
+  'consumer-services':     { apollo: 'consumer services',               title: 'Servicios al Consumidor'  },
+  'hospital-health':       { apollo: 'hospital & health care',          title: 'Salud'                    },
+  'automotive':            { apollo: 'automotive',                      title: 'Automotriz'               },
+  'restaurants':           { apollo: 'restaurants',                     title: 'Restaurantes'             },
+  'mgmt-consulting':       { apollo: 'management consulting',           title: 'Consultoría'              },
+  'computer-software':     { apollo: 'computer software',               title: 'Software'                 },
+  'internet':              { apollo: 'internet',                        title: 'Internet'                 },
+  'retail':                { apollo: 'retail',                          title: 'Retail'                   },
+  'financial-services':    { apollo: 'financial services',              title: 'Financiero'               },
+  'it-services':           { apollo: 'information technology & services', title: 'Tecnología / TI'         },
+  'construction':          { apollo: 'construction',                    title: 'Construcción'             },
+  'marketing-advertising': { apollo: 'marketing & advertising',         title: 'Marketing y Publicidad'   },
+  'real-estate':           { apollo: 'real estate',                     title: 'Bienes Raíces'            },
+  'health-wellness':       { apollo: 'health, wellness & fitness',      title: 'Salud y Bienestar'        },
 };
 
 router.get('/config/status', (req, res) => {
@@ -60,12 +64,16 @@ function _construirBusquedaApollo({ filtros = {}, sectorId, perSector }) {
   const body = {
     person_titles:    filtros.titles?.length ? filtros.titles : TITULOS_DEFAULT,
     person_locations: filtros.personLocations?.length ? filtros.personLocations : ['Mexico'],
-    // Palabras clave: si Natalia mandó las suyas, se usan tal cual (libres);
-    // si no, se cae al keyword fijo del sector (comportamiento de siempre).
-    q_keywords: filtros.keywords || info?.apollo || '',
+    // La industria del sector va como TAG oficial de Apollo (el mismo filtro
+    // "Industria" de su sitio), no como palabra libre — así el sector es
+    // 100% el mismo que Apollo usa internamente.
+    q_organization_keyword_tags: info?.apollo ? [info.apollo] : [],
     per_page: perSector * 3,
     page: 1,
   };
+  // Palabras clave LIBRES del filtro avanzado — se suman a la industria del
+  // sector, no la reemplazan (son dos parámetros distintos de Apollo).
+  if (filtros.keywords) body.q_keywords = filtros.keywords;
   if (filtros.seniorities?.length)          body.person_seniorities = filtros.seniorities;
   if (filtros.organizationLocations?.length) body.organization_locations = filtros.organizationLocations;
   if (filtros.employeeRanges?.length)        body.organization_num_employees_ranges = filtros.employeeRanges;

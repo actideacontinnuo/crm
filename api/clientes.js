@@ -7,6 +7,7 @@ const {
 } = require('./notion');
 const { filtroRolesNotion, assertRolAccess } = require('./_guard');
 const { aplicarReglasComision, obtenerRosterEjecutivos } = require('./_roles');
+const { logAudit, clientIp } = require('./_audit');
 
 // Código de cliente — FIJO al crear, jamás editable (ver PATCH: siempre se
 // descarta). Formato confirmado: RFC(3)-EJECUTIVO DE CUENTA(3)-DDMMAA de la
@@ -131,7 +132,15 @@ router.patch('/:id', async (req, res) => {
     delete body.propietario;
     delete body.ejecCuenta;
     const page = await updatePage(req.params.id, toProps(body));
-    res.json(toObj(page));
+    const obj = toObj(page);
+    // Actividad Reciente (solo Dirección la ve, ver dashboard.js) — evento de
+    // negocio real, no el CRUD crudo.
+    logAudit({
+      usuario: req.user?.ejec || req.user?.nombre || req.user?.id,
+      accion: 'cliente_actualizado', entidad: obj.nombre || '',
+      ip: clientIp(req), exito: true,
+    });
+    res.json(obj);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 

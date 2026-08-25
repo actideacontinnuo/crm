@@ -177,23 +177,61 @@ async function renderDashboard() {
     return `<div class="kpi-bar"><div class="kpi-bar-top"><span class="kpi-bar-meta">META ${fmxK(b)}</span><span class="kpi-bar-meta" style="color:${p >= 100 ? 'var(--green)' : p >= 60 ? 'var(--amber)' : 'var(--red)'};font-weight:700">${p}%</span></div><div class="prog"><div class="prog-fill ${col}" style="width:${p}%"></div></div></div>`;
   };
 
-  // ── Actividad reciente: auditoría real (solo admin la puede leer) ──
+  // ── Actividad reciente: en lenguaje humano, SOLO Dirección (Natalia) la ve,
+  // y SOLO muestra acciones de gente con permisos inferiores a ella (Ximena,
+  // Alexia, Oscar, etc.) — nunca las suyas propias. Combina el log real de
+  // eventos de negocio (Notion "Auditoría": OP abierta, cliente actualizado,
+  // cobro registrado) con "tareas vencidas" DERIVADAS de los seguimientos de
+  // Prospectos que ya pasaron de fecha — no es un log, se calcula al vuelo.
   let actividad = [];
   if (user?.role === 'admin') {
     try {
-      const audit = await API.get('/auditoria?limit=8');
-      const verbos = { crear: 'creó', editar: 'editó', eliminar: 'eliminó', login_exitoso: 'inició sesión', backup_generado: 'generó respaldo' };
-      actividad = (audit || []).slice(0, 6).map(a => ({
-        ico: a.exito ? (a.accion === 'crear' ? 'green' : a.accion === 'eliminar' ? 'amber' : 'gray') : 'amber',
-        who: a.usuario || 'Sistema',
-        act: verbos[a.accion] || a.accion || '',
-        obj: a.entidad || '',
-        time: (a.fecha || '').slice(0, 16).replace('T', ' '),
-      }));
+      // Dos formas de "ser Natalia" en el log: su nombre de ejecutiva
+      // (eventos de negocio nuevos) y su id de usuario en minúsculas
+      // (eventos legado como login). Se excluyen ambas.
+      const misIdentidades = [user.ejec, user.nombre, user.id].filter(Boolean).map(s => s.toLowerCase());
+      const audit = await API.get('/auditoria?limit=30');
+      // Solo eventos de NEGOCIO — nada de logins/respaldos, que son ruido de
+      // sistema, no algo que Dirección necesite ver traducido en este feed.
+      const verbos = {
+        cliente_actualizado: (a) => `actualizó al cliente <strong>${esc(a.entidad)}</strong>`,
+        op_creada:           (a) => `abrió la OP <strong>${esc(a.entidad)}</strong>`,
+        cobro_registrado:    (a) => `registró un cobro de <strong>${fmxK(Number(a.entidad) || 0)}</strong>`,
+      };
+      const iconos = { cliente_actualizado: 'blue', op_creada: 'green', cobro_registrado: 'green' };
+
+      actividad = (audit || [])
+        .filter(a => a.usuario && !misIdentidades.includes(a.usuario.toLowerCase()) && verbos[a.accion])
+        .slice(0, 8)
+        .map(a => ({
+          ico: a.exito ? (iconos[a.accion] || 'gray') : 'amber',
+          who: a.usuario,
+          act: verbos[a.accion](a),
+          time: (a.fecha || '').slice(0, 16).replace('T', ' '),
+        }));
+
+      // Tarea vencida: Prospecto con Seguimiento ya pasado, sin avanzar de
+      // status (sigue "Nuevo"/"Contactado" — si ya está "Listo p/ cotizar" o
+      // cerrado, ya no cuenta como pendiente). Se atribuye a quien lo lleva.
+      const hoy = new Date().toISOString().slice(0, 10);
+      prospectos
+        .filter(p => p.seguimiento && p.seguimiento < hoy && ['Nuevo', 'Contactado'].includes(p.status))
+        .filter(p => { const resp = p.ejecAsignado || p.propietario; return resp && !misIdentidades.includes(resp.toLowerCase()); })
+        .forEach(p => {
+          actividad.push({
+            ico: 'amber',
+            who: p.ejecAsignado || p.propietario,
+            act: `tiene una tarea vencida — seguimiento de <strong>${esc(p.empresa)}</strong>`,
+            time: p.seguimiento,
+          });
+        });
+
+      actividad.sort((a, b) => (b.time || '').localeCompare(a.time || ''));
+      actividad = actividad.slice(0, 8);
     } catch {}
   }
   const actividadHTML = actividad.length
-    ? actividad.map(a => `<div class="feed-row"><div class="feed-dot ${a.ico}"></div><div style="flex:1"><div style="font-size:12.5px"><strong>${esc(a.who)}</strong> ${esc(a.act)} <span style="color:var(--gray600)">${esc(a.obj)}</span></div><div class="kpi-bar-meta" style="margin-top:2px">${esc(a.time)}</div></div></div>`).join('')
+    ? actividad.map(a => `<div class="feed-row"><div class="feed-dot ${a.ico}"></div><div style="flex:1"><div style="font-size:12.5px"><strong>${esc(a.who)}</strong> ${a.act}</div><div class="kpi-bar-meta" style="margin-top:2px">${esc(a.time)}</div></div></div>`).join('')
     : `<div class="kpi-bar-meta" style="padding:8px 0">SIN ACTIVIDAD RECIENTE</div>`;
 
   root.innerHTML = phHTML('PANORAMA · ' + rangos.label, 'Dashboard', 'Resumen ejecutivo del periodo seleccionado',

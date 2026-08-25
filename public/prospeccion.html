@@ -367,18 +367,23 @@ function showTab(name,el){
   if(name==='generados') renderGenerados();
 }
 
-// ══════════════════ SECTORES (20, mismos ids que api/prospeccion.js SECTOR_MAP) ══════════════════
+// ══════════════════ SECTORES — mismas industrias EXACTAS del catálogo real
+// de Apollo (mismos ids que api/prospeccion.js SECTOR_MAP), confirmadas una
+// por una contra la API real. Ya no son sectores inventados por nosotros. ══
 const SECTORS=[
-  {id:'corp',i:'🏢',n:'Corporativo'},{id:'auto',i:'🚗',n:'Automotriz'},{id:'pharma',i:'💊',n:'Farmacéutica'},
-  {id:'tech',i:'💻',n:'Tecnología'},{id:'fin',i:'💳',n:'Financiero'},{id:'retail',i:'🛒',n:'Retail'},
-  {id:'gov',i:'🏛',n:'Gobierno'},{id:'media',i:'📺',n:'Medios'},{id:'logis',i:'🚚',n:'Logística'},
-  {id:'salud',i:'🏥',n:'Salud'},{id:'edu',i:'🎓',n:'Educación'},{id:'constr',i:'🏗',n:'Construcción'},
-  {id:'mfg',i:'🏭',n:'Manufactura'},{id:'hosp',i:'🏨',n:'Hospitalidad'},{id:'agro',i:'🌱',n:'Agroindustria'},
-  {id:'energia',i:'⚡',n:'Energía'},{id:'deporte',i:'⚽',n:'Deportivo'},{id:'ong',i:'🤝',n:'ONG / Asoc.'},
-  {id:'food',i:'🍽',n:'Alimentos'},{id:'law',i:'⚖️',n:'Legal'},
+  {id:'education-mgmt',i:'🎓',n:'Educación'},{id:'food-bev',i:'🍽',n:'Alimentos y Bebidas'},
+  {id:'design',i:'🎨',n:'Diseño'},{id:'hospitality',i:'🏨',n:'Hospitalidad'},
+  {id:'accounting',i:'🧮',n:'Contabilidad'},{id:'events-services',i:'🎪',n:'Servicios de Eventos'},
+  {id:'consumer-services',i:'🛎',n:'Servicios al Consumidor'},{id:'hospital-health',i:'🏥',n:'Salud'},
+  {id:'automotive',i:'🚗',n:'Automotriz'},{id:'restaurants',i:'🍴',n:'Restaurantes'},
+  {id:'mgmt-consulting',i:'💼',n:'Consultoría'},{id:'computer-software',i:'💻',n:'Software'},
+  {id:'internet',i:'🌐',n:'Internet'},{id:'retail',i:'🛒',n:'Retail'},
+  {id:'financial-services',i:'💳',n:'Financiero'},{id:'it-services',i:'🖥',n:'Tecnología / TI'},
+  {id:'construction',i:'🏗',n:'Construcción'},{id:'marketing-advertising',i:'📣',n:'Marketing y Publicidad'},
+  {id:'real-estate',i:'🏢',n:'Bienes Raíces'},{id:'health-wellness',i:'💪',n:'Salud y Bienestar'},
 ];
 const SNAME=Object.fromEntries(SECTORS.map(s=>[s.id,s.n]));
-const DEFAULT_SECTORS=['corp','auto','pharma','tech'];
+const DEFAULT_SECTORS=['events-services','hospitality','marketing-advertising','consumer-services'];
 
 function renderSGrid(){
   const g=document.getElementById('sgrid');
@@ -613,36 +618,36 @@ async function cargarSeleccionados(){
 // ══════════════════ TEMPLATES — ejemplos de referencia por sector (estáticos;
 // el correo real lo redacta Claude en la pestaña Correos, personalizado) ═════
 const TPLS={
-  corp:{sub:'El evento que su empresa no ha producido todavía',body:'Hola,\n\nEn Actidea Continnuo llevamos 25 años produciendo eventos corporativos para marcas como Danone, Bimbo y Colgate.\n\n¿Tienen 20 minutos esta semana para explorar su próximo proyecto?\n\nActidea Continnuo · Eventos que conectan\nngama@actideacontinnuo.com'},
-  auto:{sub:'La producción detrás del lanzamiento que necesitan',body:'Hola,\n\nUn lanzamiento necesita más que un venue — producción técnica impecable y operación sin fallas.\n\nHemos producido eventos de lanzamiento para General Motors y Honda en México.\n\n¿Tienen proyectos en agenda este año?\n\nActidea Continnuo · Eventos que conectan'},
-  pharma:{sub:'Congresos médicos que elevan la credibilidad de su marca',body:'Hola,\n\nLos congresos médicos exigen rigor y protocolo. En Actidea producimos eventos para GSK, Grunenthal y J&J.\n\n¿20 minutos esta semana para ver cómo podemos colaborar?\n\nActidea Continnuo · Eventos que conectan'},
-  tech:{sub:'Partner summits a la altura de su marca',body:'Hola,\n\nProducimos partner summits y lanzamientos tech para Microsoft, HP e Intel.\n\n¿20 minutos para ver qué tienen en agenda este año?\n\nActidea Continnuo · Eventos que conectan'},
-  fin:{sub:'El evento corporativo que su institución merece producir bien',body:'Hola,\n\nLos eventos de banca exigen precisión e imagen impecable. Hemos producido eventos para HSBC México e Inbursa.\n\n¿15 minutos esta semana?\n\nActidea Continnuo · Eventos que conectan'},
-  retail:{sub:'Activaciones de marca que el retail no olvida',body:'Hola,\n\nLas activaciones de retail necesitan impacto visual inmediato. Diseñamos y producimos brand experiences para grandes retailers en México.\n\n¿Tienes agenda esta semana?\n\nActidea Continnuo · Eventos que conectan'},
-  gov:{sub:'Producción institucional que habla por la dependencia',body:'Estimado(a),\n\nLos eventos institucionales comunican el peso de una dependencia. Producimos el Grito de Independencia en el Zócalo (2013-2015) y la Semana del Emprendedor con Secretaría de Economía.\n\n¿Podemos agendar una presentación?\n\nActidea Continnuo · Eventos que conectan'},
-  media:{sub:'Premieres y eventos de prensa que se recuerdan',body:'Hola,\n\nLas premieres necesitan producción a la altura de la marca. Producimos la Premier de WALL·E para Walt Disney Pictures México.\n\n¿Tienen proyectos en agenda este año?\n\nActidea Continnuo · Eventos que conectan'},
-  logis:{sub:'Eventos de operación que reflejan su estándar logístico',body:'Hola,\n\nEn Actidea entendemos la precisión que exige el sector logístico — la aplicamos también a la producción de sus eventos.\n\n¿20 minutos esta semana?\n\nActidea Continnuo · Eventos que conectan'},
-  salud:{sub:'Eventos del sector salud sin margen de error',body:'Hola,\n\nProducimos eventos institucionales y congresos para el sector salud con el rigor que exige la industria.\n\n¿Tienen proyectos en puerta?\n\nActidea Continnuo · Eventos que conectan'},
-  edu:{sub:'Eventos educativos que dejan huella',body:'Hola,\n\nGraduaciones, congresos académicos y eventos institucionales — producción que respalda el prestigio de su institución.\n\n¿20 minutos esta semana?\n\nActidea Continnuo · Eventos que conectan'},
-  constr:{sub:'Eventos que muestran la escala de su operación',body:'Hola,\n\nProducimos eventos corporativos e institucionales para el sector construcción, con la solidez que la industria exige.\n\n¿Tienen agenda este año?\n\nActidea Continnuo · Eventos que conectan'},
-  mfg:{sub:'Eventos de planta y corporativos con estándar industrial',body:'Hola,\n\nDesde lanzamientos de línea hasta convenciones corporativas — producción con el estándar que su operación exige.\n\n¿20 minutos esta semana?\n\nActidea Continnuo · Eventos que conectan'},
-  hosp:{sub:'Eventos que elevan la experiencia de su marca',body:'Hola,\n\nEn hospitalidad, cada detalle comunica. Producimos experiencias de marca con ese mismo estándar.\n\n¿Tienen proyectos en agenda?\n\nActidea Continnuo · Eventos que conectan'},
-  agro:{sub:'Eventos que respaldan la escala de su operación',body:'Hola,\n\nConvenciones, lanzamientos y eventos corporativos para el sector agroindustrial, con producción de primer nivel.\n\n¿20 minutos esta semana?\n\nActidea Continnuo · Eventos que conectan'},
-  energia:{sub:'Eventos institucionales para el sector energético',body:'Hola,\n\nProducimos eventos corporativos e institucionales con el rigor técnico que el sector energético exige.\n\n¿Tienen proyectos en puerta?\n\nActidea Continnuo · Eventos que conectan'},
-  deporte:{sub:'Eventos deportivos que generan impacto real',body:'Hola,\n\nActivaciones y eventos deportivos con producción de alto nivel — impacto de marca donde más se ve.\n\n¿20 minutos esta semana?\n\nActidea Continnuo · Eventos que conectan'},
-  ong:{sub:'Eventos que comunican el impacto de su causa',body:'Hola,\n\nGalas, foros y eventos institucionales para organizaciones con causa — producción que respalda su mensaje.\n\n¿Podemos platicar esta semana?\n\nActidea Continnuo · Eventos que conectan'},
-  food:{sub:'Eventos que reflejan el estándar de su marca',body:'Hola,\n\nLanzamientos, activaciones y eventos corporativos para el sector alimentos y bebidas.\n\n¿20 minutos esta semana?\n\nActidea Continnuo · Eventos que conectan'},
-  law:{sub:'Eventos institucionales con la seriedad que su firma exige',body:'Estimado(a),\n\nForos, congresos y eventos corporativos para firmas legales — producción a la altura de su reputación.\n\n¿Podemos agendar una presentación?\n\nActidea Continnuo · Eventos que conectan'},
+  'education-mgmt':{sub:'Eventos educativos que dejan huella',body:'Hola,\n\nGraduaciones, congresos académicos y eventos institucionales — producción que respalda el prestigio de su institución.\n\n¿20 minutos esta semana?\n\nActidea Continnuo · Eventos que conectan'},
+  'food-bev':{sub:'Eventos que reflejan el estándar de su marca',body:'Hola,\n\nLanzamientos, activaciones y eventos corporativos para el sector alimentos y bebidas.\n\n¿20 minutos esta semana?\n\nActidea Continnuo · Eventos que conectan'},
+  'design':{sub:'Eventos con la misma atención al detalle que su marca',body:'Hola,\n\nEn diseño, cada detalle comunica — aplicamos ese mismo estándar a la producción de sus eventos y activaciones.\n\n¿20 minutos esta semana?\n\nActidea Continnuo · Eventos que conectan'},
+  'hospitality':{sub:'Eventos que elevan la experiencia de su marca',body:'Hola,\n\nEn hospitalidad, cada detalle comunica. Producimos experiencias de marca con ese mismo estándar.\n\n¿Tienen proyectos en agenda?\n\nActidea Continnuo · Eventos que conectan'},
+  'accounting':{sub:'Eventos corporativos con la precisión que su firma exige',body:'Hola,\n\nLos eventos institucionales de firmas de contabilidad exigen la misma precisión que su trabajo diario.\n\n¿20 minutos esta semana?\n\nActidea Continnuo · Eventos que conectan'},
+  'events-services':{sub:'Un aliado de producción para sus propios eventos',body:'Hola,\n\nSabemos lo que exige este negocio — producción técnica, logística y ejecución sin fallas, desde adentro de la industria.\n\n¿20 minutos esta semana para explorar cómo podemos colaborar?\n\nActidea Continnuo · Eventos que conectan'},
+  'consumer-services':{sub:'Activaciones que conectan con su cliente final',body:'Hola,\n\nDiseñamos y producimos experiencias de marca que conectan directo con el consumidor final.\n\n¿Tienes agenda esta semana?\n\nActidea Continnuo · Eventos que conectan'},
+  'hospital-health':{sub:'Eventos del sector salud sin margen de error',body:'Hola,\n\nProducimos eventos institucionales y congresos para el sector salud con el rigor que exige la industria.\n\n¿Tienen proyectos en puerta?\n\nActidea Continnuo · Eventos que conectan'},
+  'automotive':{sub:'La producción detrás del lanzamiento que necesitan',body:'Hola,\n\nUn lanzamiento necesita más que un venue — producción técnica impecable y operación sin fallas.\n\nHemos producido eventos de lanzamiento para General Motors y Honda en México.\n\n¿Tienen proyectos en agenda este año?\n\nActidea Continnuo · Eventos que conectan'},
+  'restaurants':{sub:'Aperturas y activaciones que su marca necesita',body:'Hola,\n\nAperturas, activaciones de marca y eventos corporativos para el sector restaurantero.\n\n¿20 minutos esta semana?\n\nActidea Continnuo · Eventos que conectan'},
+  'mgmt-consulting':{sub:'El evento corporativo que su firma merece producir bien',body:'Hola,\n\nLos eventos de consultoría exigen precisión e imagen impecable ante clientes exigentes.\n\n¿15 minutos esta semana?\n\nActidea Continnuo · Eventos que conectan'},
+  'computer-software':{sub:'Partner summits a la altura de su marca',body:'Hola,\n\nProducimos partner summits y lanzamientos tech para Microsoft, HP e Intel.\n\n¿20 minutos para ver qué tienen en agenda este año?\n\nActidea Continnuo · Eventos que conectan'},
+  'internet':{sub:'Lanzamientos digitales con producción de primer nivel',body:'Hola,\n\nProducimos lanzamientos y eventos corporativos para empresas del sector internet en México.\n\n¿20 minutos esta semana?\n\nActidea Continnuo · Eventos que conectan'},
+  'retail':{sub:'Activaciones de marca que el retail no olvida',body:'Hola,\n\nLas activaciones de retail necesitan impacto visual inmediato. Diseñamos y producimos brand experiences para grandes retailers en México.\n\n¿Tienes agenda esta semana?\n\nActidea Continnuo · Eventos que conectan'},
+  'financial-services':{sub:'El evento corporativo que su institución merece producir bien',body:'Hola,\n\nLos eventos de banca exigen precisión e imagen impecable. Hemos producido eventos para HSBC México e Inbursa.\n\n¿15 minutos esta semana?\n\nActidea Continnuo · Eventos que conectan'},
+  'it-services':{sub:'Eventos tech que su canal va a recordar',body:'Hola,\n\nProducimos partner summits, lanzamientos de producto y eventos de canal para empresas de tecnología.\n\n¿20 minutos esta semana?\n\nActidea Continnuo · Eventos que conectan'},
+  'construction':{sub:'Eventos que muestran la escala de su operación',body:'Hola,\n\nProducimos eventos corporativos e institucionales para el sector construcción, con la solidez que la industria exige.\n\n¿Tienen agenda este año?\n\nActidea Continnuo · Eventos que conectan'},
+  'marketing-advertising':{sub:'Activaciones que su propia industria va a notar',body:'Hola,\n\nSabemos lo que exige presentarse ante otros creativos — producción impecable, sin margen de error.\n\n¿20 minutos esta semana?\n\nActidea Continnuo · Eventos que conectan'},
+  'real-estate':{sub:'Eventos que respaldan el valor de su desarrollo',body:'Hola,\n\nLanzamientos de desarrollo, eventos para inversionistas y activaciones de marca para el sector inmobiliario.\n\n¿20 minutos esta semana?\n\nActidea Continnuo · Eventos que conectan'},
+  'health-wellness':{sub:'Eventos que comunican bienestar de verdad',body:'Hola,\n\nActivaciones y eventos corporativos para marcas de salud y bienestar, con producción de alto nivel.\n\n¿20 minutos esta semana?\n\nActidea Continnuo · Eventos que conectan'},
 };
 function renderTplList(){
   const c=document.getElementById('tpl-list');
   c.innerHTML=SECTORS.map(s=>`<div class="nav-item" style="border-radius:8px;color:var(--black)" onclick="loadTpl('${s.id}',this)">${s.i} ${esc(s.n)}</div>`).join('');
-  loadTpl('corp');
+  loadTpl(SECTORS[0].id);
 }
 function loadTpl(id,el){
   document.querySelectorAll('#tpl-list .nav-item').forEach(x=>x.classList.remove('active'));
   el?.classList.add('active');
-  const t=TPLS[id]||TPLS.corp;
+  const t=TPLS[id]||TPLS['events-services'];
   document.getElementById('tpl-asunto').value=t.sub;
   document.getElementById('tpl-cuerpo').value=t.body;
 }
@@ -679,7 +684,7 @@ async function generarCorreo(idx){
       asunto=data.asunto; cuerpo=data.cuerpo;
     }catch(err){ toast('Error generando con Claude: '+err.message,'red'); return; }
   }else{
-    const t=TPLS[p.sector]||TPLS.corp;
+    const t=TPLS[p.sector]||TPLS['events-services'];
     asunto=t.sub; cuerpo=t.body.replace('Hola,',`Hola ${p.name.split(' ')[0]},`);
   }
 
@@ -810,8 +815,8 @@ async function generarCorreoDesdeHistorial(prospectoId){
   }else{
     // El template se elige por el id de sector; el historial guarda el nombre
     // visible (p. ej. "Legal"), así que se busca su id equivalente.
-    const sid=(SECTORS.find(s=>s.n===p.sector)||{}).id||'corp';
-    const t=TPLS[sid]||TPLS.corp;
+    const sid=(SECTORS.find(s=>s.n===p.sector)||{}).id||'events-services';
+    const t=TPLS[sid]||TPLS['events-services'];
     asunto=t.sub; cuerpo=t.body.replace('Hola,',`Hola ${String(p.contacto||'').split(' ')[0]},`);
   }
 
