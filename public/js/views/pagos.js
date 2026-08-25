@@ -24,26 +24,30 @@ async function renderPagos() {
     hideSpinner();
   }
 
+  // Esta vista es SOLO cobros a cliente (dinero que entra) — los pagos a
+  // proveedor se registran en Deudas (Proveedores/Control de Pagos), que sí
+  // pide a qué proveedor va el dinero. Antes existía un tipo "Pago a
+  // proveedor" aquí que nunca preguntaba el proveedor, quedando huérfano; se
+  // dejó de crear, pero los registros viejos que ya existan en Notion NO se
+  // tocan ni se borran — solo dejan de mostrarse en esta vista.
+  pagos = pagos.filter(p => p.tipo === 'Cobro a cliente');
+
   const opMap  = Object.fromEntries(ops.map(o => [o.id, o]));
   const cliMap = Object.fromEntries(clientes.map(c => [c.id, c]));
 
-  const totalPorCobrar = pagos.filter(p => p.tipo === 'Cobro a cliente' && p.status !== 'Pagado').reduce((a, p) => a + (p.monto||0), 0);
-  const totalCobrado   = pagos.filter(p => p.tipo === 'Cobro a cliente' && p.status === 'Pagado').reduce((a, p) => a + (p.monto||0), 0);
-  const totalPorPagar  = pagos.filter(p => p.tipo === 'Pago a proveedor' && p.status !== 'Pagado').reduce((a, p) => a + (p.monto||0), 0);
+  const totalPorCobrar = pagos.filter(p => p.status !== 'Pagado').reduce((a, p) => a + (p.monto||0), 0);
+  const totalCobrado   = pagos.filter(p => p.status === 'Pagado').reduce((a, p) => a + (p.monto||0), 0);
   const vencidos       = pagos.filter(p => p.status === 'Vencido');
-  const cobrosPagados  = pagos.filter(p => p.tipo === 'Cobro a cliente' && p.status === 'Pagado');
+  const cobrosPagados  = pagos.filter(p => p.status === 'Pagado');
 
   document.getElementById('pagos-kpis').innerHTML = `
-    <div class="kpi" style="border-top:2px solid var(--green)"><div class="kpi-label">${icoHTML('wallet',13)} POR COBRAR (CLIENTES)</div><div class="kpi-value kv-green">${fmx(totalPorCobrar)}</div><div class="kpi-delta up">${pagos.filter(p=>p.tipo==='Cobro a cliente'&&p.status!=='Pagado').length} pagos pendientes</div></div>
+    <div class="kpi" style="border-top:2px solid var(--green)"><div class="kpi-label">${icoHTML('wallet',13)} POR COBRAR</div><div class="kpi-value kv-green">${fmx(totalPorCobrar)}</div><div class="kpi-delta up">${pagos.filter(p=>p.status!=='Pagado').length} pagos pendientes</div></div>
     <div class="kpi" style="border-top:2px solid #1A6B3C"><div class="kpi-label">${icoHTML('check',13)} YA COBRADO</div><div class="kpi-value" style="color:#1A6B3C">${fmx(totalCobrado)}</div><div class="kpi-delta">${cobrosPagados.length} cobros confirmados</div></div>
-    <div class="kpi" style="border-top:2px solid var(--amber)"><div class="kpi-label">${icoHTML('send',13)} POR PAGAR (PROVEEDORES)</div><div class="kpi-value" style="color:var(--amber)">${fmx(totalPorPagar)}</div><div class="kpi-delta down">Salidas pendientes</div></div>
     <div class="kpi" style="border-top:2px solid var(--red)"><div class="kpi-label">⚠ VENCIDOS</div><div class="kpi-value kv-red">${vencidos.length}</div><div class="kpi-delta down">${fmx(vencidos.reduce((a,p)=>a+(p.monto||0),0))} en riesgo</div></div>`;
 
   let list = pagos;
   const tab = STATE.pagosTab;
-  if (tab === 'Cobro a cliente')    list = pagos.filter(p => p.tipo === 'Cobro a cliente');
-  else if (tab === 'Pago a proveedor') list = pagos.filter(p => p.tipo === 'Pago a proveedor');
-  else if (tab === 'vencido')       list = pagos.filter(p => p.status === 'Vencido');
+  if (tab === 'vencido') list = pagos.filter(p => p.status === 'Vencido');
 
   document.getElementById('pagos-tbody').innerHTML = list.length
     ? list.map(p => {
@@ -92,7 +96,7 @@ async function savePago() {
   const status = document.getElementById('pg-status').value;
 
   const data = {
-    tipo:          document.getElementById('pg-tipo').value,
+    tipo:          'Cobro a cliente', // este modal ya es solo para cobros — ver renderPagos()
     concepto,
     opId:          opId || '',
     monto,

@@ -786,6 +786,16 @@ function marcarTodasLeidas() {
 // ══════════════════════════════════════
 // BÚSQUEDA GLOBAL (topbar)
 // ══════════════════════════════════════
+// Búsqueda en vivo mientras se escribe — con un pequeño debounce (180ms) para
+// no re-renderizar en cada tecla. db.*.list() ya está cacheado en memoria
+// (prefetch al iniciar sesión), así que llamarlo en cada letra no repite
+// consultas a Notion — es barato.
+let _globalSearchTimer = null;
+function debouncedGlobalSearch(q) {
+  clearTimeout(_globalSearchTimer);
+  _globalSearchTimer = setTimeout(() => globalSearch(q), 180);
+}
+
 async function globalSearch(q) {
   q = (q || '').trim().toLowerCase();
   const panel = _getSearchPanel();
@@ -795,10 +805,15 @@ async function globalSearch(q) {
   panel.style.display = 'block';
 
   try {
+    // 'db' (minúsculas) es el objeto real de acceso a datos (public/js/db.js).
+    // Antes decía 'DB' (mayúsculas) — residuo del prototipo original en
+    // memoria, de antes de conectar a Notion — esa variable ya no existe, así
+    // que la búsqueda truena en silencio cada vez (atrapado por el catch de
+    // abajo, mostrando "Error al buscar").
     const [clientes, prospectos, ops] = await Promise.all([
-      DB.clientes.list().catch(() => []),
-      DB.prospectos.list().catch(() => []),
-      DB.ops.list().catch(() => []),
+      db.clientes.list().catch(() => []),
+      db.prospectos.list().catch(() => []),
+      db.ops.list().catch(() => []),
     ]);
 
     const hits = [];

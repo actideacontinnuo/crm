@@ -79,6 +79,14 @@ router.get('/:id', async (req, res) => {
 });
 
 router.post('/', async (req, res) => {
+  // "Pagos" ya SOLO es para cobros a cliente — un pago a proveedor sin
+  // seleccionar proveedor quedaba huérfano (no se podía saber a quién se le
+  // pagaba). Ahora esos van por Deudas (api/deudas.js), que sí pide
+  // Proveedor + OP. Se bloquea aquí, no solo en la interfaz, para que no se
+  // pueda crear uno huérfano llamando a la API directo.
+  if (req.body.tipo === 'Pago a proveedor') {
+    return res.status(400).json({ error: 'Los pagos a proveedor se registran en Proveedores → "Registrar pago a proveedor" (necesitan indicar a qué proveedor se le paga)' });
+  }
   try {
     const page = await createPage('pagos', toProps(req.body));
     const obj = toObj(page);

@@ -153,7 +153,7 @@
   <div class="t-tag" id="topbar-breadcrumb">DASHBOARD</div>
   <div class="t-search">
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:rgba(255,255,255,.3);flex-shrink:0"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-    <input placeholder="Buscar clientes, OPs, prospectos…" id="global-search-input" onkeydown="if(event.key==='Enter')globalSearch(this.value)" style="background:none;border:none;outline:none;color:#fff;font-size:13px;width:100%;font-family:'DM Sans',sans-serif" autocomplete="off">
+    <input placeholder="Buscar clientes, OPs, prospectos…" id="global-search-input" oninput="debouncedGlobalSearch(this.value)" onkeydown="if(event.key==='Enter')globalSearch(this.value)" style="background:none;border:none;outline:none;color:#fff;font-size:13px;width:100%;font-family:'DM Sans',sans-serif" autocomplete="off">
   </div>
   <div class="t-right" style="gap:12px">
     <!-- Campanita de notificaciones -->
@@ -361,16 +361,14 @@
 <!-- ═══════════ VIEW: PAGOS ═══════════ -->
 <div id="view-pagos" class="view">
   <div class="ph">
-    <div><div class="ph-eye">CONTROL FINANCIERO · OSCAR</div><div class="ph-title">Pagos</div></div>
+    <div><div class="ph-eye">CONTROL FINANCIERO · OSCAR</div><div class="ph-title">Pagos</div><div class="ph-sub">Cobros a clientes (dinero que entra) — los pagos a proveedores se registran en Control de Pagos / Proveedores</div></div>
     <div class="ph-actions">
-      <button class="btn btn-primary btn-sm" onclick="openM('nuevo-pago')">+ Registrar Pago</button>
+      <button class="btn btn-primary btn-sm" onclick="openM('nuevo-pago')">+ Registrar Cobro</button>
     </div>
   </div>
-  <div class="kpis" style="grid-template-columns:repeat(4,1fr);margin-bottom:18px" id="pagos-kpis"></div>
+  <div class="kpis" style="grid-template-columns:repeat(3,1fr);margin-bottom:18px" id="pagos-kpis"></div>
   <div class="view-tabs">
     <div class="vtab active" onclick="setPagosTab('todos',this)">TODOS</div>
-    <div class="vtab" onclick="setPagosTab('Cobro a cliente',this)"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-3px"><path d="M3 7a2 2 0 0 1 2-2h13a1 1 0 0 1 1 1v2"/><path d="M3 7v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7a1 1 0 0 0-1-1H5a2 2 0 0 1-2-2z"/><circle cx="16" cy="13" r="1.3" fill="currentColor"/></svg> COBROS A CLIENTES</div>
-    <div class="vtab" onclick="setPagosTab('Pago a proveedor',this)"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-3px"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4z"/></svg> PAGOS A PROVEEDORES</div>
     <div class="vtab" onclick="setPagosTab('vencido',this)"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-3px"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg> VENCIDOS / URGENTES</div>
   </div>
   <div class="panel">
@@ -860,12 +858,14 @@
 <!-- NUEVO PAGO -->
 <div class="modal-overlay" id="m-nuevo-pago" onclick="closeM('nuevo-pago')">
 <div class="modal" onclick="event.stopPropagation()" style="width:520px">
-  <div class="modal-hdr"><div><div class="modal-eye">REGISTRAR MOVIMIENTO</div><div class="modal-title">Nuevo Pago</div></div><button class="modal-close" onclick="closeM('nuevo-pago')">✕</button></div>
+  <div class="modal-hdr"><div><div class="modal-eye">REGISTRAR MOVIMIENTO</div><div class="modal-title">Nuevo Cobro</div></div><button class="modal-close" onclick="closeM('nuevo-pago')">✕</button></div>
   <div class="modal-body">
-    <div class="fgrid">
-      <div class="fg"><label class="fl">TIPO</label><select class="fsel-full" id="pg-tipo"><option>Cobro a cliente</option><option>Pago a proveedor</option></select></div>
-      <div class="fg"><label class="fl">OP RELACIONADA</label><select class="fsel-full" id="pg-op"></select></div>
-    </div>
+    <!-- Este modal es SOLO para cobros a cliente (dinero que entra). Los pagos
+         a proveedor (dinero que sale) se registran en Proveedores → "Registrar
+         pago a proveedor", que sí pide a qué proveedor se le paga — antes
+         existía un "Pago a proveedor" aquí que nunca preguntaba el proveedor,
+         quedando huérfano. Un solo lugar de verdad, ver Deudas (api/deudas.js). -->
+    <div class="fg"><label class="fl">OP RELACIONADA</label><select class="fsel-full" id="pg-op"></select></div>
     <div class="fg"><label class="fl">CONCEPTO</label><input class="fi" id="pg-concepto" placeholder="Anticipo 50%, Liquidación final..."></div>
     <div class="fgrid">
       <div class="fg"><label class="fl">MONTO (MXN)</label><input class="fi" id="pg-monto" type="number" placeholder="0.00"></div>
@@ -877,7 +877,7 @@
     </div>
     <div class="fg"><label class="fl">REFERENCIA / NÚMERO TRANSFERENCIA</label><input class="fi" id="pg-ref" placeholder="SPEI 20260610 123456789 (si ya se realizó)"></div>
   </div>
-  <div class="modal-footer"><button class="btn btn-ghost" onclick="closeM('nuevo-pago')">Cancelar</button><button class="btn btn-primary" onclick="savePago()">Registrar Pago</button></div>
+  <div class="modal-footer"><button class="btn btn-ghost" onclick="closeM('nuevo-pago')">Cancelar</button><button class="btn btn-primary" onclick="savePago()">Registrar Cobro</button></div>
 </div></div>
 
 <!-- DETALLE PAGO -->

@@ -158,3 +158,23 @@ describe('Vencido — se calcula SIEMPRE por fecha, no depende de captura manual
     expect(pagado.body.status).toBe('Pagado');
   });
 });
+
+describe('"Pago a proveedor" ya no se puede crear aquí — un solo lugar de verdad (Deudas)', () => {
+  test('POST con tipo="Pago a proveedor" responde 400, no crea el registro huérfano', async () => {
+    const res = await request(app).post('/api/pagos')
+      .set('Authorization', `Bearer ${adminToken()}`)
+      .send({ ...PAGO_VALIDO, tipo: 'Pago a proveedor' });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/proveedor/i);
+
+    const lista = await request(app).get('/api/pagos').set('Authorization', `Bearer ${adminToken()}`);
+    expect(lista.body).toHaveLength(0);
+  });
+
+  test('otros tipos (Cobro a cliente, Cobro) se siguen creando normal', async () => {
+    const res = await request(app).post('/api/pagos')
+      .set('Authorization', `Bearer ${adminToken()}`)
+      .send({ ...PAGO_VALIDO, tipo: 'Cobro a cliente' });
+    expect(res.status).toBe(200);
+  });
+});
