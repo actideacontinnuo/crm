@@ -13,6 +13,7 @@ const {
   read_text, read_email, read_select,
 } = require('./notion');
 const { aplicarReglasComision, obtenerRosterEjecutivos } = require('./_roles');
+const { logAudit } = require('./_audit');
 
 // Industrias EXACTAS del catálogo real de Apollo (mismo texto que su propio
 // sitio web en el filtro de industria) — confirmadas una por una contra la
@@ -82,113 +83,115 @@ function _construirBusquedaApollo({ filtros = {}, sectorId, perSector }) {
   return body;
 }
 
+// Busca UN sector en Apollo — misma lógica que usa el endpoint /buscar, pero
+// factorizada para que también la use el cron semanal automático (ver
+// ejecutarProspeccionAutomatica) sin duplicar código ni pasar por HTTP.
+async function buscarSectorEnApollo(sectorId, perSector, filtros = {}) {
+  const apolloKey = process.env.APOLLO_API_KEY;
+  if (!apolloKey) return { leads: [], error: 'APOLLO_API_KEY no configurada en .env' };
+  const info = SECTOR_MAP[sectorId];
+  if (!info) return { leads: [], error: `Sector desconocido: ${sectorId}` };
+
+  const leads = [];
+  try {
+    const searchResp = await fetch('https://api.apollo.io/api/v1/mixed_people/api_search', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Api-Key': apolloKey },
+      body: JSON.stringify(_construirBusquedaApollo({ filtros, sectorId, perSector })),
+    });
+    if (!searchResp.ok) {
+      const errText = await searchResp.text();
+      return { leads: [], error: `Apollo ${searchResp.status}: ${errText.slice(0, 200)}` };
+    }
+
+    const searchData = await searchResp.json();
+    const candidates = (searchData.people || []).filter(p => p.has_email === true).slice(0, perSector);
+    if (!candidates.length) return { leads: [], error: 'No se encontraron contactos con email en Apollo para este sector' };
+
+    const enrichResp = await fetch('https://api.apollo.io/api/v1/people/bulk_match', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Api-Key': apolloKey },
+      body: JSON.stringify({
+        details: candidates.map(p => ({ id: p.id, first_name: p.first_name, organization_name: p.organization?.name })),
+        reveal_personal_emails: false,
+      }),
+    });
+
+    let enrichedMap = {};
+    if (enrichResp.ok) {
+      const enrichData = await enrichResp.json();
+      (enrichData.matches || []).forEach(m => { if (m.id) enrichedMap[m.id] = m; });
+    }
+
+    // Regla de negocio confirmada: si Apollo no confirma el email como
+    // "verified" (deliverable de verdad, no "probable" ni "sin verificar"),
+    // el contacto NO puede convertirse en Prospecto — se descarta aquí, antes
+    // de que llegue siquiera a la revisión manual de Natalia. Esto también
+    // resuelve de raíz los apellidos truncados ("Pe***z"): cuando el
+    // enriquecimiento de Apollo SÍ encuentra al contacto (y por tanto puede
+    // confirmar el email), siempre trae el apellido completo — el apellido
+    // corto solo aparece cuando el enriquecimiento falla, y en ese caso
+    // tampoco hay un email confiable que ofrecer.
+    for (const p of candidates) {
+      const enriched = enrichedMap[p.id];
+      if (!enriched || enriched.email_status !== 'verified') continue;
+      leads.push({
+        id:          p.id,
+        name:        `${p.first_name || ''} ${enriched.last_name || ''}`.trim(),
+        title:       enriched.title || p.title || '',
+        company:     enriched.organization?.name || p.organization?.name || '',
+        email:       enriched.email || enriched.sanitized_email || '',
+        linkedin:    enriched.linkedin_url || '',
+        phone:       enriched.phone_numbers?.[0]?.raw_number || '',
+        sector:      sectorId,
+        sectorTitle: info.title,
+        emailStatus: enriched.email_status,
+        apolloId:    p.id,
+        city:        enriched.city || '',
+        country:     enriched.country || 'México',
+        verified:    false,
+      });
+    }
+    if (!leads.length) return { leads: [], error: 'Apollo no confirmó ("verified") el email de ningún contacto para este sector' };
+    return { leads, error: null };
+  } catch (err) {
+    return { leads: [], error: err.message };
+  }
+}
+
 // POST /api/prospeccion/buscar  →  busca leads en Apollo por sectores.
 // filtros (opcional): espejo de los filtros "fáciles" de Apollo — títulos,
 // antigüedad, ubicación de persona/empresa, tamaño de empresa, estado del
 // email, palabras clave, dominio de empresa. Si no se manda nada, se comporta
 // exactamente igual que antes (títulos fijos + keyword del sector).
 router.post('/buscar', async (req, res) => {
-  const { sectors = ['corp', 'auto', 'pharma', 'tech'], perSector = 5, filtros = {} } = req.body;
-  const apolloKey = process.env.APOLLO_API_KEY;
-  if (!apolloKey) return res.status(400).json({ error: 'APOLLO_API_KEY no configurada en .env' });
+  const { sectors = ['events-services', 'hospitality', 'marketing-advertising', 'consumer-services'], perSector = 5, filtros = {} } = req.body;
+  if (!process.env.APOLLO_API_KEY) return res.status(400).json({ error: 'APOLLO_API_KEY no configurada en .env' });
 
   const results = [];
   const errors  = [];
 
   for (const sectorId of sectors) {
-    const info = SECTOR_MAP[sectorId];
-    if (!info) continue;
-
-    try {
-      const searchResp = await fetch('https://api.apollo.io/api/v1/mixed_people/api_search', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Api-Key': apolloKey },
-        body: JSON.stringify(_construirBusquedaApollo({ filtros, sectorId, perSector })),
-      });
-
-      if (!searchResp.ok) {
-        const errText = await searchResp.text();
-        errors.push({ sector: sectorId, error: `Apollo ${searchResp.status}: ${errText.slice(0, 200)}` });
-        continue;
-      }
-
-      const searchData = await searchResp.json();
-      const candidates = (searchData.people || []).filter(p => p.has_email === true).slice(0, perSector);
-
-      if (!candidates.length) {
-        errors.push({ sector: sectorId, error: 'No se encontraron contactos con email en Apollo para este sector' });
-        continue;
-      }
-
-      const enrichResp = await fetch('https://api.apollo.io/api/v1/people/bulk_match', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Api-Key': apolloKey },
-        body: JSON.stringify({
-          details: candidates.map(p => ({ id: p.id, first_name: p.first_name, organization_name: p.organization?.name })),
-          reveal_personal_emails: false,
-        }),
-      });
-
-      let enrichedMap = {};
-      if (enrichResp.ok) {
-        const enrichData = await enrichResp.json();
-        (enrichData.matches || []).forEach(m => { if (m.id) enrichedMap[m.id] = m; });
-      }
-
-      // Regla de negocio confirmada: si Apollo no confirma el email como
-      // "verified" (deliverable de verdad, no "probable" ni "sin verificar"),
-      // el contacto NO puede convertirse en Prospecto — se descarta aquí,
-      // antes de que llegue siquiera a la revisión manual de Natalia. Esto
-      // también resuelve de raíz los apellidos truncados ("Pe***z"): cuando
-      // el enriquecimiento de Apollo SÍ encuentra al contacto (y por tanto
-      // puede confirmar el email), siempre trae el apellido completo — el
-      // apellido corto solo aparece cuando el enriquecimiento falla, y en
-      // ese caso tampoco hay un email confiable que ofrecer.
-      const antesDeEsteSector = results.length;
-      for (const p of candidates) {
-        const enriched = enrichedMap[p.id];
-        if (!enriched || enriched.email_status !== 'verified') continue;
-        results.push({
-          id:          p.id,
-          name:        `${p.first_name || ''} ${enriched.last_name || ''}`.trim(),
-          title:       enriched.title || p.title || '',
-          company:     enriched.organization?.name || p.organization?.name || '',
-          email:       enriched.email || enriched.sanitized_email || '',
-          linkedin:    enriched.linkedin_url || '',
-          phone:       enriched.phone_numbers?.[0]?.raw_number || '',
-          sector:      sectorId,
-          sectorTitle: info.title,
-          emailStatus: enriched.email_status,
-          apolloId:    p.id,
-          city:        enriched.city || '',
-          country:     enriched.country || 'México',
-          verified:    false,
-        });
-      }
-      if (results.length === antesDeEsteSector) {
-        errors.push({ sector: sectorId, error: 'Apollo no confirmó ("verified") el email de ningún contacto para este sector' });
-      }
-    } catch (err) {
-      errors.push({ sector: sectorId, error: err.message });
-    }
+    if (!SECTOR_MAP[sectorId]) continue;
+    const { leads, error } = await buscarSectorEnApollo(sectorId, perSector, filtros);
+    if (error) errors.push({ sector: sectorId, error });
+    results.push(...leads);
   }
 
   res.json({ leads: results, errors, total: results.length });
 });
 
 // POST /api/prospeccion/verificar  →  Claude verifica y enriquece cada lead
-router.post('/verificar', async (req, res) => {
-  const { leads = [] } = req.body;
+async function verificarConClaude(leads) {
   const anthropicKey = process.env.ANTHROPIC_API_KEY;
   if (!anthropicKey) {
-    const passthrough = leads.map(l => ({
+    return leads.map(l => ({
       ...l,
       verified: l.emailStatus === 'verified' || l.emailStatus === 'likely to engage',
       confidence: l.emailStatus === 'verified' ? 8 : l.emailStatus === 'likely to engage' ? 6 : 5,
       verificationNotes: 'Verificación Claude pendiente — basada solo en Apollo',
       verifiedAt: new Date().toISOString(),
     }));
-    return res.json({ leads: passthrough, total: passthrough.length, warning: 'Claude no disponible — usando solo datos de Apollo' });
   }
 
   const BATCH = 20;
@@ -244,6 +247,16 @@ Responde con JSON array exacto:
     }
   }
 
+  return verified;
+}
+
+router.post('/verificar', async (req, res) => {
+  const { leads = [] } = req.body;
+  if (!process.env.ANTHROPIC_API_KEY) {
+    const passthrough = await verificarConClaude(leads);
+    return res.json({ leads: passthrough, total: passthrough.length, warning: 'Claude no disponible — usando solo datos de Apollo' });
+  }
+  const verified = await verificarConClaude(leads);
   res.json({ leads: verified, total: verified.length });
 });
 
@@ -312,26 +325,15 @@ function _notaOrigen(lead) {
   return parts.join(' · ').slice(0, 1990);
 }
 
-// POST /api/prospeccion/notion/upload  →  crea cada lead como Prospecto REAL de
-// la CRM (misma base "Prospectos", mismo esquema/roles que un alta manual) —
-// usa exactamente las mismas reglas de comisión (Fuente="Apollo") que ya aplica
-// POST /api/prospectos, para que no queden registros con roles/notas mal formados.
-router.post('/notion/upload', async (req, res) => {
-  // origen: 'Automático' (confianza ≥7, sin revisión) o 'Manual' (Natalia
-  // decidió cargarlo desde la lista de revisión) — queda registrado en Notion
-  // para que el Panel Semanal pueda reportar el desglose real.
-  // evitarDuplicados: toggle de Ajustes — si viene true (default), no crea un
-  // prospecto si YA existe uno con el mismo email.
-  const { leads = [], origen = 'Manual', evitarDuplicados = true } = req.body;
+// Sube leads como Prospectos reales — misma lógica que /notion/upload, ahora
+// factorizada para que el cron semanal automático también la use sin pasar
+// por HTTP. origen: 'Automático' | 'Manual'. evitarDuplicados: default true.
+async function subirProspectos(leads, { origen = 'Manual', evitarDuplicados = true } = {}) {
   const created = [];
   const errors  = [];
   const omitidos = [];
-  // Una sola lectura del roster para todo el lote (se cachea igual, pero evita
-  // N llamadas redundantes cuando se suben muchos leads de golpe).
   const ejecutivosRoster = await obtenerRosterEjecutivos();
 
-  // Emails ya existentes en Prospectos — una sola lectura para todo el lote
-  // (mismo criterio que el roster: evita N consultas redundantes a Notion).
   let emailsExistentes = new Set();
   if (evitarDuplicados) {
     try {
@@ -394,7 +396,22 @@ router.post('/notion/upload', async (req, res) => {
     }
   }
 
-  res.json({ created: created.length, errors, omitidos, total: leads.length });
+  return { created: created.length, errors, omitidos, total: leads.length };
+}
+
+// POST /api/prospeccion/notion/upload  →  crea cada lead como Prospecto REAL de
+// la CRM (misma base "Prospectos", mismo esquema/roles que un alta manual) —
+// usa exactamente las mismas reglas de comisión (Fuente="Apollo") que ya aplica
+// POST /api/prospectos, para que no queden registros con roles/notas mal formados.
+router.post('/notion/upload', async (req, res) => {
+  // origen: 'Automático' (confianza ≥7, sin revisión) o 'Manual' (Natalia
+  // decidió cargarlo desde la lista de revisión) — queda registrado en Notion
+  // para que el Panel Semanal pueda reportar el desglose real.
+  // evitarDuplicados: toggle de Ajustes — si viene true (default), no crea un
+  // prospecto si YA existe uno con el mismo email.
+  const { leads = [], origen = 'Manual', evitarDuplicados = true } = req.body;
+  const resultado = await subirProspectos(leads, { origen, evitarDuplicados });
+  res.json(resultado);
 });
 
 // PATCH /api/prospeccion/marcar-correo-generado/:id  →  toggle "Actualizar
@@ -447,4 +464,89 @@ router.get('/semanal', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// Ranking de TODOS los sectores por tasa de respuesta histórica (no solo esta
+// semana, como /semanal — aquí es todo el historial, para decidir bien qué
+// sectores le está funcionando a Actidea de verdad). Un sector sin historial
+// no se manda al fondo de la lista (nunca lo intentaríamos) — se le da un
+// suavizado (Laplace: +1/+2) para que quede a la mitad de la tabla y sí
+// tenga oportunidad de probarse.
+async function _rankearSectoresPorRespuesta() {
+  const pages = await queryDB('prospectos', { property: 'Fuente', select: { equals: 'Apollo' } });
+  const porSector = {};
+  Object.keys(SECTOR_MAP).forEach(id => { porSector[id] = { total: 0, respondieron: 0, ultimaFecha: null }; });
+
+  pages.forEach(page => {
+    const p = page.properties;
+    const sectorTitle = read_select(p['Sector']);
+    const sectorId = Object.keys(SECTOR_MAP).find(id => SECTOR_MAP[id].title === sectorTitle);
+    if (!sectorId) return;
+    const status = read_select(p['Status']) || 'Nuevo';
+    porSector[sectorId].total++;
+    if (status !== 'Nuevo') porSector[sectorId].respondieron++;
+    const creado = page.created_time || '';
+    if (!porSector[sectorId].ultimaFecha || creado > porSector[sectorId].ultimaFecha) porSector[sectorId].ultimaFecha = creado;
+  });
+
+  return Object.entries(porSector)
+    .map(([id, s]) => ({
+      id,
+      tasaRespuesta: (s.respondieron + 1) / (s.total + 2), // Laplace — nunca 0/0
+      ultimaFecha: s.ultimaFecha,
+    }))
+    .sort((a, b) => b.tasaRespuesta - a.tasaRespuesta);
+}
+
+// Prospección automática semanal — corre sola, sin que nadie la dispare (ver
+// jobs/prospeccion-scheduler.js, domingos). Reglas confirmadas:
+//  - Rota 1-4 sectores (de los 20), priorizando por tasa de respuesta
+//    histórica: los 3 de mejor desempeño (explotar lo que funciona) + 1 que
+//    no se haya intentado hace más tiempo (explorar — así los 20 sectores
+//    se van probando con el tiempo, no se estanca siempre en los mismos 4).
+//  - ~20 prospectos por corrida en total (perSector = 20 / #sectores).
+//  - Solo confianza ≥7 Y verificado por Claude se sube — igual que el flujo
+//    manual. Un run sin nadie mirando no puede "esperar revisión manual", así
+//    que los de confianza <7 simplemente NO se persiguen en la corrida
+//    automática (se pierden esos leads, pero no se baja el estándar de
+//    calidad) — si se quiere más volumen, Natalia siempre puede correrlo
+//    manual desde la pestaña Buscar con revisión.
+async function ejecutarProspeccionAutomatica() {
+  const ranking = await _rankearSectoresPorRespuesta();
+  const explotar = ranking.slice(0, 3).map(s => s.id);
+  const explorar = [...ranking].sort((a, b) => (a.ultimaFecha || '').localeCompare(b.ultimaFecha || ''))
+    .find(s => !explotar.includes(s.id));
+  const sectoresElegidos = explorar ? [...explotar, explorar.id] : explotar;
+
+  const perSector = Math.max(1, Math.round(20 / sectoresElegidos.length));
+  let totalCreados = 0, totalDescartadosBajaConfianza = 0;
+  const detallePorSector = [];
+
+  for (const sectorId of sectoresElegidos) {
+    const { leads, error } = await buscarSectorEnApollo(sectorId, perSector);
+    if (error || !leads.length) { detallePorSector.push({ sector: sectorId, error: error || 'sin resultados' }); continue; }
+
+    const verificados = await verificarConClaude(leads);
+    const elegibles = verificados.filter(l => l.verified !== false && (l.confidence || 0) >= 7);
+    totalDescartadosBajaConfianza += verificados.length - elegibles.length;
+
+    if (elegibles.length) {
+      const { created } = await subirProspectos(elegibles, { origen: 'Automático', evitarDuplicados: true });
+      totalCreados += created;
+      detallePorSector.push({ sector: sectorId, encontrados: leads.length, creados: created });
+    } else {
+      detallePorSector.push({ sector: sectorId, encontrados: leads.length, creados: 0 });
+    }
+  }
+
+  await logAudit({
+    usuario: 'Sistema (cron semanal)',
+    accion: 'prospeccion_automatica_semanal',
+    entidad: String(totalCreados),
+    detalle: `Sectores: ${sectoresElegidos.map(id => SECTOR_MAP[id]?.title || id).join(', ')}`,
+    exito: true,
+  });
+
+  return { sectoresElegidos, perSector, totalCreados, totalDescartadosBajaConfianza, detallePorSector };
+}
+
 module.exports = router;
+module.exports.ejecutarProspeccionAutomatica = ejecutarProspeccionAutomatica;

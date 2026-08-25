@@ -361,6 +361,72 @@ describe('Prospección — Panel Semanal: sector, confianza y origen de carga', 
   });
 });
 
+describe('Prospección — cron semanal automático (ejecutarProspeccionAutomatica)', () => {
+  test('rota 4 sectores, sube solo confianza ≥7, y deja auditoría del run', async () => {
+    const { ejecutarProspeccionAutomatica } = require('../../api/prospeccion');
+
+    // Un lead DISTINTO (email distinto) por cada llamada — si no, el dedupe
+    // real (correcto) descartaría los repetidos entre sectores y el total no
+    // reflejaría "un lead nuevo por sector", que es lo que este test mide.
+    let n = 0;
+    fetch.mockImplementation((url) => {
+      if (url.includes('mixed_people/api_search')) {
+        n++;
+        return Promise.resolve(jsonResp(200, { people: [
+          { id: `lead-${n}`, first_name: 'Ana', last_name_obfuscated: 'X.', title: 'Directora', organization: { name: 'Acme' }, has_email: true },
+        ] }));
+      }
+      if (url.includes('bulk_match')) {
+        return Promise.resolve(jsonResp(200, { matches: [
+          { id: `lead-${n}`, last_name: 'Ximénez', email: `ana${n}@acme.com`, email_status: 'verified', organization: { name: 'Acme' } },
+        ] }));
+      }
+      if (url.includes('anthropic.com')) {
+        // Confianza alta siempre — así se puede afirmar cuántos se crearon.
+        return Promise.resolve(jsonResp(200, { content: [{ text: JSON.stringify([{ id: `lead-${n}`, verified: true, confidence: 9, notes: 'ok' }]) }] }));
+      }
+      return Promise.resolve(jsonResp(404, {}));
+    });
+
+    const r = await ejecutarProspeccionAutomatica();
+
+    expect(r.sectoresElegidos).toHaveLength(4); // rota 1-4 sectores, confirmado con el usuario
+    expect(r.totalCreados).toBe(4); // 1 lead confianza 9 por cada uno de los 4 sectores
+    expect(r.totalDescartadosBajaConfianza).toBe(0);
+
+    // Quedó registrado en Auditoría para que el Dashboard lo pueda mostrar.
+    const { logAudit } = require('../../api/_audit');
+    expect(logAudit).toHaveBeenCalledWith(expect.objectContaining({
+      accion: 'prospeccion_automatica_semanal',
+      entidad: '4',
+    }));
+  });
+
+  test('confianza <7 NO se sube en el run automático (nadie puede revisarla a mano)', async () => {
+    const { ejecutarProspeccionAutomatica } = require('../../api/prospeccion');
+    fetch.mockImplementation((url) => {
+      if (url.includes('mixed_people/api_search')) {
+        return Promise.resolve(jsonResp(200, { people: [
+          { id: 'lead-1', first_name: 'Ana', last_name_obfuscated: 'X.', title: 'Directora', organization: { name: 'Acme' }, has_email: true },
+        ] }));
+      }
+      if (url.includes('bulk_match')) {
+        return Promise.resolve(jsonResp(200, { matches: [
+          { id: 'lead-1', last_name: 'Ximénez', email: 'ana@acme.com', email_status: 'verified', organization: { name: 'Acme' } },
+        ] }));
+      }
+      if (url.includes('anthropic.com')) {
+        return Promise.resolve(jsonResp(200, { content: [{ text: JSON.stringify([{ id: 'lead-1', verified: true, confidence: 4, notes: 'dudoso' }]) }] }));
+      }
+      return Promise.resolve(jsonResp(404, {}));
+    });
+
+    const r = await ejecutarProspeccionAutomatica();
+    expect(r.totalCreados).toBe(0);
+    expect(r.totalDescartadosBajaConfianza).toBe(4);
+  });
+});
+
 describe('Prospección — POST /generar-email (reemplaza la llamada rota desde el navegador)', () => {
   test('sin ANTHROPIC_API_KEY responde 400', async () => {
     delete process.env.ANTHROPIC_API_KEY;

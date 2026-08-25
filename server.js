@@ -252,3 +252,6 @@ app.listen(PORT, () => {
 
 // ── Respaldo automático mensual de Notion (1ro de cada mes, 3:00 am) ──
 require('./jobs/backup-scheduler');
+
+// ── Prospección automática semanal (domingos 8:00 am, hora CDMX) ──
+require('./jobs/prospeccion-scheduler');
