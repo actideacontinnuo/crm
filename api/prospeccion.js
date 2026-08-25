@@ -10,7 +10,7 @@ const fetch = require('node-fetch');
 const {
   createPage, updatePage, queryDB,
   prop_title, prop_text, prop_phone, prop_email, prop_select, prop_number, prop_checkbox,
-  read_text, read_email, read_select,
+  read_title, read_text, read_email, read_select,
 } = require('./notion');
 const { aplicarReglasComision, obtenerRosterEjecutivos } = require('./_roles');
 const { logAudit } = require('./_audit');
@@ -178,7 +178,15 @@ router.post('/buscar', async (req, res) => {
     results.push(...leads);
   }
 
-  res.json({ leads: results, errors, total: results.length });
+  // Regla dura: nunca se busca/muestra una empresa que ya es Prospecto — se
+  // filtra ANTES de que Natalia la vea en la lista de revisión, no solo al
+  // subir (ver _filtrarEmpresasDuplicadas).
+  const { aceptados, descartados } = await _filtrarEmpresasDuplicadas(results);
+  if (descartados.length) {
+    errors.push({ sector: null, error: `${descartados.length} contacto(s) omitido(s) por empresa ya prospectada: ${[...new Set(descartados.map(d => d.company))].join(', ')}` });
+  }
+
+  res.json({ leads: aceptados, errors, total: aceptados.length });
 });
 
 // POST /api/prospeccion/verificar  →  Claude verifica y enriquece cada lead
@@ -312,6 +320,58 @@ JSON exacto: {"asunto":"...","cuerpo":"..."}`,
   }
 });
 
+// Normaliza el nombre de una empresa para poder comparar de verdad si "ya la
+// tenemos prospectada" — sin esto, "Mondelēz International México" y
+// "MONDELEZ INTERNATIONAL MEXICO, S.A. DE C.V." se ven como dos empresas
+// distintas y el sistema las vuelve a prospectar. Quita acentos, razón social
+// (S.A. de C.V., etc.) y cualquier símbolo, dejando solo el nombre "pelón".
+function _normEmpresa(nombre) {
+  return String(nombre || '')
+    .toLowerCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/\b(s\.?a\.?( de c\.?v\.?)?|sc|s de rl( de cv)?|sapi|sofom)\b/gi, '')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()
+    .replace(/\s+/g, ' ');
+}
+
+// Empresas que YA existen como Prospecto en Notion, normalizadas — fuente de
+// verdad para no volver a buscar/prospectar la misma empresa (regla dura:
+// nunca se compara solo por email, porque Apollo trae contactos distintos —
+// otro director, otro puesto— de la MISMA empresa y antes se colaban).
+async function _empresasProspectosExistentes() {
+  try {
+    const pages = await queryDB('prospectos', null);
+    return new Set(
+      pages.map(p => _normEmpresa(read_title(p.properties['Empresa']))).filter(Boolean)
+    );
+  } catch (_) {
+    return new Set(); // si Notion falla leyendo el dedupe, no bloqueamos la búsqueda/carga
+  }
+}
+
+// Filtra leads cuya empresa (normalizada) ya está en Prospectos, o que se
+// repite dentro del propio lote (misma empresa en dos sectores/contactos
+// distintos de una sola corrida). Se usa TANTO al buscar (para no ni mostrar
+// una empresa ya prospectada) COMO al subir (última barrera antes de crear
+// el registro en Notion).
+async function _filtrarEmpresasDuplicadas(leads) {
+  const existentes = await _empresasProspectosExistentes();
+  const vistasEnLote = new Set();
+  const aceptados = [];
+  const descartados = [];
+  for (const lead of leads) {
+    const key = _normEmpresa(lead.company);
+    if (key && (existentes.has(key) || vistasEnLote.has(key))) {
+      descartados.push({ ...lead, motivoDescartado: 'Empresa ya prospectada' });
+      continue;
+    }
+    if (key) vistasEnLote.add(key);
+    aceptados.push(lead);
+  }
+  return { aceptados, descartados };
+}
+
 // Arma el texto de la nota que documenta el origen del lead
 function _notaOrigen(lead) {
   const parts = [];
@@ -335,11 +395,15 @@ async function subirProspectos(leads, { origen = 'Manual', evitarDuplicados = tr
   const ejecutivosRoster = await obtenerRosterEjecutivos();
 
   let emailsExistentes = new Set();
+  let empresasExistentes = new Set();
   if (evitarDuplicados) {
     try {
       const pages = await queryDB('prospectos', null);
       emailsExistentes = new Set(
         pages.map(p => (read_email(p.properties['Email']) || '').toLowerCase()).filter(Boolean)
+      );
+      empresasExistentes = new Set(
+        pages.map(p => _normEmpresa(read_title(p.properties['Empresa']))).filter(Boolean)
       );
     } catch (_) {
       // Si Notion falla leyendo el dedupe, no bloqueamos la carga — se sube
@@ -350,6 +414,14 @@ async function subirProspectos(leads, { origen = 'Manual', evitarDuplicados = tr
   for (const lead of leads) {
     try {
       const emailNorm = (lead.email || '').toLowerCase();
+      const empresaNorm = _normEmpresa(lead.company);
+      // Regla dura: la EMPRESA es lo que nunca se duplica — el email solo era
+      // insuficiente porque Apollo trae contactos distintos de una misma
+      // empresa ya prospectada (otro director, otro puesto) y se colaban.
+      if (evitarDuplicados && empresaNorm && empresasExistentes.has(empresaNorm)) {
+        omitidos.push({ leadId: lead.id, email: lead.email, empresa: lead.company, motivo: 'Empresa ya existe como Prospecto' });
+        continue;
+      }
       if (evitarDuplicados && emailNorm && emailsExistentes.has(emailNorm)) {
         omitidos.push({ leadId: lead.id, email: lead.email, motivo: 'Ya existe un prospecto con este email' });
         continue;
@@ -390,6 +462,7 @@ async function subirProspectos(leads, { origen = 'Manual', evitarDuplicados = tr
       };
       const page = await createPage('prospectos', props);
       if (emailNorm) emailsExistentes.add(emailNorm); // evita duplicados DENTRO del mismo lote también
+      if (empresaNorm) empresasExistentes.add(empresaNorm);
       created.push({ leadId: lead.id, notionPageId: page.id });
     } catch (err) {
       errors.push({ leadId: lead.id, error: err.message });
@@ -521,8 +594,13 @@ async function ejecutarProspeccionAutomatica() {
   const detallePorSector = [];
 
   for (const sectorId of sectoresElegidos) {
-    const { leads, error } = await buscarSectorEnApollo(sectorId, perSector);
-    if (error || !leads.length) { detallePorSector.push({ sector: sectorId, error: error || 'sin resultados' }); continue; }
+    const { leads: leadsBrutos, error } = await buscarSectorEnApollo(sectorId, perSector);
+    if (error || !leadsBrutos.length) { detallePorSector.push({ sector: sectorId, error: error || 'sin resultados' }); continue; }
+
+    // Misma regla dura que la búsqueda manual: nunca perseguir una empresa
+    // que ya es Prospecto (ver _filtrarEmpresasDuplicadas).
+    const { aceptados: leads } = await _filtrarEmpresasDuplicadas(leadsBrutos);
+    if (!leads.length) { detallePorSector.push({ sector: sectorId, encontrados: leadsBrutos.length, creados: 0, motivo: 'todas empresas ya prospectadas' }); continue; }
 
     const verificados = await verificarConClaude(leads);
     const elegibles = verificados.filter(l => l.verified !== false && (l.confidence || 0) >= 7);

@@ -300,6 +300,29 @@ describe('Prospección — Panel Semanal: sector, confianza y origen de carga', 
     expect(res.body.omitidos[0].motivo).toMatch(/ya existe/i);
   });
 
+  test('regla dura: misma EMPRESA con contacto y email DISTINTOS también se bloquea (antes solo se comparaba por email)', async () => {
+    await request(app).post('/api/prospeccion/notion/upload')
+      .set('Authorization', `Bearer ${natToken()}`)
+      .send({ leads: [{ id: 'h1', company: 'Asdeporte', name: 'Mariana Hijar', email: 'mhijar@asdeporte.com' }] });
+    const res = await request(app).post('/api/prospeccion/notion/upload')
+      .set('Authorization', `Bearer ${natToken()}`)
+      .send({ evitarDuplicados: true, leads: [{ id: 'h2', company: 'Asdeporte', name: 'Gonzalo Garces', email: 'ggarces@asdeporte.com' }] });
+    expect(res.body.created).toBe(0);
+    expect(res.body.omitidos).toHaveLength(1);
+    expect(res.body.omitidos[0].motivo).toMatch(/empresa ya existe/i);
+  });
+
+  test('la misma empresa con razón social/acentos distintos también se detecta (normalización)', async () => {
+    await request(app).post('/api/prospeccion/notion/upload')
+      .set('Authorization', `Bearer ${natToken()}`)
+      .send({ leads: [{ id: 'h3', company: 'Mondelēz International México', name: 'A', email: 'a@mondelez.com' }] });
+    const res = await request(app).post('/api/prospeccion/notion/upload')
+      .set('Authorization', `Bearer ${natToken()}`)
+      .send({ evitarDuplicados: true, leads: [{ id: 'h4', company: 'MONDELEZ INTERNATIONAL MEXICO, S.A. DE C.V.', name: 'B', email: 'b@mondelez.com' }] });
+    expect(res.body.created).toBe(0);
+    expect(res.body.omitidos[0].motivo).toMatch(/empresa ya existe/i);
+  });
+
   test('evitarDuplicados=false SÍ crea aunque el email ya exista', async () => {
     await request(app).post('/api/prospeccion/notion/upload')
       .set('Authorization', `Bearer ${natToken()}`)
@@ -365,20 +388,22 @@ describe('Prospección — cron semanal automático (ejecutarProspeccionAutomati
   test('rota 4 sectores, sube solo confianza ≥7, y deja auditoría del run', async () => {
     const { ejecutarProspeccionAutomatica } = require('../../api/prospeccion');
 
-    // Un lead DISTINTO (email distinto) por cada llamada — si no, el dedupe
-    // real (correcto) descartaría los repetidos entre sectores y el total no
-    // reflejaría "un lead nuevo por sector", que es lo que este test mide.
+    // Un lead DISTINTO (empresa Y email distintos) por cada llamada — si no,
+    // el dedupe real por EMPRESA (regla dura: nunca prospectar dos veces la
+    // misma empresa, aunque el contacto/email cambie) descartaría los
+    // repetidos entre sectores y el total no reflejaría "un lead nuevo por
+    // sector", que es lo que este test mide.
     let n = 0;
     fetch.mockImplementation((url) => {
       if (url.includes('mixed_people/api_search')) {
         n++;
         return Promise.resolve(jsonResp(200, { people: [
-          { id: `lead-${n}`, first_name: 'Ana', last_name_obfuscated: 'X.', title: 'Directora', organization: { name: 'Acme' }, has_email: true },
+          { id: `lead-${n}`, first_name: 'Ana', last_name_obfuscated: 'X.', title: 'Directora', organization: { name: `Acme ${n}` }, has_email: true },
         ] }));
       }
       if (url.includes('bulk_match')) {
         return Promise.resolve(jsonResp(200, { matches: [
-          { id: `lead-${n}`, last_name: 'Ximénez', email: `ana${n}@acme.com`, email_status: 'verified', organization: { name: 'Acme' } },
+          { id: `lead-${n}`, last_name: 'Ximénez', email: `ana${n}@acme.com`, email_status: 'verified', organization: { name: `Acme ${n}` } },
         ] }));
       }
       if (url.includes('anthropic.com')) {
