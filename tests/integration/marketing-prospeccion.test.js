@@ -339,6 +339,25 @@ describe('Prospección — Panel Semanal: sector, confianza y origen de carga', 
     expect(res.body.created).toBe(1);
   });
 
+  test('un lead sin email nunca se sube — obligatorio para todo prospecto de Apollo', async () => {
+    const res = await request(app).post('/api/prospeccion/notion/upload')
+      .set('Authorization', `Bearer ${natToken()}`)
+      .send({ leads: [{ id: 'i3', company: 'Sin Correo SA', name: 'Z', email: '' }] });
+    expect(res.body.created).toBe(0);
+    expect(res.body.omitidos).toHaveLength(1);
+    expect(res.body.omitidos[0].motivo).toMatch(/sin email/i);
+  });
+
+  test('todo prospecto de Apollo guarda Ejecutivo = Natalia Gama siempre', async () => {
+    const res = await request(app).post('/api/prospeccion/notion/upload')
+      .set('Authorization', `Bearer ${natToken()}`)
+      .send({ leads: [{ id: 'i4', company: 'Cualquier Empresa SA', name: 'W', email: 'w@cualquierempresa.com' }] });
+    expect(res.body.created).toBe(1);
+    const store = mockNotion.getStore();
+    const pagina = store.prospectos.find(p => p.properties['Email']?.email === 'w@cualquierempresa.com');
+    expect(pagina.properties['Ejecutivo']?.select?.name).toBe('Natalia Gama');
+  });
+
   test('evitarDuplicados=false SÍ crea aunque el email ya exista', async () => {
     await request(app).post('/api/prospeccion/notion/upload')
       .set('Authorization', `Bearer ${natToken()}`)

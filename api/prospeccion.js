@@ -12,7 +12,7 @@ const {
   prop_title, prop_text, prop_phone, prop_email, prop_select, prop_number, prop_checkbox,
   read_title, read_text, read_email, read_select,
 } = require('./notion');
-const { aplicarReglasComision, obtenerRosterEjecutivos } = require('./_roles');
+const { aplicarReglasComision, obtenerRosterEjecutivos, NATALIA } = require('./_roles');
 const { logAudit } = require('./_audit');
 
 // Industrias EXACTAS del catálogo real de Apollo (mismo texto que su propio
@@ -456,6 +456,13 @@ async function subirProspectos(leads, { origen = 'Manual', evitarDuplicados = tr
       const emailNorm = (lead.email || '').toLowerCase();
       const empresaNorm = _normEmpresa(lead.company);
 
+      // El EMAIL es obligatorio SIEMPRE para un Prospecto que viene de Apollo
+      // — sin excepción, aunque el resto del payload esté bien formado.
+      if (!lead.email) {
+        omitidos.push({ leadId: lead.id, email: lead.email, motivo: 'Sin email — obligatorio para todo prospecto de Apollo' });
+        continue;
+      }
+
       // Legitimidad del correo: SIEMPRE se exige. buscarSectorEnApollo ya
       // descarta cualquier contacto sin email_status="verified" antes de que
       // llegue a ser un "lead" — este es el segundo candado, aquí en la
@@ -490,6 +497,11 @@ async function subirProspectos(leads, { origen = 'Manual', evitarDuplicados = tr
         email:    lead.email || '',
         fuente:   'Apollo',
         status:   'Nuevo',
+        // Todo prospecto de Apollo es SIEMPRE de Natalia — regla dura, sin
+        // excepción (antes el campo 'Ejecutivo' se quedaba vacío porque
+        // aplicarReglasComision solo fuerza Propietario/EjecutivoCuenta, no
+        // este campo legado, que sigue siendo el que usan varias vistas).
+        ejec:     NATALIA,
         notas:    [{ texto: _notaOrigen(lead), fecha: new Date().toISOString() }],
       };
       const r = aplicarReglasComision(data, { esApollo: true, ejecutivosRoster });
@@ -507,6 +519,7 @@ async function subirProspectos(leads, { origen = 'Manual', evitarDuplicados = tr
         'Fuente':       prop_select(data.fuente),
         'Status':       prop_select(data.status),
         'Notas':        prop_text(JSON.stringify(data.notas).substring(0, 1990)),
+        'Ejecutivo':    prop_select(data.ejec),
         'Propietario':  prop_select(data.propietario),
         'EjecutivoCuenta':   prop_select(data.ejecCuenta),
         'EjecutivoAsignado': prop_select(data.ejecAsignado),
