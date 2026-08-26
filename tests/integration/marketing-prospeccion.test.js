@@ -323,6 +323,22 @@ describe('Prospección — Panel Semanal: sector, confianza y origen de carga', 
     expect(res.body.omitidos[0].motivo).toMatch(/empresa ya existe/i);
   });
 
+  test('regla dura: un email con emailStatus distinto de "verified" nunca se sube — legitimidad garantizada incluso saltándose /buscar', async () => {
+    const res = await request(app).post('/api/prospeccion/notion/upload')
+      .set('Authorization', `Bearer ${natToken()}`)
+      .send({ leads: [{ id: 'i1', company: 'Sospechosa SA', name: 'X', email: 'x@sospechosa.com', emailStatus: 'likely to engage' }] });
+    expect(res.body.created).toBe(0);
+    expect(res.body.omitidos).toHaveLength(1);
+    expect(res.body.omitidos[0].motivo).toMatch(/no verificado/i);
+  });
+
+  test('un lead con emailStatus="verified" (el flujo real de Apollo) se sube normal', async () => {
+    const res = await request(app).post('/api/prospeccion/notion/upload')
+      .set('Authorization', `Bearer ${natToken()}`)
+      .send({ leads: [{ id: 'i2', company: 'Legitima SA', name: 'Y', email: 'y@legitima.com', emailStatus: 'verified' }] });
+    expect(res.body.created).toBe(1);
+  });
+
   test('evitarDuplicados=false SÍ crea aunque el email ya exista', async () => {
     await request(app).post('/api/prospeccion/notion/upload')
       .set('Authorization', `Bearer ${natToken()}`)

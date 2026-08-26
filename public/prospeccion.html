@@ -283,8 +283,8 @@
       </div>
       <div class="tbl-wrap" style="border:none;border-radius:0;box-shadow:none;overflow-x:auto">
         <table class="tbl" style="min-width:900px">
-          <thead><tr><th>FECHA</th><th>NOMBRE</th><th>EMPRESA</th><th>SECTOR</th><th>CONFIANZA</th><th>TIPO DE PROSPECCIÓN</th><th>STATUS</th><th>CORREO</th><th></th></tr></thead>
-          <tbody id="gen-tbody"><tr><td colspan="9" style="text-align:center;color:var(--gray400);padding:20px">Cargando...</td></tr></tbody>
+          <thead><tr><th>FECHA</th><th>NOMBRE</th><th>EMPRESA</th><th>EMAIL</th><th>SECTOR</th><th>CONFIANZA</th><th>TIPO DE PROSPECCIÓN</th><th>STATUS</th><th>CORREO</th><th></th></tr></thead>
+          <tbody id="gen-tbody"><tr><td colspan="10" style="text-align:center;color:var(--gray400);padding:20px">Cargando...</td></tr></tbody>
         </table>
       </div>
     </div>
@@ -743,7 +743,7 @@ let _generados=[];
 
 async function renderGenerados(){
   const tb=document.getElementById('gen-tbody');
-  tb.innerHTML=`<tr><td colspan="9" style="text-align:center;color:var(--gray400);padding:20px">Cargando...</td></tr>`;
+  tb.innerHTML=`<tr><td colspan="10" style="text-align:center;color:var(--gray400);padding:20px">Cargando...</td></tr>`;
   try{
     const todos=await fetch('/api/prospectos').then(r=>r.json());
     // Solo los generados por esta herramienta — un prospecto capturado a mano
@@ -776,6 +776,7 @@ async function renderGenerados(){
         <td class="m" style="font-size:11px;color:var(--gray600)">${esc(fecha)}</td>
         <td style="font-weight:600;max-width:180px"><div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(p.contacto)}">${esc(p.contacto)||'—'}</div><div style="font-size:10px;color:var(--gray400);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:2px" title="${esc(p.cargo)}">${esc(p.cargo)||''}</div></td>
         <td style="max-width:180px"><div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(p.empresa)}">${esc(p.empresa)||'—'}</div></td>
+        <td class="m" style="color:var(--blue);max-width:180px"><div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(p.email)}">${esc(p.email)||'—'}</div></td>
         <td>${p.sector?`<span class="tag tag-blue">${esc(p.sector)}</span>`:'—'}</td>
         <td><span class="tag ${confTag}">${conf==null?'—':conf+'/10'}</span></td>
         <td><span class="tag ${p.origenCarga==='Automático'?'tag-green':'tag-amber'}">${esc(p.origenCarga)||'—'}</span></td>
@@ -783,9 +784,9 @@ async function renderGenerados(){
         <td>${p.correoGenerado?'<span class="tag tag-green">✓ generado</span>':'<span class="tag tag-gray">pendiente</span>'}</td>
         <td><button class="btn btn-ghost btn-xs" onclick="generarCorreoDesdeHistorial('${p.id}')">✦ Correo</button></td>
       </tr>`;
-    }).join('') : `<tr><td colspan="9" style="text-align:center;color:var(--gray400);padding:20px">Sin prospectos que coincidan con el filtro</td></tr>`;
+    }).join('') : `<tr><td colspan="10" style="text-align:center;color:var(--gray400);padding:20px">Sin prospectos que coincidan con el filtro</td></tr>`;
   }catch(err){
-    tb.innerHTML=`<tr><td colspan="9" style="text-align:center;color:var(--red);padding:20px">Error cargando el historial: ${esc(err.message)}</td></tr>`;
+    tb.innerHTML=`<tr><td colspan="10" style="text-align:center;color:var(--red);padding:20px">Error cargando el historial: ${esc(err.message)}</td></tr>`;
   }
 }
 

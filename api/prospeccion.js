@@ -455,6 +455,21 @@ async function subirProspectos(leads, { origen = 'Manual', evitarDuplicados = tr
     try {
       const emailNorm = (lead.email || '').toLowerCase();
       const empresaNorm = _normEmpresa(lead.company);
+
+      // Legitimidad del correo: SIEMPRE se exige. buscarSectorEnApollo ya
+      // descarta cualquier contacto sin email_status="verified" antes de que
+      // llegue a ser un "lead" — este es el segundo candado, aquí en la
+      // subida, para que ni una llamada directa a esta función/endpoint
+      // (saltándose /buscar) pueda colar un correo sin ese respaldo. Un lead
+      // legítimo del flujo real siempre trae emailStatus='verified'; si el
+      // campo viene ausente (alta manual desde el CRM, no por Apollo) no se
+      // bloquea — solo se rechaza cuando SÍ hay un emailStatus y no es
+      // 'verified' (p. ej. 'likely to engage', 'unverified').
+      if (lead.emailStatus && lead.emailStatus !== 'verified') {
+        omitidos.push({ leadId: lead.id, email: lead.email, motivo: 'Email no verificado por Apollo — no se puede garantizar que sea legítimo' });
+        continue;
+      }
+
       // Regla dura: la EMPRESA es lo que nunca se duplica — el email solo era
       // insuficiente porque Apollo trae contactos distintos de una misma
       // empresa ya prospectada (otro director, otro puesto) y se colaban.
