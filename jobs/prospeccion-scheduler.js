@@ -8,7 +8,7 @@ cron.schedule('0 8 * * 0', async () => {
   console.log('📡 Ejecutando prospección automática semanal...');
   try {
     const r = await ejecutarProspeccionAutomatica();
-    console.log(`✅ Prospección semanal: ${r.totalCreados} prospectos creados · sectores: ${r.sectoresElegidos.join(', ')}`);
+    console.log(`✅ Prospección semanal: ${r.totalGuardados} prospectos guardados (${r.totalVerificados} verificados, ${r.totalNoVerificados} no verificados) · sectores: ${r.sectoresElegidos.join(', ')}`);
   } catch (err) {
     console.error('❌ Error en la prospección automática semanal:', err.message);
   }

@@ -95,93 +95,24 @@
       <div class="panel-body">
         <div id="sgrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:var(--gap-sm)"></div>
         <div style="display:flex;gap:var(--gap-lg);align-items:flex-end;margin-top:var(--gap-lg);flex-wrap:wrap">
-          <div class="fg" style="margin:0;width:180px">
-            <label class="fl">CONTACTOS POR SECTOR</label>
-            <input class="fi" id="bp-percount" type="number" min="1" max="20" value="5">
+          <div class="fg" style="margin:0;width:220px">
+            <label class="fl">CANTIDAD TOTAL DE PROSPECTOS <span style="color:var(--gray400)">(1-100, repartido entre los sectores)</span></label>
+            <input class="fi" id="bp-total" type="number" min="1" max="100" value="20">
           </div>
-          <button class="btn btn-ghost" onclick="_toggleFiltrosAvanzados()">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 6h16M7 12h10M10 18h4"/></svg>
-            <span id="fa-toggle-label">Filtros avanzados</span>
-          </button>
           <button class="btn btn-primary" id="btn-p" onclick="runProspect()">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-            Buscar y verificar
+            Buscar y guardar
             <span id="spp" class="spinner-ring" style="display:none;width:13px;height:13px;border-width:2px;position:static;margin-left:2px"></span>
           </button>
-        </div>
-
-        <div id="filtros-avanzados" style="display:none;margin-top:16px;padding-top:16px;border-top:1px solid var(--border)">
-          <div class="fgrid">
-            <div class="fg">
-              <label class="fl">TÍTULOS DE PUESTO <span style="color:var(--gray400)">(separados por coma — vacío = default)</span></label>
-              <input class="fi" id="fa-titles" placeholder="Director de Eventos, Gerente de Marketing...">
-            </div>
-            <div class="fg">
-              <label class="fl">PALABRAS CLAVE <span style="color:var(--gray400)">(vacío = el keyword del sector)</span></label>
-              <input class="fi" id="fa-keywords" placeholder="ej. hospitality, real estate...">
-            </div>
-          </div>
-          <div class="fgrid">
-            <div class="fg">
-              <label class="fl">UBICACIÓN DE LA PERSONA <span style="color:var(--gray400)">(coma — default: Mexico)</span></label>
-              <input class="fi" id="fa-personloc" placeholder="Mexico, CDMX, Guadalajara...">
-            </div>
-            <div class="fg">
-              <label class="fl">UBICACIÓN DE LA EMPRESA <span style="color:var(--gray400)">(coma — opcional)</span></label>
-              <input class="fi" id="fa-orgloc" placeholder="Mexico, Jalisco...">
-            </div>
-          </div>
-          <div class="fg">
-            <label class="fl">DOMINIO DE EMPRESA <span style="color:var(--gray400)">(coma — ej. si ya sabes a qué empresas apuntar)</span></label>
-            <input class="fi" id="fa-domains" placeholder="microsoft.com, hsbc.com.mx...">
-          </div>
-
-          <div class="fg">
-            <label class="fl">ANTIGÜEDAD (SENIORITY)</label>
-            <div style="display:flex;gap:var(--gap-sm);flex-wrap:wrap;margin-top:var(--gap-xs)">
-              <label class="tag tag-gray" style="cursor:pointer"><input type="checkbox" class="fa-seniority" value="owner" style="margin-right:4px">Owner</label>
-              <label class="tag tag-gray" style="cursor:pointer"><input type="checkbox" class="fa-seniority" value="founder" style="margin-right:4px">Founder</label>
-              <label class="tag tag-gray" style="cursor:pointer"><input type="checkbox" class="fa-seniority" value="c_suite" style="margin-right:4px">C-Suite</label>
-              <label class="tag tag-gray" style="cursor:pointer"><input type="checkbox" class="fa-seniority" value="partner" style="margin-right:4px">Partner</label>
-              <label class="tag tag-gray" style="cursor:pointer"><input type="checkbox" class="fa-seniority" value="vp" style="margin-right:4px">VP</label>
-              <label class="tag tag-gray" style="cursor:pointer"><input type="checkbox" class="fa-seniority" value="head" style="margin-right:4px">Head</label>
-              <label class="tag tag-gray" style="cursor:pointer"><input type="checkbox" class="fa-seniority" value="director" style="margin-right:4px">Director</label>
-              <label class="tag tag-gray" style="cursor:pointer"><input type="checkbox" class="fa-seniority" value="manager" style="margin-right:4px">Manager</label>
-              <label class="tag tag-gray" style="cursor:pointer"><input type="checkbox" class="fa-seniority" value="senior" style="margin-right:4px">Senior</label>
-              <label class="tag tag-gray" style="cursor:pointer"><input type="checkbox" class="fa-seniority" value="entry" style="margin-right:4px">Entry</label>
-            </div>
-          </div>
-
-          <div class="fg">
-            <label class="fl">TAMAÑO DE LA EMPRESA (EMPLEADOS)</label>
-            <div style="display:flex;gap:var(--gap-sm);flex-wrap:wrap;margin-top:var(--gap-xs)">
-              <label class="tag tag-gray" style="cursor:pointer"><input type="checkbox" class="fa-empsize" value="1,10" style="margin-right:4px">1-10</label>
-              <label class="tag tag-gray" style="cursor:pointer"><input type="checkbox" class="fa-empsize" value="11,50" style="margin-right:4px">11-50</label>
-              <label class="tag tag-gray" style="cursor:pointer"><input type="checkbox" class="fa-empsize" value="51,200" style="margin-right:4px">51-200</label>
-              <label class="tag tag-gray" style="cursor:pointer"><input type="checkbox" class="fa-empsize" value="201,500" style="margin-right:4px">201-500</label>
-              <label class="tag tag-gray" style="cursor:pointer"><input type="checkbox" class="fa-empsize" value="501,1000" style="margin-right:4px">501-1000</label>
-              <label class="tag tag-gray" style="cursor:pointer"><input type="checkbox" class="fa-empsize" value="1001,5000" style="margin-right:4px">1001-5000</label>
-              <label class="tag tag-gray" style="cursor:pointer"><input type="checkbox" class="fa-empsize" value="5001,10000" style="margin-right:4px">5001-10000</label>
-              <label class="tag tag-gray" style="cursor:pointer"><input type="checkbox" class="fa-empsize" value="10001," style="margin-right:4px">10001+</label>
-            </div>
-          </div>
-
-          <div class="fg" style="margin-bottom:0">
-            <label class="fl">ESTADO DEL EMAIL</label>
-            <div style="display:flex;gap:var(--gap-sm);flex-wrap:wrap;margin-top:var(--gap-xs)">
-              <label class="tag tag-gray" style="cursor:pointer"><input type="checkbox" class="fa-emailstatus" value="verified" style="margin-right:4px">Verificado</label>
-              <label class="tag tag-gray" style="cursor:pointer"><input type="checkbox" class="fa-emailstatus" value="likely to engage" style="margin-right:4px">Probable</label>
-              <label class="tag tag-gray" style="cursor:pointer"><input type="checkbox" class="fa-emailstatus" value="unverified" style="margin-right:4px">Sin verificar</label>
-            </div>
-          </div>
         </div>
       </div>
     </div>
 
-    <div class="kpis" style="grid-template-columns:repeat(3,1fr);margin-top:16px">
-      <div class="kpi"><div class="kpi-top"><div class="kpi-label">CONTACTOS ENCONTRADOS</div></div><div class="kpi-value" id="kpi-total">0</div></div>
-      <div class="kpi"><div class="kpi-top"><div class="kpi-label">AUTO (≥7) YA EN NOTION</div></div><div class="kpi-value kv-green" id="kpi-auto">0</div></div>
-      <div class="kpi"><div class="kpi-top"><div class="kpi-label">PENDIENTES DE REVISIÓN</div></div><div class="kpi-value kv-amber" id="kpi-manual">0</div></div>
+    <div class="kpis" style="grid-template-columns:repeat(4,1fr);margin-top:16px">
+      <div class="kpi"><div class="kpi-top"><div class="kpi-label">ENCONTRADOS</div></div><div class="kpi-value" id="kpi-total">0</div></div>
+      <div class="kpi"><div class="kpi-top"><div class="kpi-label">GUARDADOS EN NOTION</div></div><div class="kpi-value" id="kpi-guardados">0</div></div>
+      <div class="kpi"><div class="kpi-top"><div class="kpi-label">VERIFICADOS</div></div><div class="kpi-value kv-green" id="kpi-verificados">0</div></div>
+      <div class="kpi"><div class="kpi-top"><div class="kpi-label">NO VERIFICADOS</div></div><div class="kpi-value kv-amber" id="kpi-noverificados">0</div></div>
     </div>
 
     <div class="panel" style="margin-top:16px">
@@ -189,31 +120,19 @@
       <div class="panel-body" id="plog" style="font-family:'JetBrains Mono',monospace;font-size:11px;max-height:160px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;color:var(--gray600)"></div>
     </div>
 
-    <div class="panel" id="autocard" style="display:none;margin-top:16px">
+    <!-- Arquitectura confirmada: TODOS los contactos de Apollo con email se
+         guardan de inmediato en Notion (ver api/prospeccion.js). Esta tabla
+         solo muestra el resultado de la última corrida — Claude ya corrió
+         su verificación y cada fila refleja el estatus final guardado. -->
+    <div class="panel" id="resultcard" style="display:none;margin-top:16px">
       <div class="panel-hdr">
-        <div class="panel-title"><span class="dot"></span>ALTA CONFIANZA (≥7) — CARGADOS AUTOMÁTICO</div>
-        <span class="tag tag-green" id="autochip">0 contactos</span>
+        <div class="panel-title"><span class="dot"></span>RESULTADO DE LA BÚSQUEDA — YA GUARDADOS EN NOTION</div>
+        <span class="tag tag-gray" id="resultchip">0 contactos</span>
       </div>
       <div class="tbl-wrap" style="border:none;border-radius:0;box-shadow:none">
         <table class="tbl">
-          <thead><tr><th>NOMBRE</th><th>PUESTO</th><th>EMPRESA</th><th>SECTOR</th><th>EMAIL</th><th>CONFIANZA</th></tr></thead>
-          <tbody id="autobody"></tbody>
-        </table>
-      </div>
-    </div>
-
-    <div class="panel" id="manualcard" style="display:none;margin-top:16px">
-      <div class="panel-hdr">
-        <div class="panel-title"><span class="dot"></span>REVISIÓN MANUAL (&lt;7) — DECIDE NATALIA</div>
-        <div style="display:flex;gap:8px;align-items:center">
-          <span class="tag tag-amber" id="manualchip">0 contactos</span>
-          <button class="btn btn-primary btn-sm" onclick="cargarSeleccionados()">+ Cargar seleccionados</button>
-        </div>
-      </div>
-      <div class="tbl-wrap" style="border:none;border-radius:0;box-shadow:none">
-        <table class="tbl">
-          <thead><tr><th style="width:1%"><input type="checkbox" id="chk-all-manual" onchange="_toggleAllManual(this.checked)"></th><th>NOMBRE</th><th>PUESTO</th><th>EMPRESA</th><th>SECTOR</th><th>EMAIL</th><th>CONFIANZA</th></tr></thead>
-          <tbody id="manualbody"></tbody>
+          <thead><tr><th>NOMBRE</th><th>PUESTO</th><th>EMPRESA</th><th>SECTOR</th><th>EMAIL</th><th>CONFIANZA</th><th>VERIFICACIÓN</th></tr></thead>
+          <tbody id="resultbody"></tbody>
         </table>
       </div>
     </div>
@@ -274,6 +193,12 @@
         <option value="si">Con correo generado</option>
         <option value="no">Sin correo generado</option>
       </select>
+      <select class="fsel" id="gen-filtro-verificacion" onchange="renderGenerados()">
+        <option value="">VERIFICACIÓN: TODAS</option>
+        <option value="Verificado">Verificado</option>
+        <option value="No verificado">No verificado</option>
+        <option value="Pendiente">Pendiente</option>
+      </select>
       <button class="btn btn-ghost btn-sm" onclick="renderGenerados()">↻ Actualizar</button>
     </div>
     <div class="panel">
@@ -283,8 +208,8 @@
       </div>
       <div class="tbl-wrap" style="border:none;border-radius:0;box-shadow:none;overflow-x:auto">
         <table class="tbl" style="min-width:900px">
-          <thead><tr><th>FECHA</th><th>NOMBRE</th><th>EMPRESA</th><th>EMAIL</th><th>SECTOR</th><th>CONFIANZA</th><th>TIPO DE PROSPECCIÓN</th><th>STATUS</th><th>CORREO</th><th></th></tr></thead>
-          <tbody id="gen-tbody"><tr><td colspan="10" style="text-align:center;color:var(--gray400);padding:20px">Cargando...</td></tr></tbody>
+          <thead><tr><th>FECHA</th><th>NOMBRE</th><th>EMPRESA</th><th>EMAIL</th><th>SECTOR</th><th>CONFIANZA</th><th>VERIFICACIÓN</th><th>TIPO DE PROSPECCIÓN</th><th>STATUS</th><th>CORREO</th><th></th></tr></thead>
+          <tbody id="gen-tbody"><tr><td colspan="11" style="text-align:center;color:var(--gray400);padding:20px">Cargando...</td></tr></tbody>
         </table>
       </div>
     </div>
@@ -296,10 +221,6 @@
     <div class="panel">
       <div class="panel-hdr"><div class="panel-title"><span class="dot"></span>COMPORTAMIENTO</div></div>
       <div class="panel-body" style="display:flex;flex-direction:column">
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:var(--gap-lg);padding:var(--gap-md) 0;border-bottom:1px solid var(--border)">
-          <div><div style="font-weight:600;font-size:13px;margin-bottom:var(--gap-xs)">Evitar duplicados</div><div style="font-size:11px;color:var(--gray400);line-height:1.5">Antes de subir un contacto a Notion, revisa si ya existe un Prospecto con ese email — si sí, lo omite.</div></div>
-          <label style="cursor:pointer;flex-shrink:0"><input type="checkbox" style="width:18px;height:18px;accent-color:var(--red);cursor:pointer" id="ajuste-dedupe" onchange="_guardarAjustes()"></label>
-        </div>
         <div style="display:flex;align-items:center;justify-content:space-between;gap:var(--gap-lg);padding:var(--gap-md) 0;border-bottom:1px solid var(--border)">
           <div><div style="font-weight:600;font-size:13px;margin-bottom:var(--gap-xs)">Personalización por sector con Claude</div><div style="font-size:11px;color:var(--gray400);line-height:1.5">Si está apagado, "Generar correo" usa el template estático de la pestaña Templates en vez de Claude.</div></div>
           <label style="cursor:pointer;flex-shrink:0"><input type="checkbox" style="width:18px;height:18px;accent-color:var(--red);cursor:pointer" id="ajuste-claude" onchange="_guardarAjustes()"></label>
@@ -404,33 +325,6 @@ renderSGrid();
 function _toggleAllSectors(val){ document.querySelectorAll('.sc-check').forEach(c=>c.checked=val); }
 function _selectedSectors(){ return Array.from(document.querySelectorAll('.sc-check:checked')).map(c=>c.value); }
 
-// ══════════════════ FILTROS AVANZADOS — espejo de los filtros "fáciles" que
-// Apollo permite en su propia interfaz (títulos, seniority, ubicación de
-// persona/empresa, tamaño de empresa, estado de email, keywords, dominio).
-// "Departamento" se probó contra la API real y Apollo lo ignora en silencio
-// con cualquier valor — no se ofrece un filtro que aparenta funcionar y no
-// filtra nada. Vacío en cualquier campo = usa el comportamiento de siempre.
-function _toggleFiltrosAvanzados(){
-  const el=document.getElementById('filtros-avanzados');
-  const abierto=el.style.display!=='none';
-  el.style.display=abierto?'none':'block';
-  document.getElementById('fa-toggle-label').textContent=abierto?'Filtros avanzados':'Ocultar filtros avanzados';
-}
-function _csv(id){ return document.getElementById(id).value.split(',').map(s=>s.trim()).filter(Boolean); }
-function _checkedVals(cls){ return Array.from(document.querySelectorAll('.'+cls+':checked')).map(c=>c.value); }
-function _leerFiltrosAvanzados(){
-  return {
-    titles: _csv('fa-titles'),
-    keywords: document.getElementById('fa-keywords').value.trim(),
-    personLocations: _csv('fa-personloc'),
-    organizationLocations: _csv('fa-orgloc'),
-    organizationDomains: _csv('fa-domains'),
-    seniorities: _checkedVals('fa-seniority'),
-    employeeRanges: _checkedVals('fa-empsize'),
-    emailStatus: _checkedVals('fa-emailstatus'),
-  };
-}
-
 function alog(id,type,msg){
   const log=document.getElementById(id);
   const ts=new Date().toLocaleTimeString('es-MX',{hour12:false,hour:'2-digit',minute:'2-digit',second:'2-digit'});
@@ -443,14 +337,13 @@ function alog(id,type,msg){
 
 // ══════════════════ AJUSTES (persistidos en localStorage — página de un solo
 // usuario, Natalia; cada acción abajo LEE estos valores en el momento) ══════
-const AJUSTES_DEFAULT={dedupe:true, claude:true, marcar:true, ratelimit:true};
+const AJUSTES_DEFAULT={claude:true, marcar:true, ratelimit:true};
 function _leerAjustes(){
   try{ return {...AJUSTES_DEFAULT, ...JSON.parse(localStorage.getItem('prospeccion_ajustes')||'{}')}; }
   catch(_){ return {...AJUSTES_DEFAULT}; }
 }
 function _guardarAjustes(){
   const a={
-    dedupe:document.getElementById('ajuste-dedupe').checked,
     claude:document.getElementById('ajuste-claude').checked,
     marcar:document.getElementById('ajuste-marcar').checked,
     ratelimit:document.getElementById('ajuste-ratelimit').checked,
@@ -460,159 +353,88 @@ function _guardarAjustes(){
 }
 (function _initAjustesUI(){
   const a=_leerAjustes();
-  document.getElementById('ajuste-dedupe').checked=a.dedupe;
   document.getElementById('ajuste-claude').checked=a.claude;
   document.getElementById('ajuste-marcar').checked=a.marcar;
   document.getElementById('ajuste-ratelimit').checked=a.ratelimit;
 })();
 
-// ══════════════════ BUSCAR — flujo real: Apollo → Claude verifica → split
-// automático (≥7, sube solo) / manual (<7, decide Natalia) ══════════════════
-let _autoLeads=[];   // confianza ≥7 — ya subidos a Notion en cuanto se verifican
-let _manualLeads=[]; // confianza <7 — esperan revisión
-
+// ══════════════════ BUSCAR — arquitectura confirmada: Apollo → se guarda TODO
+// de inmediato en Notion → Claude verifica DESPUÉS y marca cada registro ═════
 async function runProspect(){
   const sectors=_selectedSectors();
   if(!sectors.length){ toast('Selecciona al menos un sector','red'); return; }
-  const perSector=parseInt(document.getElementById('bp-percount').value)||5;
+  const total=parseInt(document.getElementById('bp-total').value)||20;
 
   const btn=document.getElementById('btn-p'); const sp=document.getElementById('spp');
   btn.disabled=true; sp.style.display='inline-block';
   const plog=document.getElementById('plog'); plog.innerHTML='';
-  document.getElementById('autocard').style.display='none';
-  document.getElementById('manualcard').style.display='none';
+  document.getElementById('resultcard').style.display='none';
 
-  alog('plog','li','Buscando contactos en Apollo...');
-  alog('plog','la',`Sectores: ${sectors.map(s=>SNAME[s]).join(' · ')} · ${perSector} contactos c/u`);
+  alog('plog','li','Buscando en Apollo y guardando en Notion...');
+  alog('plog','la',`Sectores: ${sectors.map(s=>SNAME[s]).join(' · ')} · ${total} prospectos en total`);
 
-  let leads=[];
+  let data;
   try{
-    const filtros=_leerFiltrosAvanzados();
-    const resp=await fetch('/api/prospeccion/buscar',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sectors,perSector,filtros})});
-    const data=await resp.json();
+    const resp=await fetch('/api/prospeccion/buscar',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sectors,total})});
+    data=await resp.json();
     if(!resp.ok) throw new Error(data.error||resp.statusText);
-    leads=data.leads||[];
-    (data.errors||[]).forEach(e=>alog('plog','lw',`⚠ ${SNAME[e.sector]||e.sector}: ${e.error}`));
-    alog('plog','ls',`Apollo devolvió ${leads.length} contactos con email ✓`);
   }catch(err){
-    alog('plog','lw','⚠ Error buscando en Apollo: '+err.message);
+    alog('plog','lw','⚠ Error: '+err.message);
     btn.disabled=false; sp.style.display='none';
     return;
   }
 
-  if(!leads.length){
+  (data.errors||[]).forEach(e=>alog('plog','lw',`⚠ ${SNAME[e.sector]||e.sector||''}: ${e.error}`));
+
+  if(!data.totalEncontrados){
     alog('plog','lw','⚠ Apollo no devolvió contactos para estos sectores.');
     btn.disabled=false; sp.style.display='none';
     return;
   }
 
-  alog('plog','li','Verificando y enriqueciendo con Claude...');
-  let verified=[];
-  try{
-    const resp=await fetch('/api/prospeccion/verificar',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({leads})});
-    const data=await resp.json();
-    if(!resp.ok) throw new Error(data.error||resp.statusText);
-    if(data.warning) alog('plog','lw','⚠ '+data.warning);
-    verified=data.leads||[];
-  }catch(err){
-    alog('plog','lw','⚠ Error verificando con Claude: '+err.message);
-    btn.disabled=false; sp.style.display='none';
-    return;
-  }
+  if(data.descartadosPorDuplicado) alog('plog','lw',`⚠ ${data.descartadosPorDuplicado} descartado(s) — empresa ya prospectada antes`);
+  alog('plog','ls',`${data.guardados} prospecto(s) guardados en Notion de inmediato`);
+  alog('plog','ls',`Claude verificó después de guardar: ${data.verificados} verificado(s) · ${data.noVerificados} no verificado(s)`);
 
-  if(!verified.length){ alog('plog','lw','⚠ No se encontraron leads.'); btn.disabled=false; sp.style.display='none'; return; }
-
-  // Regla de negocio: solo un contacto con email confirmado por Apollo
-  // ("verified", ya filtrado en el backend en /buscar) Y coherente para
-  // Claude (verified:true en /verificar) puede llegar a ser Prospecto — los
-  // que Claude marca como no coherentes se descartan aquí, ni siquiera pasan
-  // a revisión manual. El conteo por sector y el KPI reflejan solo los
-  // elegibles — un descartado no cuenta como "encontrado".
-  const noVerificados=verified.filter(l=>l.verified===false);
-  const elegibles=verified.filter(l=>l.verified!==false);
-  if(noVerificados.length) alog('plog','lw',`⚠ ${noVerificados.length} descartados — Claude no pudo confirmar que los datos sean coherentes`);
-
-  document.getElementById('kpi-total').textContent=elegibles.length;
+  document.getElementById('kpi-total').textContent=data.totalEncontrados;
+  document.getElementById('kpi-guardados').textContent=data.guardados;
+  document.getElementById('kpi-verificados').textContent=data.verificados;
+  document.getElementById('kpi-noverificados').textContent=data.noVerificados;
   sectors.forEach(s=>{
-    const n=elegibles.filter(l=>l.sector===s).length;
+    const n=(data.detalle||[]).filter(l=>l.sectorTitle===SNAME[s]).length;
     const el=document.getElementById('sc-status-'+s);
     if(el) el.textContent=n?`✓ ${n}`:'sin resultados';
   });
 
-  // Split: confianza ≥7 → sube SOLA a Notion. confianza <7 → espera revisión.
-  _autoLeads=elegibles.filter(l=>(l.confidence||0)>=7);
-  _manualLeads=elegibles.filter(l=>(l.confidence||0)<7);
-  alog('plog','ls',`Claude verificó ${verified.length} · ${_autoLeads.length} alta confianza (≥7) · ${_manualLeads.length} para revisión manual`);
-
-  if(_autoLeads.length){
-    alog('plog','li',`Subiendo ${_autoLeads.length} de alta confianza a Notion automáticamente...`);
-    const ajustes=_leerAjustes();
-    try{
-      const resp=await fetch('/api/prospeccion/notion/upload',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({leads:_autoLeads,origen:'Automático',evitarDuplicados:ajustes.dedupe})});
-      const data=await resp.json();
-      alog('plog','ls',`✅ ${data.created} creados en Notion automáticamente`);
-      if(data.omitidos?.length) alog('plog','lw',`⚠ ${data.omitidos.length} omitidos por duplicado`);
-    }catch(err){ alog('plog','lw','⚠ Error subiendo automáticos: '+err.message); }
-  }
-
-  renderAutoTable();
-  renderManualTable();
-  document.getElementById('kpi-auto').textContent=_autoLeads.length;
-  document.getElementById('kpi-manual').textContent=_manualLeads.length;
+  // Se acumulan (no se reemplazan) para que "Correos" pueda redactar el
+  // correo de cualquier prospecto guardado en esta sesión, aunque hayas
+  // corrido varias búsquedas seguidas.
+  _ultimosResultados=[..._ultimosResultados, ...(data.detalle||[])];
+  renderResultTable(data.detalle||[]);
 
   btn.disabled=false; sp.style.display='none';
 }
 
-function _rowHtml(p,extra=''){
-  const conf=p.confidence||0;
-  const confTag=conf>=8?'tag-green':conf>=6?'tag-amber':'tag-red';
-  return `<tr>
-    ${extra}
-    <td style="font-weight:600">${esc(p.name)}</td>
-    <td style="color:var(--gray600)">${esc(p.title)}</td>
-    <td>${esc(p.company)}</td>
-    <td><span class="tag tag-blue">${esc(p.sectorTitle||SNAME[p.sector]||p.sector||'')}</span></td>
-    <td class="m" style="color:var(--blue)">${esc(p.email)||'—'}</td>
-    <td><span class="tag ${confTag}">${conf}/10</span></td>
-  </tr>`;
-}
+let _ultimosResultados=[]; // acumulado de esta sesión — usado por la pestaña Correos
 
-function renderAutoTable(){
-  const card=document.getElementById('autocard');
-  if(!_autoLeads.length){ card.style.display='none'; return; }
+function renderResultTable(detalle){
+  const card=document.getElementById('resultcard');
+  if(!detalle.length){ card.style.display='none'; return; }
   card.style.display='block';
-  document.getElementById('autochip').textContent=`${_autoLeads.length} contactos`;
-  document.getElementById('autobody').innerHTML=_autoLeads.map(p=>_rowHtml(p)).join('');
-}
-
-function renderManualTable(){
-  const card=document.getElementById('manualcard');
-  if(!_manualLeads.length){ card.style.display='none'; return; }
-  card.style.display='block';
-  document.getElementById('manualchip').textContent=`${_manualLeads.length} contactos`;
-  document.getElementById('manualbody').innerHTML=_manualLeads.map((p,i)=>_rowHtml(p,`<td><input type="checkbox" class="manual-check" value="${i}"></td>`)).join('');
-}
-
-function _toggleAllManual(val){ document.querySelectorAll('.manual-check').forEach(c=>c.checked=val); }
-
-async function cargarSeleccionados(){
-  const idxs=Array.from(document.querySelectorAll('.manual-check:checked')).map(c=>parseInt(c.value));
-  if(!idxs.length){ toast('Selecciona al menos un contacto','red'); return; }
-  const seleccionados=idxs.map(i=>_manualLeads[i]);
-  const ajustes=_leerAjustes();
-  try{
-    const resp=await fetch('/api/prospeccion/notion/upload',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({leads:seleccionados,origen:'Manual',evitarDuplicados:ajustes.dedupe})});
-    const data=await resp.json();
-    toast(`✓ ${data.created} prospectos cargados a Notion`);
-    if(data.omitidos?.length) toast(`⚠ ${data.omitidos.length} omitidos por duplicado`,'red');
-    // Mover los cargados de _manualLeads a _autoLeads (ya están en Notion) y
-    // quitarlos de la tabla de revisión pendiente.
-    _autoLeads=[..._autoLeads,...seleccionados];
-    _manualLeads=_manualLeads.filter((_,i)=>!idxs.includes(i));
-    renderAutoTable(); renderManualTable();
-    document.getElementById('kpi-auto').textContent=_autoLeads.length;
-    document.getElementById('kpi-manual').textContent=_manualLeads.length;
-  }catch(err){ toast('Error al cargar: '+err.message,'red'); }
+  document.getElementById('resultchip').textContent=`${detalle.length} contactos`;
+  document.getElementById('resultbody').innerHTML=detalle.map(p=>{
+    const conf=p.confidence||0;
+    const confTag=conf>=8?'tag-green':conf>=6?'tag-amber':'tag-red';
+    return `<tr>
+      <td style="font-weight:600">${esc(p.name)}</td>
+      <td style="color:var(--gray600)">${esc(p.title)}</td>
+      <td>${esc(p.company)}</td>
+      <td><span class="tag tag-blue">${esc(p.sectorTitle||'')}</span></td>
+      <td class="m" style="color:var(--blue)">${esc(p.email)||'—'}</td>
+      <td><span class="tag ${confTag}">${conf||'—'}${conf?'/10':''}</span></td>
+      <td>${p.verified?'<span class="tag tag-green">✓ Verificado</span>':'<span class="tag tag-red">✗ No verificado</span>'}</td>
+    </tr>`;
+  }).join('');
 }
 
 // ══════════════════ TEMPLATES — ejemplos de referencia por sector (estáticos;
@@ -654,26 +476,28 @@ function loadTpl(id,el){
 renderTplList();
 
 // ══════════════════ CORREOS — genera (Claude o template estático según
-// Ajustes), Natalia copia y envía ella misma. Nunca se envía nada aquí. ══════
-function _todosLosProspectos(){ return [..._autoLeads,..._manualLeads.filter((_,i)=>Array.from(document.querySelectorAll('.manual-check:checked')).map(c=>parseInt(c.value)).includes(i))]; }
+// Ajustes), Natalia copia y envía ella misma. Nunca se envía nada aquí.
+// Trabaja sobre _ultimosResultados: TODOS los prospectos ya guardados en
+// Notion en esta sesión (arquitectura confirmada: no hay split auto/manual,
+// todo con email se guarda de inmediato). ══════════════════
 
 function renderCorreos(){
-  const list=_autoLeads; // los que ya están en Notion en esta sesión
+  const list=_ultimosResultados;
   const tb=document.getElementById('correos-tbody');
   if(!list.length){ tb.innerHTML=`<tr><td colspan="5" style="text-align:center;color:var(--gray400);padding:20px">Sin prospectos todavía — ve a "Buscar" primero.</td></tr>`; return; }
   tb.innerHTML=list.map((p,i)=>`<tr>
     <td style="font-weight:600">${esc(p.name)}</td>
     <td>${esc(p.company)}</td>
-    <td><span class="tag tag-blue">${esc(p.sectorTitle||SNAME[p.sector]||'')}</span></td>
+    <td><span class="tag tag-blue">${esc(p.sectorTitle||'')}</span></td>
     <td class="m" style="color:var(--blue)">${esc(p.email)||'—'}</td>
     <td><button class="btn btn-ghost btn-sm" onclick="generarCorreo(${i})">✦ Generar</button></td>
   </tr>`).join('');
 }
 
 async function generarCorreo(idx){
-  const p=_autoLeads[idx];
+  const p=_ultimosResultados[idx];
   const ajustes=_leerAjustes();
-  const sectorName=p.sectorTitle||SNAME[p.sector]||'Corporativo';
+  const sectorName=p.sectorTitle||'Corporativo';
   let asunto, cuerpo;
 
   if(ajustes.claude){
@@ -684,8 +508,9 @@ async function generarCorreo(idx){
       asunto=data.asunto; cuerpo=data.cuerpo;
     }catch(err){ toast('Error generando con Claude: '+err.message,'red'); return; }
   }else{
-    const t=TPLS[p.sector]||TPLS['events-services'];
-    asunto=t.sub; cuerpo=t.body.replace('Hola,',`Hola ${p.name.split(' ')[0]},`);
+    const sid=(SECTORS.find(s=>s.n===sectorName)||{}).id||'events-services';
+    const t=TPLS[sid]||TPLS['events-services'];
+    asunto=t.sub; cuerpo=t.body.replace('Hola,',`Hola ${String(p.name||'').split(' ')[0]},`);
   }
 
   const box=document.getElementById('correos-detalle');
@@ -712,24 +537,23 @@ async function copiarCorreo(leadId){
   }
   const ajustes=_leerAjustes();
   if(ajustes.marcar){
-    // Encuentra el prospecto recién creado en Notion por email para marcarlo.
-    try{
-      const lista=await fetch('/api/prospectos').then(r=>r.json());
-      const lead=_autoLeads.find(l=>l.id===leadId);
-      const match=lista.find(pr=>pr.email && lead && pr.email.toLowerCase()===String(lead.email).toLowerCase());
-      if(match) await fetch(`/api/prospeccion/marcar-correo-generado/${match.id}`,{method:'PATCH'});
-    }catch(_){ /* no bloquea la copia si falla marcar en Notion */ }
+    // El prospecto ya se guardó al buscar — usamos su notionPageId directo.
+    const lead=_ultimosResultados.find(l=>l.id===leadId);
+    if(lead?.notionPageId){
+      try{ await fetch(`/api/prospeccion/marcar-correo-generado/${lead.notionPageId}`,{method:'PATCH'}); }
+      catch(_){ /* no bloquea la copia si falla marcar en Notion */ }
+    }
   }
 }
 
 async function generarTodos(){
-  if(!_autoLeads.length){ toast('No hay prospectos — ve a "Buscar" primero','red'); return; }
+  if(!_ultimosResultados.length){ toast('No hay prospectos — ve a "Buscar" primero','red'); return; }
   const btn=document.getElementById('btn-genall');
   btn.disabled=true;
   const ajustes=_leerAjustes();
-  for(let i=0;i<_autoLeads.length;i++){
+  for(let i=0;i<_ultimosResultados.length;i++){
     await generarCorreo(i);
-    if(ajustes.ratelimit && i<_autoLeads.length-1) await new Promise(r=>setTimeout(r,2000));
+    if(ajustes.ratelimit && i<_ultimosResultados.length-1) await new Promise(r=>setTimeout(r,2000));
   }
   btn.disabled=false;
   toast('✓ Correos generados para todos');
@@ -743,7 +567,7 @@ let _generados=[];
 
 async function renderGenerados(){
   const tb=document.getElementById('gen-tbody');
-  tb.innerHTML=`<tr><td colspan="10" style="text-align:center;color:var(--gray400);padding:20px">Cargando...</td></tr>`;
+  tb.innerHTML=`<tr><td colspan="11" style="text-align:center;color:var(--gray400);padding:20px">Cargando...</td></tr>`;
   try{
     const todos=await fetch('/api/prospectos').then(r=>r.json());
     // Solo los generados por esta herramienta — un prospecto capturado a mano
@@ -761,10 +585,12 @@ async function renderGenerados(){
     const fSector=document.getElementById('gen-filtro-sector').value;
     const fOrigen=document.getElementById('gen-filtro-origen').value;
     const fCorreo=document.getElementById('gen-filtro-correo').value;
+    const fVerif=document.getElementById('gen-filtro-verificacion').value;
     const lista=_generados.filter(p=>
       (!fSector || p.sector===fSector) &&
       (!fOrigen || p.origenCarga===fOrigen) &&
-      (!fCorreo || (fCorreo==='si'? p.correoGenerado : !p.correoGenerado))
+      (!fCorreo || (fCorreo==='si'? p.correoGenerado : !p.correoGenerado)) &&
+      (!fVerif || (p.verificacionIA||'Pendiente')===fVerif)
     );
 
     document.getElementById('gen-chip').textContent=`${lista.length} prospecto${lista.length===1?'':'s'}`;
@@ -772,6 +598,8 @@ async function renderGenerados(){
       const conf=p.confianzaIA;
       const confTag=conf==null?'tag-gray':conf>=8?'tag-green':conf>=6?'tag-amber':'tag-red';
       const fecha=p.creado?new Date(p.creado).toLocaleDateString('es-MX',{day:'2-digit',month:'short',year:'2-digit'}):'—';
+      const verif=p.verificacionIA||'Pendiente';
+      const verifTag=verif==='Verificado'?'tag-green':verif==='No verificado'?'tag-red':'tag-gray';
       return `<tr>
         <td class="m" style="font-size:11px;color:var(--gray600)">${esc(fecha)}</td>
         <td style="font-weight:600;max-width:180px"><div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(p.contacto)}">${esc(p.contacto)||'—'}</div><div style="font-size:10px;color:var(--gray400);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:2px" title="${esc(p.cargo)}">${esc(p.cargo)||''}</div></td>
@@ -779,14 +607,15 @@ async function renderGenerados(){
         <td class="m" style="color:var(--blue);max-width:180px"><div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(p.email)}">${esc(p.email)||'—'}</div></td>
         <td>${p.sector?`<span class="tag tag-blue">${esc(p.sector)}</span>`:'—'}</td>
         <td><span class="tag ${confTag}">${conf==null?'—':conf+'/10'}</span></td>
+        <td><span class="tag ${verifTag}">${esc(verif)}</span></td>
         <td><span class="tag ${p.origenCarga==='Automático'?'tag-green':'tag-amber'}">${esc(p.origenCarga)||'—'}</span></td>
         <td>${pillHTML(p.status||'Nuevo')}</td>
         <td>${p.correoGenerado?'<span class="tag tag-green">✓ generado</span>':'<span class="tag tag-gray">pendiente</span>'}</td>
         <td><button class="btn btn-ghost btn-xs" onclick="generarCorreoDesdeHistorial('${p.id}')">✦ Correo</button></td>
       </tr>`;
-    }).join('') : `<tr><td colspan="10" style="text-align:center;color:var(--gray400);padding:20px">Sin prospectos que coincidan con el filtro</td></tr>`;
+    }).join('') : `<tr><td colspan="11" style="text-align:center;color:var(--gray400);padding:20px">Sin prospectos que coincidan con el filtro</td></tr>`;
   }catch(err){
-    tb.innerHTML=`<tr><td colspan="10" style="text-align:center;color:var(--red);padding:20px">Error cargando el historial: ${esc(err.message)}</td></tr>`;
+    tb.innerHTML=`<tr><td colspan="11" style="text-align:center;color:var(--red);padding:20px">Error cargando el historial: ${esc(err.message)}</td></tr>`;
   }
 }
 

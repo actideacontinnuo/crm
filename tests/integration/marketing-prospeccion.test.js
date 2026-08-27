@@ -117,25 +117,34 @@ describe('Prospección — POST /buscar (Apollo)', () => {
     expect(res.status).toBe(400);
   });
 
-  test('mapea los leads que Apollo devuelve con has_email=true y email_status=verified', async () => {
+  test('busca en Apollo, guarda TODOS los contactos con email de inmediato, y Claude los verifica DESPUÉS de guardar', async () => {
     fetch
       .mockResolvedValueOnce(jsonResp(200, { people: [
         { id: 'p1', first_name: 'Juan', last_name_obfuscated: 'P.', title: 'Director', organization: { name: 'Acme' }, has_email: true },
       ] }))
       .mockResolvedValueOnce(jsonResp(200, { matches: [
         { id: 'p1', last_name: 'Pérez', email: 'juan@acme.com', email_status: 'verified', organization: { name: 'Acme' } },
-      ] }));
+      ] }))
+      .mockResolvedValueOnce(jsonResp(200, { content: [{ text: JSON.stringify([{ id: 'p1', verified: true, confidence: 9, notes: 'ok' }]) }] }));
 
     const res = await request(app).post('/api/prospeccion/buscar')
-      .set('Authorization', `Bearer ${natToken()}`).send({ sectors: ['events-services'], perSector: 1 });
+      .set('Authorization', `Bearer ${natToken()}`).send({ sectors: ['events-services'], total: 1 });
     expect(res.status).toBe(200);
-    expect(res.body.leads).toHaveLength(1);
-    expect(res.body.leads[0].email).toBe('juan@acme.com');
-    expect(res.body.leads[0].company).toBe('Acme');
-    expect(res.body.leads[0].name).toBe('Juan Pérez'); // apellido COMPLETO, no el obfuscado
+    expect(res.body.guardados).toBe(1);
+    expect(res.body.verificados).toBe(1);
+    expect(res.body.noVerificados).toBe(0);
+    expect(res.body.detalle[0].email).toBe('juan@acme.com');
+    expect(res.body.detalle[0].company).toBe('Acme');
+    expect(res.body.detalle[0].name).toBe('Juan Pérez'); // apellido COMPLETO, no el obfuscado
+    expect(res.body.detalle[0].confidence).toBe(9);
+
+    const store = mockNotion.getStore();
+    const pagina = store.prospectos.find(p => p.properties['Email']?.email === 'juan@acme.com');
+    expect(pagina.properties['VerificacionIA']?.select?.name).toBe('Verificado');
+    expect(pagina.properties['ConfianzaIA']?.number).toBe(9);
   });
 
-  test('regla de negocio: un contacto sin email_status=verified NUNCA puede ser Prospecto — se descarta, no baja a "unverified"', async () => {
+  test('arquitectura confirmada: un contacto con email pero SIN "verified" de Apollo se guarda igual — Claude lo marca DESPUÉS, no se descarta antes', async () => {
     fetch
       .mockResolvedValueOnce(jsonResp(200, { people: [
         { id: 'p1', first_name: 'Juan', last_name_obfuscated: 'P.', title: 'Director', organization: { name: 'Acme' }, has_email: true },
@@ -143,41 +152,22 @@ describe('Prospección — POST /buscar (Apollo)', () => {
       ] }))
       .mockResolvedValueOnce(jsonResp(200, { matches: [
         { id: 'p1', last_name: 'Pérez', email: 'juan@acme.com', email_status: 'likely to engage', organization: { name: 'Acme' } },
-        // p2 no aparece en 'matches' — el enriquecimiento falló, sin poder confirmar nada.
-      ] }));
+        // p2 no aparece en 'matches' — el enriquecimiento falló, sin correo que ofrecer — ese SÍ se descarta (email obligatorio).
+      ] }))
+      .mockResolvedValueOnce(jsonResp(200, { content: [{ text: JSON.stringify([{ id: 'p1', verified: false, confidence: 4, notes: 'dominio no coincide' }]) }] }));
 
     const res = await request(app).post('/api/prospeccion/buscar')
-      .set('Authorization', `Bearer ${natToken()}`).send({ sectors: ['events-services'], perSector: 2 });
+      .set('Authorization', `Bearer ${natToken()}`).send({ sectors: ['events-services'], total: 2 });
     expect(res.status).toBe(200);
-    expect(res.body.leads).toHaveLength(0); // ninguno de los dos califica
-    expect(res.body.errors[0].error).toMatch(/no confirmó/i);
+    expect(res.body.guardados).toBe(1);       // p1 se guarda (tiene email), p2 no (sin email)
+    expect(res.body.noVerificados).toBe(1);    // Claude lo marcó "No verificado" DESPUÉS de guardarlo
+    expect(res.body.verificados).toBe(0);
   });
 
-  test('filtros "espejo de Apollo" se mandan a la API real en vez del default', async () => {
-    fetch
-      .mockResolvedValueOnce(jsonResp(200, { people: [] }));
-    await request(app).post('/api/prospeccion/buscar')
-      .set('Authorization', `Bearer ${natToken()}`)
-      .send({ sectors: ['events-services'], perSector: 1, filtros: {
-        titles: ['CEO'], seniorities: ['c_suite'], personLocations: ['CDMX'],
-        organizationLocations: ['Jalisco'], employeeRanges: ['51,200'],
-        emailStatus: ['verified'], keywords: 'eventos', organizationDomains: ['acme.com'],
-      } });
-    const sentBody = JSON.parse(fetch.mock.calls[0][1].body);
-    expect(sentBody.person_titles).toEqual(['CEO']);
-    expect(sentBody.person_seniorities).toEqual(['c_suite']);
-    expect(sentBody.person_locations).toEqual(['CDMX']);
-    expect(sentBody.organization_locations).toEqual(['Jalisco']);
-    expect(sentBody.organization_num_employees_ranges).toEqual(['51,200']);
-    expect(sentBody.contact_email_status).toEqual(['verified']);
-    expect(sentBody.q_keywords).toBe('eventos');
-    expect(sentBody.q_organization_domains_list).toEqual(['acme.com']);
-  });
-
-  test('sin filtros, usa los defaults de siempre (títulos fijos + industria oficial del sector)', async () => {
+  test('sin filtros de por medio, siempre usa los defaults (títulos fijos + industria oficial del sector) — los filtros avanzados se retiraron', async () => {
     fetch.mockResolvedValueOnce(jsonResp(200, { people: [] }));
     await request(app).post('/api/prospeccion/buscar')
-      .set('Authorization', `Bearer ${natToken()}`).send({ sectors: ['events-services'], perSector: 1 });
+      .set('Authorization', `Bearer ${natToken()}`).send({ sectors: ['events-services'], total: 1 });
     const sentBody = JSON.parse(fetch.mock.calls[0][1].body);
     expect(sentBody.person_titles).toContain('Director de Eventos');
     expect(sentBody.person_locations).toEqual(['Mexico']);
@@ -186,24 +176,48 @@ describe('Prospección — POST /buscar (Apollo)', () => {
     expect(sentBody.q_keywords).toBeUndefined();
     expect(sentBody.person_seniorities).toBeUndefined();
   });
+
+  test('"total" se reparte entre los sectores elegidos (1-100 en una sola corrida)', async () => {
+    fetch.mockResolvedValue(jsonResp(200, { people: [] }));
+    await request(app).post('/api/prospeccion/buscar')
+      .set('Authorization', `Bearer ${natToken()}`).send({ sectors: ['events-services', 'hospitality', 'retail'], total: 10 });
+    // 10 entre 3 sectores → 4,3,3 (el resto se reparte en los primeros)
+    const perPage = fetch.mock.calls.filter(c => c[0].includes('mixed_people')).map(c => JSON.parse(c[1].body).per_page);
+    expect(perPage).toEqual([12, 9, 9]); // per_page = cantidad*3, ver _construirBusquedaApollo
+  });
+
+  test('"total" nunca pasa de 100 aunque se pida más', async () => {
+    fetch.mockResolvedValue(jsonResp(200, { people: [] }));
+    await request(app).post('/api/prospeccion/buscar')
+      .set('Authorization', `Bearer ${natToken()}`).send({ sectors: ['events-services'], total: 9999 });
+    const body = JSON.parse(fetch.mock.calls[0][1].body);
+    expect(body.per_page).toBe(300); // 100 * 3
+  });
 });
 
 describe('Prospección — POST /buscar, ramas de error', () => {
   test('si Apollo responde error en la búsqueda, lo reporta por sector sin tronar', async () => {
     fetch.mockResolvedValueOnce(jsonResp(429, {})); // texto vacío simulando rate limit
     const res = await request(app).post('/api/prospeccion/buscar')
-      .set('Authorization', `Bearer ${natToken()}`).send({ sectors: ['events-services'], perSector: 1 });
+      .set('Authorization', `Bearer ${natToken()}`).send({ sectors: ['events-services'], total: 1 });
     expect(res.status).toBe(200);
     expect(res.body.errors[0].sector).toBe('events-services');
-    expect(res.body.leads).toHaveLength(0);
+    expect(res.body.guardados).toBe(0);
+    expect(res.body.totalEncontrados).toBe(0);
   });
 
   test('si ningún candidato tiene email, reporta el sector sin resultados', async () => {
     fetch.mockResolvedValueOnce(jsonResp(200, { people: [{ id: 'p1', has_email: false }] }));
     const res = await request(app).post('/api/prospeccion/buscar')
-      .set('Authorization', `Bearer ${natToken()}`).send({ sectors: ['events-services'], perSector: 1 });
+      .set('Authorization', `Bearer ${natToken()}`).send({ sectors: ['events-services'], total: 1 });
     expect(res.status).toBe(200);
     expect(res.body.errors[0].error).toMatch(/No se encontraron contactos/);
+  });
+
+  test('sin ningún sector válido responde 400', async () => {
+    const res = await request(app).post('/api/prospeccion/buscar')
+      .set('Authorization', `Bearer ${natToken()}`).send({ sectors: ['sector-inventado'], total: 5 });
+    expect(res.status).toBe(400);
   });
 
   test('si la red truena buscando en Apollo, reporta el error del sector sin tronar el endpoint', async () => {
@@ -323,13 +337,12 @@ describe('Prospección — Panel Semanal: sector, confianza y origen de carga', 
     expect(res.body.omitidos[0].motivo).toMatch(/empresa ya existe/i);
   });
 
-  test('regla dura: un email con emailStatus distinto de "verified" nunca se sube — legitimidad garantizada incluso saltándose /buscar', async () => {
+  test('arquitectura confirmada: un lead con emailStatus distinto de "verified" SÍ se sube — Claude verifica DESPUÉS, no antes', async () => {
     const res = await request(app).post('/api/prospeccion/notion/upload')
       .set('Authorization', `Bearer ${natToken()}`)
-      .send({ leads: [{ id: 'i1', company: 'Sospechosa SA', name: 'X', email: 'x@sospechosa.com', emailStatus: 'likely to engage' }] });
-    expect(res.body.created).toBe(0);
-    expect(res.body.omitidos).toHaveLength(1);
-    expect(res.body.omitidos[0].motivo).toMatch(/no verificado/i);
+      .send({ leads: [{ id: 'i1', company: 'Alguna SA', name: 'X', email: 'x@algunasa.com', emailStatus: 'likely to engage' }] });
+    expect(res.body.created).toBe(1);
+    expect(res.body.omitidos).toHaveLength(0);
   });
 
   test('un lead con emailStatus="verified" (el flujo real de Apollo) se sube normal', async () => {
@@ -420,7 +433,7 @@ describe('Prospección — Panel Semanal: sector, confianza y origen de carga', 
 });
 
 describe('Prospección — cron semanal automático (ejecutarProspeccionAutomatica)', () => {
-  test('rota 4 sectores, sube solo confianza ≥7, y deja auditoría del run', async () => {
+  test('rota 4 sectores, guarda TODOS los contactos con email, y deja auditoría del run', async () => {
     const { ejecutarProspeccionAutomatica } = require('../../api/prospeccion');
 
     // Un lead DISTINTO (empresa Y email distintos) por cada llamada — si no,
@@ -451,8 +464,8 @@ describe('Prospección — cron semanal automático (ejecutarProspeccionAutomati
     const r = await ejecutarProspeccionAutomatica();
 
     expect(r.sectoresElegidos).toHaveLength(4); // rota 1-4 sectores, confirmado con el usuario
-    expect(r.totalCreados).toBe(4); // 1 lead confianza 9 por cada uno de los 4 sectores
-    expect(r.totalDescartadosBajaConfianza).toBe(0);
+    expect(r.totalGuardados).toBe(4); // 1 lead por cada uno de los 4 sectores, todos con email
+    expect(r.totalVerificados).toBe(4); // Claude los marcó verified:true a todos
 
     // Quedó registrado en Auditoría para que el Dashboard lo pueda mostrar.
     const { logAudit } = require('../../api/_audit');
@@ -462,7 +475,7 @@ describe('Prospección — cron semanal automático (ejecutarProspeccionAutomati
     }));
   });
 
-  test('confianza <7 NO se sube en el run automático (nadie puede revisarla a mano)', async () => {
+  test('confianza baja o "no verificado" YA NO bloquea el guardado — Claude solo lo marca, no lo descarta', async () => {
     const { ejecutarProspeccionAutomatica } = require('../../api/prospeccion');
     fetch.mockImplementation((url) => {
       if (url.includes('mixed_people/api_search')) {
@@ -476,14 +489,15 @@ describe('Prospección — cron semanal automático (ejecutarProspeccionAutomati
         ] }));
       }
       if (url.includes('anthropic.com')) {
-        return Promise.resolve(jsonResp(200, { content: [{ text: JSON.stringify([{ id: 'lead-1', verified: true, confidence: 4, notes: 'dudoso' }]) }] }));
+        return Promise.resolve(jsonResp(200, { content: [{ text: JSON.stringify([{ id: 'lead-1', verified: false, confidence: 4, notes: 'dudoso' }]) }] }));
       }
       return Promise.resolve(jsonResp(404, {}));
     });
 
     const r = await ejecutarProspeccionAutomatica();
-    expect(r.totalCreados).toBe(0);
-    expect(r.totalDescartadosBajaConfianza).toBe(4);
+    expect(r.totalGuardados).toBe(1);     // se guarda igual, sin importar la confianza
+    expect(r.totalNoVerificados).toBe(1); // pero queda marcado "No verificado"
+    expect(r.totalVerificados).toBe(0);
   });
 });
 

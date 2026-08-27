@@ -46,6 +46,9 @@ beforeEach(() => {
 });
 afterAll(() => { process.env = ORIGINAL_ENV; });
 
+// No hay ANTHROPIC_API_KEY en este archivo — verificarConClaude toma el
+// passthrough sin llamar a fetch, así que solo se encolan 2 respuestas
+// (búsqueda + enriquecimiento), no 3.
 function mockApolloLead(id, company) {
   fetch
     .mockResolvedValueOnce(jsonResp(200, { people: [
@@ -56,25 +59,25 @@ function mockApolloLead(id, company) {
     ] }));
 }
 
-test('una empresa mostrada en una búsqueda anterior NO se vuelve a mostrar, aunque nunca se haya subido a Prospectos', async () => {
-  // Primera búsqueda: Apollo trae "Globex" — se muestra y queda registrada como "vista".
+test('una empresa que ya es Prospecto real NO se vuelve a guardar en una búsqueda posterior', async () => {
+  // Primera búsqueda: Apollo trae "Globex" — arquitectura confirmada, se
+  // guarda de inmediato como Prospecto (Claude verifica DESPUÉS).
   mockApolloLead('p1', 'Globex');
   const r1 = await request(app).post('/api/prospeccion/buscar')
-    .set('Authorization', `Bearer ${natToken()}`).send({ sectors: ['events-services'], perSector: 1 });
-  expect(r1.body.leads).toHaveLength(1);
-  expect(r1.body.leads[0].company).toBe('Globex');
+    .set('Authorization', `Bearer ${natToken()}`).send({ sectors: ['events-services'], total: 1 });
+  expect(r1.body.guardados).toBe(1);
+  expect(r1.body.detalle[0].company).toBe('Globex');
 
-  // Natalia NUNCA la sube a Prospectos (no hay ningún registro Notion de Globex).
   const prospectos = await request(app).get('/api/prospectos').set('Authorization', `Bearer ${natToken()}`);
-  expect(prospectos.body.find(p => p.empresa === 'Globex')).toBeUndefined();
+  expect(prospectos.body.find(p => p.empresa === 'Globex')).toBeDefined();
 
   // Segunda búsqueda: Apollo vuelve a traer la MISMA empresa (otro contacto,
-  // otro email) — antes del fix, esto se colaba porque no había ningún
-  // registro real de Prospecto contra el cual comparar.
+  // otro email) — antes del fix por empresa, esto se colaba porque el dedupe
+  // solo comparaba por email exacto.
   mockApolloLead('p2', 'Globex');
   const r2 = await request(app).post('/api/prospeccion/buscar')
-    .set('Authorization', `Bearer ${natToken()}`).send({ sectors: ['events-services'], perSector: 1 });
+    .set('Authorization', `Bearer ${natToken()}`).send({ sectors: ['events-services'], total: 1 });
 
-  expect(r2.body.leads).toHaveLength(0); // ya se había mostrado — no debe reaparecer
-  expect(r2.body.errors.some(e => /Globex/.test(e.error || ''))).toBe(true);
+  expect(r2.body.guardados).toBe(0); // ya es Prospecto — no debe duplicarse
+  expect(r2.body.descartadosPorDuplicado).toBe(1);
 });

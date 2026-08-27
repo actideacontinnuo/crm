@@ -37,6 +37,7 @@ function toObj(page) {
     // vienen de Apollo o son de antes de que existieran estas columnas.
     sector:         read_select(p['Sector']) || null,
     confianzaIA:    p['ConfianzaIA']?.number ?? null,
+    verificacionIA: read_select(p['VerificacionIA']) || null,
     origenCarga:    read_select(p['OrigenCarga']) || null,
     correoGenerado: read_checkbox(p['CorreoGenerado']),
   };
