@@ -177,6 +177,28 @@ describe('Prospección — POST /buscar (Apollo)', () => {
     expect(sentBody.person_seniorities).toBeUndefined();
   });
 
+  test('regla dura: siempre pide empresas medianas en adelante (51+ empleados) — nunca micro/pequeña', async () => {
+    fetch.mockResolvedValueOnce(jsonResp(200, { people: [] }));
+    await request(app).post('/api/prospeccion/buscar')
+      .set('Authorization', `Bearer ${natToken()}`).send({ sectors: ['events-services'], total: 1 });
+    const sentBody = JSON.parse(fetch.mock.calls[0][1].body);
+    expect(sentBody.organization_num_employees_ranges).toEqual(['51,200', '201,500', '501,1000', '1001,5000', '5001,10000', '10001,']);
+  });
+
+  test('segunda verificación real: una empresa que resulta tener menos de 51 empleados se descarta aunque haya pasado el filtro de búsqueda', async () => {
+    fetch
+      .mockResolvedValueOnce(jsonResp(200, { people: [
+        { id: 'p1', first_name: 'Juan', organization: { name: 'Micro SA' }, has_email: true },
+      ] }))
+      .mockResolvedValueOnce(jsonResp(200, { matches: [
+        { id: 'p1', last_name: 'Pérez', email: 'juan@microsa.com', email_status: 'verified', organization: { name: 'Micro SA', estimated_num_employees: 12 } },
+      ] }));
+    const res = await request(app).post('/api/prospeccion/buscar')
+      .set('Authorization', `Bearer ${natToken()}`).send({ sectors: ['events-services'], total: 1 });
+    expect(res.body.guardados).toBe(0);
+    expect(res.body.totalEncontrados).toBe(0);
+  });
+
   test('"total" se reparte entre los sectores elegidos (1-100 en una sola corrida)', async () => {
     fetch.mockResolvedValue(jsonResp(200, { people: [] }));
     await request(app).post('/api/prospeccion/buscar')

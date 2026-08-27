@@ -57,10 +57,20 @@ const TITULOS_DEFAULT = ['Director de Eventos', 'Director de Marketing', 'Gerent
   'Events Manager', 'Marketing Manager', 'Director Comercial'];
 
 // Retirados los "filtros avanzados" (títulos, antigüedad, ubicación de
-// empresa, tamaño, dominio, estado de email): no tenían lógica real de
-// filtrado que funcionara de verdad contra Apollo (confirmado — p. ej.
-// tamaño de empresa no acotaba nada) y solo confundían. La búsqueda siempre
-// usa los defaults: títulos fijos + la industria oficial del sector.
+// empresa, dominio, estado de email): eran configurables por búsqueda y no
+// tenían lógica real de filtrado que funcionara de verdad contra Apollo. El
+// de TAMAÑO DE EMPRESA se queda, pero como regla FIJA (siempre activa, no
+// configurable): solo empresas medianas en adelante — confirmado que el
+// parámetro de Apollo sí funciona (verificado en vivo: 190 empleados cayó
+// correctamente en el rango 51-200 al pedirlo). Rangos de Apollo que
+// corresponden a "mediana en adelante" — excluye solo micro (1-10) y
+// pequeña (11-50).
+const RANGOS_EMPLEADOS_MEDIANA_EN_ADELANTE = ['51,200', '201,500', '501,1000', '1001,5000', '5001,10000', '10001,'];
+// Piso real de empleados equivalente al rango de arriba — se usa como
+// segunda verificación DESPUÉS del enriquecimiento (ver buscarSectorEnApollo),
+// por si el filtro de búsqueda de Apollo deja pasar algo por el borde.
+const MIN_EMPLEADOS_MEDIANA = 51;
+
 function _construirBusquedaApollo({ sectorId, perSector, page = 1 }) {
   const info = SECTOR_MAP[sectorId];
   return {
@@ -70,6 +80,8 @@ function _construirBusquedaApollo({ sectorId, perSector, page = 1 }) {
     // "Industria" de su sitio), no como palabra libre — así el sector es
     // 100% el mismo que Apollo usa internamente.
     q_organization_keyword_tags: info?.apollo ? [info.apollo] : [],
+    // Regla dura: siempre empresas medianas en adelante, sin excepción.
+    organization_num_employees_ranges: RANGOS_EMPLEADOS_MEDIANA_EN_ADELANTE,
     per_page: perSector * 3,
     page,
   };
@@ -129,6 +141,15 @@ async function buscarSectorEnApollo(sectorId, perSector, page = 1) {
       const enriched = enrichedMap[p.id];
       const email = enriched?.email || enriched?.sanitized_email || '';
       if (!enriched || !email) continue; // sin email confirmable, no hay nada que guardar
+
+      // Segunda verificación real de tamaño de empresa (mediana en adelante,
+      // siempre) — ya con el dato correcto del enriquecimiento, que es donde
+      // realmente viene 'estimated_num_employees'. Si no viene el dato (Apollo
+      // no lo tiene para esa empresa), no se bloquea — el filtro de búsqueda
+      // de arriba ya hizo su parte; aquí solo se corrige el borde.
+      const numEmpleados = enriched.organization?.estimated_num_employees;
+      if (typeof numEmpleados === 'number' && numEmpleados < MIN_EMPLEADOS_MEDIANA) continue;
+
       leads.push({
         id:          p.id,
         name:        `${p.first_name || ''} ${enriched.last_name || ''}`.trim(),
