@@ -193,6 +193,53 @@ describe('Prospección — POST /buscar (Apollo)', () => {
     const body = JSON.parse(fetch.mock.calls[0][1].body);
     expect(body.per_page).toBe(300); // 100 * 3
   });
+
+  test('si "total" pedido tiene bajas por duplicado, insiste en la SIGUIENTE página de Apollo hasta completar el total — nunca entrega "total menos duplicados"', async () => {
+    // Ya existe un Prospecto real de "Duplicada SA".
+    await request(app).post('/api/prospeccion/notion/upload')
+      .set('Authorization', `Bearer ${natToken()}`)
+      .send({ leads: [{ id: 'seed', company: 'Duplicada SA', name: 'Seed', email: 'seed@duplicada.com' }] });
+
+    fetch.mockImplementation((url, opts) => {
+      if (url.includes('mixed_people/api_search')) {
+        const body = JSON.parse(opts.body);
+        if (body.page === 1) {
+          // Ronda 1: Apollo solo trae la empresa que YA es Prospecto — se descarta.
+          return Promise.resolve(jsonResp(200, { people: [
+            { id: 'd1', first_name: 'Dup', organization: { name: 'Duplicada SA' }, has_email: true },
+          ] }));
+        }
+        // Ronda 2 (page=2, siguiente tanda): 3 contactos genuinamente nuevos.
+        return Promise.resolve(jsonResp(200, { people: [
+          { id: 'n1', first_name: 'A', organization: { name: 'Nueva Uno' }, has_email: true },
+          { id: 'n2', first_name: 'B', organization: { name: 'Nueva Dos' }, has_email: true },
+          { id: 'n3', first_name: 'C', organization: { name: 'Nueva Tres' }, has_email: true },
+        ] }));
+      }
+      if (url.includes('bulk_match')) {
+        const body = JSON.parse(opts.body);
+        const matches = body.details.map(d => ({
+          id: d.id, last_name: 'Apellido', email: `${d.id}@${String(d.organization_name).toLowerCase().replace(/\s+/g, '')}.com`,
+          email_status: 'verified', organization: { name: d.organization_name },
+        }));
+        return Promise.resolve(jsonResp(200, { matches }));
+      }
+      if (url.includes('anthropic.com')) {
+        return Promise.resolve(jsonResp(200, { content: [{ text: JSON.stringify([
+          { id: 'n1', verified: true, confidence: 8, notes: 'ok' },
+          { id: 'n2', verified: true, confidence: 8, notes: 'ok' },
+          { id: 'n3', verified: true, confidence: 8, notes: 'ok' },
+        ]) }] }));
+      }
+      return Promise.resolve(jsonResp(404, {}));
+    });
+
+    const res = await request(app).post('/api/prospeccion/buscar')
+      .set('Authorization', `Bearer ${natToken()}`).send({ sectors: ['events-services'], total: 3 });
+
+    expect(res.body.guardados).toBe(3); // los 3 pedidos, no "3 menos el duplicado"
+    expect(res.body.descartadosPorDuplicado).toBe(1);
+  });
 });
 
 describe('Prospección — POST /buscar, ramas de error', () => {

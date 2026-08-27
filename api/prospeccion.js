@@ -61,7 +61,7 @@ const TITULOS_DEFAULT = ['Director de Eventos', 'Director de Marketing', 'Gerent
 // filtrado que funcionara de verdad contra Apollo (confirmado — p. ej.
 // tamaño de empresa no acotaba nada) y solo confundían. La búsqueda siempre
 // usa los defaults: títulos fijos + la industria oficial del sector.
-function _construirBusquedaApollo({ sectorId, perSector }) {
+function _construirBusquedaApollo({ sectorId, perSector, page = 1 }) {
   const info = SECTOR_MAP[sectorId];
   return {
     person_titles:    TITULOS_DEFAULT,
@@ -71,14 +71,17 @@ function _construirBusquedaApollo({ sectorId, perSector }) {
     // 100% el mismo que Apollo usa internamente.
     q_organization_keyword_tags: info?.apollo ? [info.apollo] : [],
     per_page: perSector * 3,
-    page: 1,
+    page,
   };
 }
 
 // Busca UN sector en Apollo — misma lógica que usa el endpoint /buscar, pero
 // factorizada para que también la use el cron semanal automático (ver
 // ejecutarProspeccionAutomatica) sin duplicar código ni pasar por HTTP.
-async function buscarSectorEnApollo(sectorId, perSector) {
+// 'page': permite pedir la SIGUIENTE tanda de candidatos de Apollo cuando una
+// ronda anterior se quedó corta por duplicados (ver /buscar) — sin esto,
+// reintentar solo repetiría los mismos contactos ya descartados.
+async function buscarSectorEnApollo(sectorId, perSector, page = 1) {
   const apolloKey = process.env.APOLLO_API_KEY;
   if (!apolloKey) return { leads: [], error: 'APOLLO_API_KEY no configurada en .env' };
   const info = SECTOR_MAP[sectorId];
@@ -89,7 +92,7 @@ async function buscarSectorEnApollo(sectorId, perSector) {
     const searchResp = await fetch('https://api.apollo.io/api/v1/mixed_people/api_search', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-Api-Key': apolloKey },
-      body: JSON.stringify(_construirBusquedaApollo({ sectorId, perSector })),
+      body: JSON.stringify(_construirBusquedaApollo({ sectorId, perSector, page })),
     });
     if (!searchResp.ok) {
       const errText = await searchResp.text();
@@ -155,6 +158,13 @@ async function buscarSectorEnApollo(sectorId, perSector) {
 // (ver verificarYGuardarProspectos). 'total': 1-100, repartido entre los
 // sectores elegidos — reemplaza el viejo "contactos por sector" (los filtros
 // avanzados se retiraron: no filtraban de verdad, ver _construirBusquedaApollo).
+// Si pides 50, se te entregan 50 NUEVOS — no "50 menos los que resultaron
+// duplicados". Cada ronda pide lo que aún falta y avanza a la SIGUIENTE
+// página de Apollo (para no repetir los mismos candidatos ya descartados),
+// hasta completar el total pedido o quedarse sin más contactos disponibles.
+// Tope de rondas: evita insistir para siempre si un sector ya se agotó.
+const MAX_RONDAS_BUSQUEDA = 6;
+
 router.post('/buscar', async (req, res) => {
   const { sectors = ['events-services', 'hospitality', 'marketing-advertising', 'consumer-services'], total = 20 } = req.body;
   if (!process.env.APOLLO_API_KEY) return res.status(400).json({ error: 'APOLLO_API_KEY no configurada en .env' });
@@ -163,26 +173,57 @@ router.post('/buscar', async (req, res) => {
   if (!sectoresValidos.length) return res.status(400).json({ error: 'Selecciona al menos un sector válido' });
 
   const totalPedido = Math.max(1, Math.min(100, parseInt(total) || 20));
-  const base  = Math.floor(totalPedido / sectoresValidos.length);
-  const resto = totalPedido % sectoresValidos.length; // se reparte 1 de más en los primeros sectores
-
-  const leadsBrutos = [];
   const errors = [];
-  for (let i = 0; i < sectoresValidos.length; i++) {
-    const sectorId  = sectoresValidos[i];
-    const cantidad  = base + (i < resto ? 1 : 0);
-    if (!cantidad) continue;
-    const { leads, error } = await buscarSectorEnApollo(sectorId, cantidad);
-    if (error) errors.push({ sector: sectorId, error });
-    leadsBrutos.push(...leads);
+
+  let guardados = 0, verificados = 0, noVerificados = 0, descartadosPorDuplicado = 0, totalEncontrados = 0;
+  const detalle = [];
+  const omitidos = [];
+  const erroresAlGuardar = [];
+
+  for (let ronda = 1; ronda <= MAX_RONDAS_BUSQUEDA && guardados < totalPedido; ronda++) {
+    const faltan = totalPedido - guardados;
+    const base  = Math.floor(faltan / sectoresValidos.length);
+    const resto = faltan % sectoresValidos.length; // se reparte 1 de más en los primeros sectores
+
+    const leadsBrutos = [];
+    let algunSectorConResultados = false;
+    for (let i = 0; i < sectoresValidos.length; i++) {
+      const sectorId = sectoresValidos[i];
+      const cantidad = base + (i < resto ? 1 : 0);
+      if (!cantidad) continue;
+      const { leads, error } = await buscarSectorEnApollo(sectorId, cantidad, ronda);
+      // Solo se reporta el error de la primera ronda — de la 2 en adelante ya
+      // es normal que un sector se quede sin más páginas, no hace falta
+      // repetir el mismo aviso cada vez.
+      if (error && ronda === 1) errors.push({ sector: sectorId, error });
+      if (leads.length) algunSectorConResultados = true;
+      leadsBrutos.push(...leads);
+    }
+
+    if (!leadsBrutos.length) {
+      if (!algunSectorConResultados) break; // Apollo ya no tiene más contactos — insistir no serviría de nada
+      continue;
+    }
+
+    const resultado = await verificarYGuardarProspectos(leadsBrutos, { origen: 'Manual' });
+    guardados               += resultado.guardados;
+    verificados             += resultado.verificados;
+    noVerificados           += resultado.noVerificados;
+    descartadosPorDuplicado += resultado.descartadosPorDuplicado;
+    totalEncontrados        += resultado.totalEncontrados;
+    detalle.push(...resultado.detalle);
+    omitidos.push(...resultado.omitidos);
+    erroresAlGuardar.push(...resultado.erroresAlGuardar);
   }
 
-  if (!leadsBrutos.length) {
-    return res.json({ totalEncontrados: 0, descartadosPorDuplicado: 0, guardados: 0, verificados: 0, noVerificados: 0, omitidos: [], detalle: [], errors });
+  if (guardados < totalPedido) {
+    errors.push({
+      sector: null,
+      error: `Se pidieron ${totalPedido} y solo se consiguieron ${guardados} nuevos — Apollo ya no tiene más contactos disponibles para estos sectores (los demás resultaron empresas ya prospectadas o sin correo).`,
+    });
   }
 
-  const resultado = await verificarYGuardarProspectos(leadsBrutos, { origen: 'Manual' });
-  res.json({ ...resultado, errors });
+  res.json({ totalEncontrados, descartadosPorDuplicado, guardados, verificados, noVerificados, omitidos, erroresAlGuardar, detalle, errors });
 });
 
 // POST /api/prospeccion/verificar  →  Claude verifica y enriquece cada lead
