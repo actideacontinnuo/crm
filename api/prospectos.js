@@ -38,6 +38,8 @@ function toObj(page) {
     sector:         read_select(p['Sector']) || null,
     confianzaIA:    p['ConfianzaIA']?.number ?? null,
     verificacionIA: read_select(p['VerificacionIA']) || null,
+    numEmpleados:   p['NumEmpleados']?.number ?? null,
+    tamanoEmpresa:  read_select(p['TamanoEmpresa']) || null,
     origenCarga:    read_select(p['OrigenCarga']) || null,
     correoGenerado: read_checkbox(p['CorreoGenerado']),
   };

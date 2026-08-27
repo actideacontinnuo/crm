@@ -71,6 +71,18 @@ const RANGOS_EMPLEADOS_MEDIANA_EN_ADELANTE = ['51,200', '201,500', '501,1000', '
 // por si el filtro de búsqueda de Apollo deja pasar algo por el borde.
 const MIN_EMPLEADOS_MEDIANA = 51;
 
+// Segmento visible de tamaño — para que Natalia vea de un vistazo qué tan
+// grande es la empresa y qué tan buen prospecto es, sin tener que abrir cada
+// registro. 3 franjas (confirmadas): 50-200 / 200-500 / 500 en adelante.
+// null cuando Apollo no tiene el dato — no se inventa un tamaño.
+function _tamanoEmpresaLabel(numEmpleados) {
+  if (typeof numEmpleados !== 'number') return null;
+  if (numEmpleados < MIN_EMPLEADOS_MEDIANA) return null; // no debería llegar aquí (ya se filtra antes), respaldo
+  if (numEmpleados <= 200) return 'Mediana (50-200)';
+  if (numEmpleados <= 500) return 'Grande (200-500)';
+  return 'Muy grande (500+)';
+}
+
 function _construirBusquedaApollo({ sectorId, perSector, page = 1 }) {
   const info = SECTOR_MAP[sectorId];
   return {
@@ -165,6 +177,8 @@ async function buscarSectorEnApollo(sectorId, perSector, page = 1) {
         city:        enriched.city || '',
         country:     enriched.country || 'México',
         verified:    false,
+        numEmpleados:   typeof numEmpleados === 'number' ? numEmpleados : null,
+        tamanoEmpresa:  _tamanoEmpresaLabel(numEmpleados),
       });
     }
     if (!leads.length) return { leads: [], error: 'Apollo no devolvió ningún contacto con email confirmable para este sector' };
@@ -576,6 +590,11 @@ async function subirProspectos(leads, { origen = 'Manual', evitarDuplicados = tr
         'ConfianzaIA':     prop_number(lead.confidence),
         'VerificacionIA':  prop_select(lead.confidence !== undefined ? (lead.verified === false ? 'No verificado' : 'Verificado') : 'Pendiente'),
         'OrigenCarga':  prop_select(origen),
+        // Tamaño real de la empresa (empleados) — para ver de un vistazo qué
+        // tan buen prospecto es, sin abrir el registro. null cuando Apollo no
+        // trae el dato (no se inventa).
+        'NumEmpleados':   prop_number(lead.numEmpleados ?? null),
+        'TamanoEmpresa':  prop_select(lead.tamanoEmpresa || null),
       };
       const page = await createPage('prospectos', props);
       if (emailNorm) emailsExistentes.add(emailNorm); // evita duplicados DENTRO del mismo lote también
@@ -631,6 +650,7 @@ async function verificarYGuardarProspectos(leadsBrutos, { origen }) {
     detalle: verificaciones.map(v => ({
       id: v.id, name: v.name, title: v.title, company: v.company, email: v.email,
       sectorTitle: v.sectorTitle, confidence: v.confidence, verified: v.verified !== false,
+      numEmpleados: v.numEmpleados ?? null, tamanoEmpresa: v.tamanoEmpresa || null,
       notionPageId: idPorLead[v.id],
     })),
   };

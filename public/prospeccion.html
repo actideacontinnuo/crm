@@ -131,7 +131,7 @@
       </div>
       <div class="tbl-wrap" style="border:none;border-radius:0;box-shadow:none">
         <table class="tbl">
-          <thead><tr><th>NOMBRE</th><th>PUESTO</th><th>EMPRESA</th><th>SECTOR</th><th>EMAIL</th><th>CONFIANZA</th><th>VERIFICACIÓN</th></tr></thead>
+          <thead><tr><th>NOMBRE</th><th>PUESTO</th><th>EMPRESA</th><th>TAMAÑO</th><th>SECTOR</th><th>EMAIL</th><th>CONFIANZA</th><th>VERIFICACIÓN</th></tr></thead>
           <tbody id="resultbody"></tbody>
         </table>
       </div>
@@ -199,6 +199,12 @@
         <option value="No verificado">No verificado</option>
         <option value="Pendiente">Pendiente</option>
       </select>
+      <select class="fsel" id="gen-filtro-tamano" onchange="renderGenerados()">
+        <option value="">TAMAÑO: TODOS</option>
+        <option value="Mediana (50-200)">Mediana (50-200)</option>
+        <option value="Grande (200-500)">Grande (200-500)</option>
+        <option value="Muy grande (500+)">Muy grande (500+)</option>
+      </select>
       <button class="btn btn-ghost btn-sm" onclick="renderGenerados()">↻ Actualizar</button>
     </div>
     <div class="panel">
@@ -207,9 +213,9 @@
         <span class="tag tag-gray" id="gen-chip">0 prospectos</span>
       </div>
       <div class="tbl-wrap" style="border:none;border-radius:0;box-shadow:none;overflow-x:auto">
-        <table class="tbl" style="min-width:900px">
-          <thead><tr><th>FECHA</th><th>NOMBRE</th><th>EMPRESA</th><th>EMAIL</th><th>SECTOR</th><th>CONFIANZA</th><th>VERIFICACIÓN</th><th>TIPO DE PROSPECCIÓN</th><th>STATUS</th><th>CORREO</th><th></th></tr></thead>
-          <tbody id="gen-tbody"><tr><td colspan="11" style="text-align:center;color:var(--gray400);padding:20px">Cargando...</td></tr></tbody>
+        <table class="tbl" style="min-width:960px">
+          <thead><tr><th>FECHA</th><th>NOMBRE</th><th>EMPRESA</th><th>TAMAÑO</th><th>EMAIL</th><th>SECTOR</th><th>CONFIANZA</th><th>VERIFICACIÓN</th><th>TIPO DE PROSPECCIÓN</th><th>STATUS</th><th>CORREO</th><th></th></tr></thead>
+          <tbody id="gen-tbody"><tr><td colspan="12" style="text-align:center;color:var(--gray400);padding:20px">Cargando...</td></tr></tbody>
         </table>
       </div>
     </div>
@@ -429,6 +435,7 @@ function renderResultTable(detalle){
       <td style="font-weight:600">${esc(p.name)}</td>
       <td style="color:var(--gray600)">${esc(p.title)}</td>
       <td>${esc(p.company)}</td>
+      <td>${tamanoTagHtml(p.tamanoEmpresa,p.numEmpleados)}</td>
       <td><span class="tag tag-blue">${esc(p.sectorTitle||'')}</span></td>
       <td class="m" style="color:var(--blue)">${esc(p.email)||'—'}</td>
       <td><span class="tag ${confTag}">${conf||'—'}${conf?'/10':''}</span></td>
@@ -567,7 +574,7 @@ let _generados=[];
 
 async function renderGenerados(){
   const tb=document.getElementById('gen-tbody');
-  tb.innerHTML=`<tr><td colspan="11" style="text-align:center;color:var(--gray400);padding:20px">Cargando...</td></tr>`;
+  tb.innerHTML=`<tr><td colspan="12" style="text-align:center;color:var(--gray400);padding:20px">Cargando...</td></tr>`;
   try{
     const todos=await fetch('/api/prospectos').then(r=>r.json());
     // Solo los generados por esta herramienta — un prospecto capturado a mano
@@ -586,11 +593,13 @@ async function renderGenerados(){
     const fOrigen=document.getElementById('gen-filtro-origen').value;
     const fCorreo=document.getElementById('gen-filtro-correo').value;
     const fVerif=document.getElementById('gen-filtro-verificacion').value;
+    const fTamano=document.getElementById('gen-filtro-tamano').value;
     const lista=_generados.filter(p=>
       (!fSector || p.sector===fSector) &&
       (!fOrigen || p.origenCarga===fOrigen) &&
       (!fCorreo || (fCorreo==='si'? p.correoGenerado : !p.correoGenerado)) &&
-      (!fVerif || (p.verificacionIA||'Pendiente')===fVerif)
+      (!fVerif || (p.verificacionIA||'Pendiente')===fVerif) &&
+      (!fTamano || p.tamanoEmpresa===fTamano)
     );
 
     document.getElementById('gen-chip').textContent=`${lista.length} prospecto${lista.length===1?'':'s'}`;
@@ -604,6 +613,7 @@ async function renderGenerados(){
         <td class="m" style="font-size:11px;color:var(--gray600)">${esc(fecha)}</td>
         <td style="font-weight:600;max-width:180px"><div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(p.contacto)}">${esc(p.contacto)||'—'}</div><div style="font-size:10px;color:var(--gray400);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:2px" title="${esc(p.cargo)}">${esc(p.cargo)||''}</div></td>
         <td style="max-width:180px"><div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(p.empresa)}">${esc(p.empresa)||'—'}</div></td>
+        <td>${tamanoTagHtml(p.tamanoEmpresa,p.numEmpleados)}</td>
         <td class="m" style="color:var(--blue);max-width:180px"><div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(p.email)}">${esc(p.email)||'—'}</div></td>
         <td>${p.sector?`<span class="tag tag-blue">${esc(p.sector)}</span>`:'—'}</td>
         <td><span class="tag ${confTag}">${conf==null?'—':conf+'/10'}</span></td>
@@ -613,10 +623,20 @@ async function renderGenerados(){
         <td>${p.correoGenerado?'<span class="tag tag-green">✓ generado</span>':'<span class="tag tag-gray">pendiente</span>'}</td>
         <td><button class="btn btn-ghost btn-xs" onclick="generarCorreoDesdeHistorial('${p.id}')">✦ Correo</button></td>
       </tr>`;
-    }).join('') : `<tr><td colspan="11" style="text-align:center;color:var(--gray400);padding:20px">Sin prospectos que coincidan con el filtro</td></tr>`;
+    }).join('') : `<tr><td colspan="12" style="text-align:center;color:var(--gray400);padding:20px">Sin prospectos que coincidan con el filtro</td></tr>`;
   }catch(err){
-    tb.innerHTML=`<tr><td colspan="11" style="text-align:center;color:var(--red);padding:20px">Error cargando el historial: ${esc(err.message)}</td></tr>`;
+    tb.innerHTML=`<tr><td colspan="12" style="text-align:center;color:var(--red);padding:20px">Error cargando el historial: ${esc(err.message)}</td></tr>`;
   }
+}
+
+// Tamaño de empresa — 3 franjas visibles confirmadas (50-200 / 200-500 /
+// 500+), para ver de un vistazo qué tan buen prospecto es sin abrir el
+// registro. null cuando Apollo no trae el dato — no se inventa un tamaño.
+function tamanoTagHtml(tamano,numEmpleados){
+  if(!tamano) return '<span style="color:var(--gray300);font-size:11px">—</span>';
+  const cls=tamano.startsWith('Mediana')?'tag-blue':tamano.startsWith('Grande')?'tag-amber':'tag-green';
+  const num=numEmpleados!=null?` (${numEmpleados})`:'';
+  return `<span class="tag ${cls}" title="${esc(tamano)}${esc(num)}">${esc(tamano.split(' ')[0])}${esc(num)}</span>`;
 }
 
 // Pill de status — el CSS del CRM las estiliza por clase (ver main.css .pill).

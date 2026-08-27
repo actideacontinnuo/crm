@@ -199,6 +199,28 @@ describe('Prospección — POST /buscar (Apollo)', () => {
     expect(res.body.totalEncontrados).toBe(0);
   });
 
+  test('el tamaño de empresa (empleados) se guarda y se segmenta en 3 franjas visibles', async () => {
+    fetch
+      .mockResolvedValueOnce(jsonResp(200, { people: [
+        { id: 'p1', first_name: 'Juan', organization: { name: 'Mediana SA' }, has_email: true },
+      ] }))
+      .mockResolvedValueOnce(jsonResp(200, { matches: [
+        { id: 'p1', last_name: 'Pérez', email: 'juan@medianasa.com', email_status: 'verified', organization: { name: 'Mediana SA', estimated_num_employees: 120 } },
+      ] }))
+      .mockResolvedValueOnce(jsonResp(200, { content: [{ text: JSON.stringify([{ id: 'p1', verified: true, confidence: 8, notes: 'ok' }]) }] }));
+
+    const res = await request(app).post('/api/prospeccion/buscar')
+      .set('Authorization', `Bearer ${natToken()}`).send({ sectors: ['events-services'], total: 1 });
+    expect(res.body.guardados).toBe(1);
+    expect(res.body.detalle[0].numEmpleados).toBe(120);
+    expect(res.body.detalle[0].tamanoEmpresa).toBe('Mediana (50-200)');
+
+    const store = mockNotion.getStore();
+    const pagina = store.prospectos.find(p => p.properties['Email']?.email === 'juan@medianasa.com');
+    expect(pagina.properties['NumEmpleados']?.number).toBe(120);
+    expect(pagina.properties['TamanoEmpresa']?.select?.name).toBe('Mediana (50-200)');
+  });
+
   test('"total" se reparte entre los sectores elegidos (1-100 en una sola corrida)', async () => {
     fetch.mockResolvedValue(jsonResp(200, { people: [] }));
     await request(app).post('/api/prospeccion/buscar')
