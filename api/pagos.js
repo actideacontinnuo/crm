@@ -46,6 +46,10 @@ function toObj(page) {
     forma:         read_select(p['Forma de Pago']),
     ref:           read_text(p['Referencia']),
     comprobante:   read_checkbox(p['Comprobante']),
+    // Cobro "extra": dinero cobrado al cliente por algo FUERA de la
+    // cotización original de la OP (no estaba contemplado). Se desglosa aparte
+    // en el Estado de Resultados — nunca se suma al Precio de Venta cotizado.
+    extra:         read_checkbox(p['Extra']),
   };
 }
 
@@ -61,6 +65,7 @@ function toProps(data) {
   if (data.forma         !== undefined) props['Forma de Pago'] = prop_select(data.forma);
   if (data.ref           !== undefined) props['Referencia']    = prop_text(data.ref);
   if (data.comprobante   !== undefined) props['Comprobante']   = prop_checkbox(data.comprobante);
+  if (data.extra         !== undefined) props['Extra']         = prop_checkbox(data.extra);
   return props;
 }
 

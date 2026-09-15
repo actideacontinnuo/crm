@@ -30,11 +30,11 @@ async function renderProveedores() {
   }
 
   // Alert bar
-  const deudasPend = deudas.filter(d => d.status === 'pendiente');
+  const deudasPend = deudas.filter(d => (d.debemosConIva ?? 0) > 0);
   const alertEl = document.getElementById('deudas-alert');
   if (alertEl) {
     if (deudasPend.length) {
-      const total = deudasPend.reduce((a, d) => a + efectivoDeuda(d), 0);
+      const total = deudasPend.reduce((a, d) => a + (d.debemosConIva ?? 0), 0);
       alertEl.innerHTML = `<div style="background:var(--white);border:1px solid var(--border);border-radius:10px;padding:14px 18px;display:flex;align-items:center;gap:14px;cursor:pointer;margin-bottom:16px" onclick="openM('deudas')">
         <div style="width:40px;height:40px;border-radius:10px;background:#FFF8F0;border:1px solid #F0DFC0;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:var(--amber)">${icoHTML('doc',18)}</div>
         <div style="flex:1"><div style="font-size:13px;font-weight:600">Tienes ${deudasPend.length} pago(s) pendiente(s) a proveedores</div><div style="font-size:12px;color:var(--gray400);margin-top:2px">Total: ${fmx(total)} · Haz clic para ver el detalle</div></div>
@@ -47,8 +47,8 @@ async function renderProveedores() {
 
   // Table
   document.getElementById('prov-tbody').innerHTML = provs.map(p => {
-    const deudasProv = deudas.filter(d => d.provId === p.id && d.status === 'pendiente');
-    const totalDeuda = deudasProv.reduce((a, d) => a + efectivoDeuda(d), 0);
+    const deudasProv = deudas.filter(d => d.provId === p.id && (d.debemosConIva ?? 0) > 0);
+    const totalDeuda = deudasProv.reduce((a, d) => a + (d.debemosConIva ?? 0), 0);
     const condTag = p.cond === 'Inmediato' ? 'gray' : p.cond === '30 días' ? 'amber' : 'red';
     return `<tr onclick="openDetalleProveedor('${p.id}')">
       <td><div style="font-weight:600">${esc(p.nombre)}</div><div style="font-size:11px;color:var(--gray400)">${esc(p.razon) || '—'}</div></td>
@@ -204,14 +204,16 @@ async function openDetalleProveedor(id) {
   document.getElementById('dprv-deudas').innerHTML = provDeudas.length
     ? provDeudas.map(d => {
         const op = opMap[d.opId] || {};
-        return `<div style="display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--border)">
+        const debemos = d.debemosConIva ?? 0;
+        const estatusLabel = d.status === 'pagado' ? 'Pagado' : d.status === 'parcial' ? 'Parcial' : 'Pendiente';
+        return `<div style="display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--border);cursor:${debemos > 0 ? 'pointer' : 'default'}" ${debemos > 0 ? `onclick="abrirAbonoDeuda('${d.id}')"` : ''}>
           <div>
             <div style="font-size:12.5px;font-weight:500">${esc(d.concepto)}</div>
-            <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--gray400)">${esc(op.numero) || '—'} · Vence ${esc(d.fechaAcordada) || '—'}</div>
+            <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--gray400)">${esc(op.numero) || '—'} · Vence ${esc(d.fechaAcordada) || '—'} · Debemos ${fmx(debemos)}</div>
           </div>
           <div style="display:flex;align-items:center;gap:8px">
             <div style="font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700">${fmx(efectivoDeuda(d))}</div>
-            ${pillHTML(d.status === 'pagado' ? 'Pagado' : 'Pendiente')}
+            ${pillHTML(estatusLabel)}
           </div>
         </div>`;
       }).join('')
@@ -257,11 +259,11 @@ async function renderDeudasModal() {
   const list = deudas.filter(d =>
     (!provFilter || d.provId === provFilter) &&
     (_deudasFilterVal === 'todos' ||
-     (_deudasFilterVal === 'pendiente' && d.status === 'pendiente') ||
+     (_deudasFilterVal === 'pendiente' && (d.debemosConIva ?? 0) > 0) ||
      (_deudasFilterVal === 'pagado'    && d.status === 'pagado'))
   );
 
-  const pend   = deudas.filter(d => d.status === 'pendiente');
+  const pend    = deudas.filter(d => (d.debemosConIva ?? 0) > 0);
   const pagadas = deudas.filter(d => d.status === 'pagado');
   const now = new Date();
   const venceSemana = pend.filter(d => {
@@ -270,14 +272,16 @@ async function renderDeudasModal() {
   });
 
   document.getElementById('deudas-kpis').innerHTML = `
-    <div class="info-cell"><div class="info-cell-label">POR PAGAR</div><div style="font-family:'Bebas Neue',cursive;font-size:26px">${fmx(pend.reduce((a,d)=>a+efectivoDeuda(d),0))}</div><div style="font-size:11px;color:var(--gray400)">${pend.length} proveedor(es)</div></div>
-    <div class="info-cell" style="background:#FFF8F0;border:1px solid #F0DFC0"><div class="info-cell-label" style="color:var(--amber)">VENCE ESTA SEMANA</div><div style="font-family:'Bebas Neue',cursive;font-size:26px;color:var(--amber)">${fmx(venceSemana.reduce((a,d)=>a+efectivoDeuda(d),0))}</div></div>
-    <div class="info-cell" style="background:#F2FBF5;border:1px solid #C0DFC8"><div class="info-cell-label" style="color:var(--green)">PAGADO</div><div style="font-family:'Bebas Neue',cursive;font-size:26px;color:var(--green)">${fmx(pagadas.reduce((a,d)=>a+efectivoDeuda(d),0))}</div></div>`;
+    <div class="info-cell"><div class="info-cell-label">POR PAGAR</div><div style="font-family:'Bebas Neue',cursive;font-size:26px">${fmx(pend.reduce((a,d)=>a+(d.debemosConIva??0),0))}</div><div style="font-size:11px;color:var(--gray400)">${pend.length} proveedor(es)</div></div>
+    <div class="info-cell" style="background:#FFF8F0;border:1px solid #F0DFC0"><div class="info-cell-label" style="color:var(--amber)">VENCE ESTA SEMANA</div><div style="font-family:'Bebas Neue',cursive;font-size:26px;color:var(--amber)">${fmx(venceSemana.reduce((a,d)=>a+(d.debemosConIva??0),0))}</div></div>
+    <div class="info-cell" style="background:#F2FBF5;border:1px solid #C0DFC8"><div class="info-cell-label" style="color:var(--green)">PAGADO</div><div style="font-family:'Bebas Neue',cursive;font-size:26px;color:var(--green)">${fmx(deudas.reduce((a,d)=>a+(d.pagadoConIva||0),0))}</div></div>`;
 
   document.getElementById('deudas-cards').innerHTML = list.map(d => {
     const pv = provMap[d.provId] || {};
     const op = opMap[d.opId] || {};
     const isPagado = d.status === 'pagado';
+    const isParcial = d.status === 'parcial';
+    const debemos = d.debemosConIva ?? 0;
     return `<div class="deuda-card" style="opacity:${isPagado ? '.6' : '1'}">
       <div class="deuda-hdr" style="background:${isPagado ? 'var(--cream)' : 'var(--white)'}">
         <div style="display:flex;align-items:center;gap:10px">
@@ -286,32 +290,18 @@ async function renderDeudasModal() {
         </div>
         <div style="text-align:right">
           <div style="font-family:'Bebas Neue',cursive;font-size:22px;${isPagado ? 'text-decoration:line-through;color:var(--gray400)' : ''}">${fmx(efectivoDeuda(d))}</div>
-          <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:${isPagado ? 'var(--green)' : 'var(--gray400)'}">${isPagado ? 'Pagado ✓' : 'Vence ' + (esc(d.fechaAcordada) || '—')}</div>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:${isPagado ? 'var(--green)' : isParcial ? 'var(--amber)' : 'var(--gray400)'}">${isPagado ? 'Pagado ✓' : isParcial ? `Parcial — debemos ${fmx(debemos)}` : 'Vence ' + (esc(d.fechaAcordada) || '—')}</div>
         </div>
       </div>
       ${!isPagado ? `<div class="deuda-body">
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px"><span class="deuda-tag">OP: ${esc(op.numero) || '—'}</span><span class="deuda-tag">${esc(op.desc) || '—'}</span></div>
         <div style="font-size:12px;color:var(--gray600);margin-bottom:10px">${esc(d.concepto)}</div>
         <div style="display:flex;gap:8px;justify-content:flex-end">
-          <button class="btn btn-sm" style="background:var(--green);color:var(--white)" onclick="marcarDeudaPagada('${d.id}')">Marcar como pagado</button>
+          <button class="btn btn-sm" style="background:var(--green);color:var(--white)" onclick="abrirAbonoDeuda('${d.id}')">Registrar abono</button>
         </div>
       </div>` : ''}
     </div>`;
   }).join('') || '<div class="empty-state"><div>✓</div><div>SIN DEUDAS EN ESTE FILTRO</div></div>';
-}
-
-async function marcarDeudaPagada(id) {
-  showSpinner();
-  try {
-    await db.deudas.update(id, { status: 'pagado' });
-    toast('✓ Pago registrado a proveedor');
-    renderDeudasModal();
-    renderProveedores();
-  } catch (e) {
-    toast('Error al actualizar deuda', 'red');
-  } finally {
-    hideSpinner();
-  }
 }
 
 async function saveDeuda() {

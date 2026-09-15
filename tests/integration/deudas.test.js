@@ -71,21 +71,101 @@ describe('CRUD de deudas (admin)', () => {
     expect(res.body.fecha).toBe('2026-08-15'); // alias legado también disponible
   });
 
-  test('marcar deuda como pagada (PATCH)', async () => {
+  test('una deuda nueva SIEMPRE arranca pendiente, Pagado=0 — sin importar qué status mande el cliente', async () => {
+    const res = await request(app).post('/api/deudas')
+      .set('Authorization', `Bearer ${adminToken()}`).send({ ...DEUDA_VALIDA, status: 'pagado' });
+    expect(res.body.status).toBe('pendiente');
+    expect(res.body.pagado).toBe(0);
+    expect(res.body.pagadoConIva).toBe(0);
+    expect(res.body.debemos).toBe(45000);
+  });
+
+  test('PATCH ya NO acepta "status" directo — el status siempre se deriva de Pagado vs Cotización, nunca se fuerza a mano', async () => {
     const creada = await request(app).post('/api/deudas')
       .set('Authorization', `Bearer ${adminToken()}`).send(DEUDA_VALIDA);
     const res = await request(app).patch(`/api/deudas/${creada.body.id}`)
       .set('Authorization', `Bearer ${adminToken()}`)
-      .send({ status: 'Pagada' });
+      .send({ status: 'pagado' }); // se ignora — no hay 'Status' en toProps
     expect(res.status).toBe(200);
-    expect(res.body.status).toBe('Pagada');
+    expect(res.body.status).toBe('pendiente'); // sigue pendiente, no se coló el status forzado
   });
 
   test('PATCH con id inexistente → 500 controlado', async () => {
     const res = await request(app).patch('/api/deudas/no-existe')
       .set('Authorization', `Bearer ${adminToken()}`)
-      .send({ status: 'Pagada' });
+      .send({ concepto: 'x' });
     expect(res.status).toBe(500);
+  });
+});
+
+describe('POST /:id/abonar — la ÚNICA forma correcta de registrar un pago a proveedor', () => {
+  async function crearDeudaConIva(app, montoConIva) {
+    const res = await request(app).post('/api/deudas')
+      .set('Authorization', `Bearer ${adminToken()}`)
+      .send({ concepto: 'Audio y video', provId: 'prov-1', opId: 'op-1', montoConIva });
+    return res.body;
+  }
+
+  test('BUG REAL CORREGIDO: dos abonos parciales a la misma deuda NUNCA crean un segundo registro', async () => {
+    const deuda = await crearDeudaConIva(app, 50000); // como el ejemplo real: Actidea debe 50,000
+
+    await request(app).post(`/api/deudas/${deuda.id}/abonar`)
+      .set('Authorization', `Bearer ${adminToken()}`).send({ montoConIva: 20000 });
+    await request(app).post(`/api/deudas/${deuda.id}/abonar`)
+      .set('Authorization', `Bearer ${adminToken()}`).send({ montoConIva: 15000 });
+
+    const lista = await request(app).get('/api/deudas').set('Authorization', `Bearer ${adminToken()}`);
+    // Sigue habiendo UN solo registro de esta deuda — no dos, no tres.
+    expect(lista.body.filter(d => d.concepto === 'Audio y video')).toHaveLength(1);
+
+    const actualizada = lista.body[0];
+    expect(actualizada.pagadoConIva).toBe(35000);
+    expect(actualizada.debemosConIva).toBe(15000);
+    expect(actualizada.status).toBe('parcial');
+    // La COTIZACIÓN (lo que cuenta para la Utilidad) NUNCA se mueve al abonar.
+    expect(actualizada.montoConIva).toBe(50000);
+  });
+
+  test('el status pasa de pendiente → parcial → pagado según se va abonando', async () => {
+    const deuda = await crearDeudaConIva(app, 11600); // 11600/1.16 = 10000 neto
+
+    let r = await request(app).get('/api/deudas').set('Authorization', `Bearer ${adminToken()}`);
+    expect(r.body[0].status).toBe('pendiente');
+
+    await request(app).post(`/api/deudas/${deuda.id}/abonar`)
+      .set('Authorization', `Bearer ${adminToken()}`).send({ montoConIva: 5000 });
+    r = await request(app).get('/api/deudas').set('Authorization', `Bearer ${adminToken()}`);
+    expect(r.body[0].status).toBe('parcial');
+
+    await request(app).post(`/api/deudas/${deuda.id}/abonar`)
+      .set('Authorization', `Bearer ${adminToken()}`).send({ montoConIva: 6600 });
+    r = await request(app).get('/api/deudas').set('Authorization', `Bearer ${adminToken()}`);
+    expect(r.body[0].status).toBe('pagado');
+    expect(r.body[0].debemosConIva).toBe(0);
+  });
+
+  test('la Utilidad (Monto neto) nunca cambia al abonar — solo Pagado cambia', async () => {
+    const deuda = await crearDeudaConIva(app, 11600);
+    await request(app).post(`/api/deudas/${deuda.id}/abonar`)
+      .set('Authorization', `Bearer ${adminToken()}`).send({ montoConIva: 11600 });
+    const r = await request(app).get('/api/deudas').set('Authorization', `Bearer ${adminToken()}`);
+    expect(r.body[0].monto).toBe(10000);     // cotización neta, sin cambio
+    expect(r.body[0].pagado).toBe(10000);    // abonado neto, ahora igual (pagado completo)
+  });
+
+  test('no se puede abonar más de lo cotizado (evita un "debemos" negativo)', async () => {
+    const deuda = await crearDeudaConIva(app, 10000);
+    const res = await request(app).post(`/api/deudas/${deuda.id}/abonar`)
+      .set('Authorization', `Bearer ${adminToken()}`).send({ montoConIva: 15000 });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/por encima de lo cotizado/i);
+  });
+
+  test('un abono de $0 o negativo se rechaza', async () => {
+    const deuda = await crearDeudaConIva(app, 10000);
+    const res = await request(app).post(`/api/deudas/${deuda.id}/abonar`)
+      .set('Authorization', `Bearer ${adminToken()}`).send({ montoConIva: 0 });
+    expect(res.status).toBe(400);
   });
 });
 

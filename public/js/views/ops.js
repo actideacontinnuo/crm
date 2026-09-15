@@ -10,15 +10,14 @@ function setOPTab(f, el) {
 
 async function renderOPs() {
   showSpinner();
-  let ops, clientes;
-  try {
-    [ops, clientes] = await Promise.all([db.ops.list(), db.clientes.list()]);
-  } catch (e) {
-    toast('Error al cargar OPs', 'red');
-    return;
-  } finally {
-    hideSpinner();
-  }
+  // Cada llamada se protege por separado: si una falla (timeout/red hacia
+  // Notion), la vista sigue mostrando lo que sí cargó en vez de un
+  // "Error al cargar OPs" genérico que dejaba la pantalla en blanco.
+  const [ops, clientes] = await Promise.all([
+    db.ops.list().catch(() => { toast('No se pudieron cargar las OPs', 'red'); return []; }),
+    db.clientes.list().catch(() => { toast('No se pudieron cargar los clientes', 'red'); return []; }),
+  ]);
+  hideSpinner();
 
   const f = STATE.opTabFilter;
   const list = f === 'todas' ? ops : ops.filter(o => o.status === f);
@@ -121,18 +120,23 @@ async function saveOP() {
 
 async function openDetalleOP(id) {
   showSpinner();
+  // La OP misma (o) es indispensable — sin ella no hay nada que mostrar. Los
+  // demás datos se degradan solos si fallan (timeout/red hacia Notion) en vez
+  // de tumbar el modal completo con un "Error al cargar OP" genérico.
   let o, clientes, pagos, cots;
   try {
-    [o, clientes, pagos, cots] = await Promise.all([
-      db.ops.get(id), db.clientes.list(), db.pagos.list().catch(() => []),
-      db.cotizaciones.list().catch(() => []),
-    ]);
+    o = await db.ops.get(id);
   } catch (e) {
+    hideSpinner();
     toast('Error al cargar OP', 'red');
     return;
-  } finally {
-    hideSpinner();
   }
+  [clientes, pagos, cots] = await Promise.all([
+    db.clientes.list().catch(() => { toast('No se pudieron cargar los clientes', 'red'); return []; }),
+    db.pagos.list().catch(() => []),
+    db.cotizaciones.list().catch(() => []),
+  ]);
+  hideSpinner();
 
   STATE.selOP = id;
   const cliMap = Object.fromEntries(clientes.map(c => [c.id, c]));
@@ -251,15 +255,28 @@ function openEdRForOP() {
   setTimeout(() => openEDR(id), 200);
 }
 
+// Estado de Resultados — replica EXACTA de la hoja de cálculo de Oscar
+// (confirmado dato por dato con el usuario, ver conversación):
+//  - Tabla de proveedores en CON IVA (Cotización/Pagado/Debemos) + fila de
+//    totales sin IVA (÷1.16), que es la que de verdad alimenta la Utilidad.
+//  - PAGO CLIENTE = cobros NO marcados como Extra. EXTRAS = cobros SÍ
+//    marcados como Extra (fuera de la cotización original). REMANENTE =
+//    PAGO CLIENTE + EXTRAS (por definición, igual que PAGADO — se muestra
+//    como renglón aparte porque así viene en la hoja original).
+//  - Utilidad = Precio de venta (sin IVA) − Costo de producción (sin IVA).
+//    La Comisión del Ejecutivo NUNCA resta del costo de producción — se resta
+//    directo de la Utilidad (confirmado). Utilidad después de comisión = la
+//    que realmente se reparte.
 async function openEDR(id) {
   showSpinner();
-  let o, clientes, deudas, proveedores;
+  let o, clientes, deudas, proveedores, pagos;
   try {
-    [o, clientes, deudas, proveedores] = await Promise.all([
+    [o, clientes, deudas, proveedores, pagos] = await Promise.all([
       db.ops.get(id),
       db.clientes.list(),
       db.deudas.list().catch(() => []),
       db.proveedores.list(),
+      db.pagos.list().catch(() => []),
     ]);
   } catch (e) {
     toast('Error al cargar EdR', 'red');
@@ -269,46 +286,76 @@ async function openEDR(id) {
   }
 
   STATE.selOP = id;
-  const cliMap = Object.fromEntries(clientes.map(c => [c.id, c]));
   const provMap = Object.fromEntries(proveedores.map(p => [p.id, p]));
 
   document.getElementById('edr-num').textContent   = o.numero + ' · ESTADO DE RESULTADOS';
   document.getElementById('edr-title').textContent = o.desc; // textContent — seguro sin escapar
 
-  const margen = o.cotizado > 0 ? Math.round((o.utilidad || 0) / o.cotizado * 100) : 0;
-  document.getElementById('edr-kpis').innerHTML = `
-    <div class="info-cell" style="text-align:center"><div class="info-cell-label">INGRESOS TOTALES</div><div style="font-family:'Bebas Neue',cursive;font-size:26px">${fmx(o.cotizado)}</div></div>
-    <div class="info-cell" style="text-align:center;background:var(--green-dim);border:1px solid var(--green-bdr)"><div class="info-cell-label" style="color:var(--green)">UTILIDAD BRUTA</div><div style="font-family:'Bebas Neue',cursive;font-size:26px;color:var(--green)">${fmx(o.utilidad)}</div></div>
-    <div class="info-cell" style="text-align:center"><div class="info-cell-label">MARGEN</div><div style="font-family:'Bebas Neue',cursive;font-size:26px">${margen}%</div></div>`;
-
+  // ── Tabla de proveedores (con IVA) ──
   const opDeudas = deudas.filter(d => d.opId === id);
   const tbody = document.getElementById('edr-tbody');
   tbody.innerHTML = opDeudas.length
     ? opDeudas.map(d => {
         const pv = provMap[d.provId] || {};
-        const pagado = d.status === 'pagado' ? d.monto : 0;
-        const debemos = d.status !== 'pagado' ? d.monto : 0;
-        return `<tr>
+        const cotizacion = efectivoDeuda(d);
+        const pagado = d.pagadoConIva || 0;
+        const debemos = d.debemosConIva ?? 0;
+        return `<tr style="cursor:${debemos > 0 ? 'pointer' : 'default'}" onclick="${debemos > 0 ? `abrirAbonoDeuda('${d.id}')` : ''}">
           <td>${esc(pv.nombre) || '—'}<div style="font-size:10px;color:var(--gray400)">${esc(d.concepto)}</div></td>
-          <td style="text-align:right" class="mono">${fmx(d.monto)}</td>
+          <td style="text-align:right" class="mono">${fmx(cotizacion)}</td>
           <td style="text-align:right;color:var(--green)" class="mono">${fmx(pagado)}</td>
           <td style="text-align:right;color:${debemos ? 'var(--red)' : 'var(--gray400)'}" class="mono">${fmx(debemos)}</td>
-          <td style="text-align:right" class="mono">—</td>
         </tr>`;
       }).join('')
-    : `<tr><td colspan="5" style="text-align:center;color:var(--gray400);padding:16px;font-size:12px">Sin costos de proveedores registrados.<br><span style="color:var(--red);cursor:pointer" onclick="abrirNuevaDeudaParaOP('${id}')">+ Registrar pago a proveedor →</span></td></tr>`;
+    : `<tr><td colspan="4" style="text-align:center;color:var(--gray400);padding:16px;font-size:12px">Sin costos de proveedores registrados.<br><span style="color:var(--red);cursor:pointer" onclick="abrirNuevaDeudaParaOP('${id}')">+ Registrar pago a proveedor →</span></td></tr>`;
 
-  const costos = opDeudas.reduce((a, d) => a + (d.monto || 0), 0);
+  const totCotizConIva = opDeudas.reduce((a, d) => a + efectivoDeuda(d), 0);
+  const totPagadoConIva = opDeudas.reduce((a, d) => a + (d.pagadoConIva || 0), 0);
+  const totDebemosConIva = opDeudas.reduce((a, d) => a + (d.debemosConIva ?? 0), 0);
+  const totCotizNeto = opDeudas.reduce((a, d) => a + (d.monto || 0), 0);
+  const totPagadoNeto = opDeudas.reduce((a, d) => a + (d.pagado || 0), 0);
+  const totDebemosNeto = Math.max(0, totCotizNeto - totPagadoNeto);
+
+  document.getElementById('edr-tfoot').innerHTML = opDeudas.length ? `
+    <tr style="border-top:2px solid var(--border-d)"><td style="font-weight:700">TOTAL GASTOS</td><td style="text-align:right;font-weight:700" class="mono">${fmx(totCotizConIva)}</td><td style="text-align:right;font-weight:700;color:var(--green)" class="mono">${fmx(totPagadoConIva)}</td><td style="text-align:right;font-weight:700;color:var(--red)" class="mono">${fmx(totDebemosConIva)}</td></tr>
+    <tr><td style="font-size:11px;color:var(--gray400)">TOTAL SIN IVA</td><td style="text-align:right;font-size:11px;color:var(--gray400)" class="mono">${fmx(totCotizNeto)}</td><td style="text-align:right;font-size:11px;color:var(--gray400)" class="mono">${fmx(totPagadoNeto)}</td><td style="text-align:right;font-size:11px;color:var(--gray400)" class="mono">${fmx(totDebemosNeto)}</td></tr>
+  ` : '';
+
+  // ── Cobranza: Pago Cliente / Extras / Pagado / Remanente ──
+  const opCobrosPagados = pagos.filter(p => p.opId === id && p.tipo === 'Cobro a cliente' && p.status === 'Pagado');
+  const pagoCliente = opCobrosPagados.filter(p => !p.extra).reduce((a, p) => a + (p.monto || 0), 0);
+  const extras      = opCobrosPagados.filter(p => p.extra).reduce((a, p) => a + (p.monto || 0), 0);
+  const pagadoTotal = pagoCliente + extras;
+  const remanente    = pagoCliente + extras; // por definición, igual a Pagado
+
+  document.getElementById('edr-cobranza').innerHTML = `
+    <div class="info-grid" style="grid-template-columns:1fr 1fr">
+      <div class="info-cell"><div class="info-cell-label">PAGO CLIENTE</div><div class="info-cell-val mono">${fmx(pagoCliente)}</div></div>
+      <div class="info-cell"><div class="info-cell-label">PAGADO</div><div class="info-cell-val mono">${fmx(pagadoTotal)}</div></div>
+      <div class="info-cell"><div class="info-cell-label">EXTRAS</div><div class="info-cell-val mono">${fmx(extras)}</div><div style="font-size:10px;color:var(--gray400)">Fuera de cotización</div></div>
+      <div class="info-cell"><div class="info-cell-label">REMANENTE</div><div class="info-cell-val mono">${fmx(remanente)}</div></div>
+    </div>`;
+
+  // ── Resultado del evento (sin IVA) ──
+  const margen = o.cotizado > 0 ? Math.round((o.utilidad || 0) / o.cotizado * 100 * 100) / 100 : 0;
+  document.getElementById('edr-evento-label').textContent = esc(o.numero) + ' · ' + esc(o.desc || '');
   // % real de esta OP (heredado del cliente — Regla 2 = 15%, Externo = manual).
-  // La línea de comisión SOLO se muestra si hay comisión > 0 que se pague: para
-  // Eduardo/Alfredo (comision = 0) ese 7.5% no se paga, se queda como utilidad,
-  // así que NO aparece ninguna línea. OPs viejas sin dato (null) tampoco inventan.
+  // La comisión NUNCA resta del costo de producción (confirmado) — se resta
+  // directo de la Utilidad. Para Eduardo/Alfredo (comision=0) su 7.5% no se
+  // paga, se queda como utilidad, así que no aparece ninguna línea.
   const comisionPct = Number(o.comision) || 0;
-  const comisionCell = comisionPct > 0
-    ? `<div class="info-cell"><div class="info-cell-label">COMISIÓN EJECUTIVO (${comisionPct}%)</div><div style="font-family:'Bebas Neue',cursive;font-size:22px;color:var(--green)">${fmx((o.utilidad || 0) * (comisionPct / 100))}</div><div style="font-size:11px;color:var(--gray400)">${esc(o.ejec)} · ${comisionPct}% de ${fmx(o.utilidad)}</div></div>`
-    : '';
-  document.getElementById('edr-bottom').innerHTML = comisionCell +
-    `<div class="info-cell"><div class="info-cell-label">COSTOS REGISTRADOS A PROVEEDORES</div><div style="font-family:'Bebas Neue',cursive;font-size:22px;color:var(--amber)">${fmx(costos)}</div><div style="font-size:11px;color:var(--gray400)">${opDeudas.length} proveedor(es)</div></div>`;
+  const comisionMonto = comisionPct > 0 ? (o.utilidad || 0) * (comisionPct / 100) : 0;
+  const utilDespues = (o.utilidad || 0) - comisionMonto;
+
+  document.getElementById('edr-resultados').innerHTML = `
+    <div class="info-grid" style="grid-template-columns:1fr 1fr">
+      <div class="info-cell"><div class="info-cell-label">PRECIO DE VENTA</div><div class="info-cell-val mono">${fmx(o.cotizado)}</div></div>
+      <div class="info-cell"><div class="info-cell-label">COSTO PRODUCCIÓN</div><div class="info-cell-val mono">${fmx(totCotizNeto)}</div></div>
+      <div class="info-cell" style="background:var(--green-dim);border:1px solid var(--green-bdr)"><div class="info-cell-label" style="color:var(--green)">UTILIDAD</div><div class="info-cell-val mono" style="color:var(--green)">${fmx(o.utilidad)}</div></div>
+      <div class="info-cell"><div class="info-cell-label">% UTILIDAD</div><div class="info-cell-val mono">${margen}%</div></div>
+      ${comisionPct > 0 ? `<div class="info-cell"><div class="info-cell-label">COMISIÓN ${comisionPct}%</div><div class="info-cell-val mono">${fmx(comisionMonto)}</div></div>` : ''}
+      <div class="info-cell" style="background:var(--green-dim);border:1px solid var(--green-bdr)"><div class="info-cell-label" style="color:var(--green)">UTILIDAD DESPUÉS DE COMISIÓN</div><div class="info-cell-val mono" style="color:var(--green)">${fmx(utilDespues)}</div></div>
+    </div>`;
 
   openM('edr');
 }
@@ -422,30 +469,38 @@ async function saveEditarOP() {
   } finally { hideSpinner(); }
 }
 
-// ── Exportar Estado de Resultados (EdR) como PDF imprimible ──
+// ── Exportar Estado de Resultados (EdR) como PDF imprimible — mismos números
+// exactos que el modal (ver openEDR): proveedores en con IVA + resumen sin IVA.
 async function exportEDR() {
   const opId = STATE.selOP;
   if (!opId) return;
 
-  const [ops, clientes, deudas, pagos] = await Promise.all([
+  const [ops, clientes, deudas, pagos, proveedores] = await Promise.all([
     db.ops.list(), db.clientes.list(),
     db.deudas.list().catch(() => []), db.pagos.list().catch(() => []),
+    db.proveedores.list().catch(() => []),
   ]);
   const o   = ops.find(x => x.id === opId) || {};
   const cli = clientes.find(x => x.id === o.clienteId) || {};
+  const provMap = Object.fromEntries(proveedores.map(p => [p.id, p]));
   const opDeudas = deudas.filter(d => d.opId === opId);
-  const opPagos  = pagos.filter(p => p.opId === opId);
+  const opCobrosPagados = pagos.filter(p => p.opId === opId && p.tipo === 'Cobro a cliente' && p.status === 'Pagado');
 
-  const pagado   = opPagos.reduce((a, p) => a + (p.monto || 0), 0);
-  const costos   = opDeudas.reduce((a, d) => a + (d.monto || 0), 0);
-  const utilidad = o.utilidad || 0; // única fuente de verdad: la calcula el servidor (withUtilidadReal en api/ops.js)
+  const pagoCliente = opCobrosPagados.filter(p => !p.extra).reduce((a, p) => a + (p.monto || 0), 0);
+  const extras      = opCobrosPagados.filter(p => p.extra).reduce((a, p) => a + (p.monto || 0), 0);
+  const pagadoTotal = pagoCliente + extras;
+  const costos      = opDeudas.reduce((a, d) => a + (d.monto || 0), 0); // sin IVA
+  const utilidad    = o.utilidad || 0; // única fuente de verdad: la calcula el servidor (withUtilidadReal en api/ops.js)
+  const comisionPct = Number(o.comision) || 0;
+  const comisionMonto = comisionPct > 0 ? utilidad * (comisionPct / 100) : 0;
 
   const filas = opDeudas.map(d => `
     <tr>
-      <td>${esc(d.proveedor || '—')}</td>
+      <td>${esc(provMap[d.provId]?.nombre || '—')}</td>
       <td>${esc(d.concepto || '—')}</td>
-      <td style="text-align:right">$${Math.round(d.monto || 0).toLocaleString('es-MX')}</td>
-      <td style="text-align:right">${String(d.status).toLowerCase() === 'pagado' ? '✓ Pagado' : (d.status || 'Pendiente')}</td>
+      <td style="text-align:right">$${Math.round(efectivoDeuda(d)).toLocaleString('es-MX')}</td>
+      <td style="text-align:right" class="green">$${Math.round(d.pagadoConIva || 0).toLocaleString('es-MX')}</td>
+      <td style="text-align:right" class="red">$${Math.round(d.debemosConIva || 0).toLocaleString('es-MX')}</td>
     </tr>`).join('');
 
   const html = `<!DOCTYPE html><html lang="es"><head>
@@ -465,13 +520,17 @@ async function exportEDR() {
     <h2>${esc(cli.nombre || 'OP Interna')} — ${esc(o.desc)}</h2>
     <table>
       <tr><th>CONCEPTO</th><th style="text-align:right">MONTO</th></tr>
-      <tr><td>Valor cotizado (sin IVA)</td><td style="text-align:right">$${Math.round(o.cotizado||0).toLocaleString('es-MX')}</td></tr>
-      <tr><td>Cobrado al cliente</td><td style="text-align:right" class="green">$${Math.round(pagado).toLocaleString('es-MX')}</td></tr>
-      <tr><td>Costos a proveedores</td><td style="text-align:right" class="red">$${Math.round(costos).toLocaleString('es-MX')}</td></tr>
-      <tr><td class="total">Utilidad bruta</td><td style="text-align:right" class="total ${utilidad>=0?'green':'red'}">$${Math.round(utilidad).toLocaleString('es-MX')}</td></tr>
+      <tr><td>Precio de venta (sin IVA)</td><td style="text-align:right">$${Math.round(o.cotizado||0).toLocaleString('es-MX')}</td></tr>
+      <tr><td>Pago cliente</td><td style="text-align:right" class="green">$${Math.round(pagoCliente).toLocaleString('es-MX')}</td></tr>
+      <tr><td>Extras (fuera de cotización)</td><td style="text-align:right" class="green">$${Math.round(extras).toLocaleString('es-MX')}</td></tr>
+      <tr><td>Pagado (total cobrado)</td><td style="text-align:right" class="green">$${Math.round(pagadoTotal).toLocaleString('es-MX')}</td></tr>
+      <tr><td>Costo de producción (sin IVA)</td><td style="text-align:right" class="red">$${Math.round(costos).toLocaleString('es-MX')}</td></tr>
+      <tr><td class="total">Utilidad</td><td style="text-align:right" class="total ${utilidad>=0?'green':'red'}">$${Math.round(utilidad).toLocaleString('es-MX')}</td></tr>
+      ${comisionPct > 0 ? `<tr><td>Comisión ejecutivo (${comisionPct}%)</td><td style="text-align:right">$${Math.round(comisionMonto).toLocaleString('es-MX')}</td></tr>
+      <tr><td class="total">Utilidad después de comisión</td><td style="text-align:right" class="total green">$${Math.round(utilidad - comisionMonto).toLocaleString('es-MX')}</td></tr>` : ''}
     </table>
     ${opDeudas.length ? `<table style="margin-top:24px">
-      <tr><th>PROVEEDOR</th><th>CONCEPTO</th><th style="text-align:right">MONTO</th><th style="text-align:right">ESTATUS</th></tr>
+      <tr><th>PROVEEDOR</th><th>CONCEPTO</th><th style="text-align:right">COTIZACIÓN</th><th style="text-align:right">PAGADO</th><th style="text-align:right">DEBEMOS</th></tr>
       ${filas}
     </table>` : ''}
     <p style="margin-top:32px;font-size:10px;color:#999">Generado el ${new Date().toLocaleString('es-MX')} · Actidea Continnuo</p>
@@ -488,5 +547,9 @@ async function guardarBonoOP(id) {
   try {
     await db.ops.update(id, { bono });
     toast('✓ Bono guardado');
+    // Antes se guardaba pero la pantalla (el modal abierto y la lista de OPs)
+    // se quedaba mostrando el valor viejo hasta F5 — se refresca de inmediato.
+    openDetalleOP(id);
+    if (typeof renderOPs === 'function' && document.getElementById('view-ops')?.classList.contains('active')) renderOPs();
   } catch (e) { toast('Error al guardar bono: ' + e.message, 'red'); }
 }

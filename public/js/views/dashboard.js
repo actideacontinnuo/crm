@@ -85,21 +85,17 @@ async function renderDashboard() {
   if (!root) return;
 
   showSpinner();
-  let ops, pagos, prospectos, clientes;
   let pagosVisibles = true; // pagos es solo-admin: los demás roles ven el resto del dashboard
-  try {
-    [ops, pagos, prospectos, clientes] = await Promise.all([
-      db.ops.list(),
-      db.pagos.list().catch(() => { pagosVisibles = false; return []; }),
-      db.prospectos.list(),
-      db.clientes.list(),
-    ]);
-  } catch (e) {
-    toast('Error al cargar dashboard', 'red');
-    return;
-  } finally {
-    hideSpinner();
-  }
+  // Cada llamada se protege por separado — si UNA falla (timeout/red hacia
+  // Notion), el dashboard sigue mostrando lo que SÍ cargó en vez de romperse
+  // completo con un "Error al cargar dashboard" genérico que no dejaba ver nada.
+  const [ops, pagos, prospectos, clientes] = await Promise.all([
+    db.ops.list().catch(() => { toast('No se pudieron cargar las OPs', 'red'); return []; }),
+    db.pagos.list().catch(() => { pagosVisibles = false; return []; }), // solo-admin: 403 esperado para otros roles
+    db.prospectos.list().catch(() => { toast('No se pudieron cargar los prospectos', 'red'); return []; }),
+    db.clientes.list().catch(() => { toast('No se pudieron cargar los clientes', 'red'); return []; }),
+  ]);
+  hideSpinner();
 
   const cliMap = Object.fromEntries(clientes.map(c => [c.id, c]));
   const opMap  = Object.fromEntries(ops.map(o => [o.id, o]));

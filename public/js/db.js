@@ -139,6 +139,11 @@ const db = {
     list: () => _cached('deudas', () => API.get('/deudas')),
     create: async (data) => { const r = await API.post('/deudas', data); _invalidate('deudas'); return r; },
     update: async (id, data) => { const r = await API.patch('/deudas/' + id, data); _invalidate('deudas'); return r; },
+    // Registra un ABONO — nunca reemplaza el Pagado, siempre lo acumula (ver
+    // api/deudas.js). Es la única forma correcta de registrar un pago a
+    // proveedor: corrige el bug de duplicación (antes cada pago creaba una
+    // deuda nueva en vez de abonar a la existente).
+    abonar: async (id, montoConIva) => { const r = await API.post(`/deudas/${id}/abonar`, { montoConIva }); _invalidate('deudas'); return r; },
   },
   casos: {
     list: () => _cached('casos', () => API.get('/casos')),

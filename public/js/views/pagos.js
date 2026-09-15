@@ -15,6 +15,7 @@ function setPagosTab(f, el) {
 // consistente entre Cobros y Pagos.
 function _statusEfectivoDeuda(d) {
   if (d.status === 'pagado') return 'Pagado';
+  if (d.status === 'parcial') return 'Parcial';
   const hoy = new Date().toISOString().split('T')[0];
   return (d.fechaAcordada && d.fechaAcordada < hoy) ? 'Vencido' : 'Pendiente';
 }
@@ -43,8 +44,11 @@ function _movimientosUnificados(pagos, deudas, opMap, cliMap, provMap) {
     forma: p.forma, comprobante: p.comprobante,
   }));
   const dePagosDeudas = deudas.map(d => ({
+    // Monto = lo que AÚN debemos (soporta abonos parciales) — no la
+    // cotización completa, que seguiría mostrando el total original aunque
+    // ya se hubiera abonado la mitad.
     id: d.id, source: 'deudas', tipo: 'Pago',
-    concepto: d.concepto, monto: efectivoDeuda(d), status: _statusEfectivoDeuda(d),
+    concepto: d.concepto, monto: d.debemosConIva ?? efectivoDeuda(d), status: _statusEfectivoDeuda(d),
     fechaAcordada: d.fechaAcordada, fechaReal: d.status === 'pagado' ? d.fechaAcordada : '',
     opId: d.opId, provId: d.provId,
     contraparte: provMap[d.provId]?.nombre || '',
@@ -128,7 +132,7 @@ async function renderPagos() {
           <td>
             ${m.status !== 'Pagado'
               ? (m.source === 'deudas'
-                  ? `<button class="btn btn-primary btn-xs" onclick="event.stopPropagation();marcarDeudaPagada('${m.id}')">Marcar pagado</button>`
+                  ? `<button class="btn btn-primary btn-xs" onclick="event.stopPropagation();abrirAbonoDeuda('${m.id}')">Abonar</button>`
                   : `<button class="btn btn-primary btn-xs" onclick="event.stopPropagation();openDetallePago('${m.id}')">Registrar</button>`)
               : `<button class="btn btn-ghost btn-xs" onclick="event.stopPropagation();${verHandler}">Ver</button>`}
           </td>
@@ -158,12 +162,16 @@ async function savePago() {
       // IVA/neto y alimenta la Utilidad real de la OP (withUtilidadReal en
       // api/ops.js). Un Pago a proveedor que no pase por ahí no contaría
       // para la Utilidad ni el Estado de Resultados.
-      await db.deudas.create({
+      const nueva = await db.deudas.create({
         provId, opId: opId || '', concepto,
         montoConIva:   monto,
         fechaAcordada: document.getElementById('pg-fecha').value || new Date().toISOString().split('T')[0],
-        status:        status === 'Pagado' ? 'pagado' : 'pendiente',
       });
+      // Toda deuda nace pendiente (Pagado=0) — si aquí mismo se marcó como ya
+      // pagada, se abona de inmediato por el monto completo. Un ABONO real,
+      // nunca un status forzado a mano (ver api/deudas.js): así el Pagado
+      // acumulado siempre cuadra con lo que de verdad se registró.
+      if (status === 'Pagado') await db.deudas.abonar(nueva.id, monto);
     } else {
       await db.pagos.create({
         tipo: 'Cobro a cliente', // valor interno fijo — ver api/ops.js/dashboard.js que filtran por este texto exacto
@@ -176,6 +184,7 @@ async function savePago() {
         forma:         document.getElementById('pg-forma').value,
         ref:           document.getElementById('pg-ref').value,
         comprobante:   false,
+        extra:         !!document.getElementById('pg-extra')?.checked,
       });
       // El "cobrado" de la OP ya no se actualiza aquí: el servidor lo calcula
       // siempre sumando los Pagos "Cobro a cliente" con status "Pagado"
@@ -184,9 +193,13 @@ async function savePago() {
 
     closeM('nuevo-pago');
     ['pg-concepto','pg-monto','pg-fecha','pg-ref'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+    const extraChk = document.getElementById('pg-extra'); if (extraChk) extraChk.checked = false;
     toast(tipo === 'Pago' ? '✓ Pago a proveedor registrado' : '✓ Cobro registrado');
     renderPagos();
     updateBadges();
+    // Si el Dashboard ya se había abierto antes (queda cacheado en memoria),
+    // que refleje el cobro/pago recién registrado sin necesitar F5.
+    if (typeof renderDashboard === 'function' && document.getElementById('view-dashboard')?.classList.contains('active')) renderDashboard();
   } catch (e) {
     toast('Error al guardar: ' + e.message, 'red');
   } finally {

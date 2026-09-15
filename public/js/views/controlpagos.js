@@ -4,6 +4,12 @@
 // Usa las "deudas" (pagos a proveedores). Solo Dirección/Administración.
 // ══════════════════════════════════════
 const _esPagado = s => String(s || '').toLowerCase() === 'pagado';
+const _esParcial = s => String(s || '').toLowerCase() === 'parcial';
+// Pagado/Debemos REALES de una deuda (soportan abonos parciales) — ya no es
+// binario "todo pagado o nada pagado". d.pagadoConIva/d.debemosConIva siempre
+// vienen calculados por el servidor (api/deudas.js).
+const _pagadoDeuda  = d => d?.pagadoConIva || 0;
+const _debemosDeuda = d => d?.debemosConIva ?? efectivoDeuda(d);
 
 async function renderControlPagos() {
   const root = document.getElementById('view-controlpagos');
@@ -26,11 +32,11 @@ async function renderControlPagos() {
   // Flujo de efectivo (lo que se le paga al proveedor) = CON IVA. La utilidad
   // del bloque por OP usa el neto (ver bloqueOP). efectivoDeuda cae al 'monto'
   // en deudas viejas sin 'montoConIva'.
-  const totalDebemos = deudas.filter(d => !_esPagado(d.status)).reduce((a, d) => a + efectivoDeuda(d), 0);
-  const totalPagado  = deudas.filter(d => _esPagado(d.status)).reduce((a, d) => a + efectivoDeuda(d), 0);
+  const totalDebemos = deudas.reduce((a, d) => a + _debemosDeuda(d), 0);
+  const totalPagado  = deudas.reduce((a, d) => a + _pagadoDeuda(d), 0);
   const totalGastos  = deudas.reduce((a, d) => a + efectivoDeuda(d), 0);
   // Proveedores con saldo PENDIENTE (no los ya pagados) — coincide con la etiqueta.
-  const nProv        = new Set(deudas.filter(d => !_esPagado(d.status)).map(d => d.provId).filter(Boolean)).size;
+  const nProv        = new Set(deudas.filter(d => _debemosDeuda(d) > 0).map(d => d.provId).filter(Boolean)).size;
 
   // Agrupar deudas por OP
   const byOp = {};
@@ -47,8 +53,8 @@ async function renderControlPagos() {
     // (lo que se paga / se debe al proveedor) = CON IVA (efectivoDeuda).
     const costoNeto     = lista.reduce((a, d) => a + (d.monto || 0), 0);
     const costoEfectivo = lista.reduce((a, d) => a + efectivoDeuda(d), 0);
-    const pagado  = lista.filter(d => _esPagado(d.status)).reduce((a, d) => a + efectivoDeuda(d), 0);
-    const debemos = costoEfectivo - pagado;
+    const pagado  = lista.reduce((a, d) => a + _pagadoDeuda(d), 0);
+    const debemos = lista.reduce((a, d) => a + _debemosDeuda(d), 0);
     const utilidad = precioVenta - costoNeto;
     const pctUtil  = precioVenta ? (utilidad / precioVenta * 100) : 0;
     // % real de la OP (heredado del cliente — Regla 2 = 15%, Externo = manual).
@@ -60,14 +66,15 @@ async function renderControlPagos() {
     const filas = lista.map(d => {
       const prov = provMap[d.provId] || {};
       const nombre = prov.nombre || d.concepto || '—';
-      const pag = _esPagado(d.status) ? efectivoDeuda(d) : 0;
-      const deb = _esPagado(d.status) ? 0 : efectivoDeuda(d);
-      return `<tr>
+      const pag = _pagadoDeuda(d);
+      const deb = _debemosDeuda(d);
+      const estatusLabel = _esPagado(d.status) ? 'Pagado' : _esParcial(d.status) ? 'Parcial' : 'Pendiente';
+      return `<tr onclick="abrirAbonoDeuda('${d.id}')" style="cursor:${deb > 0 ? 'pointer' : 'default'}">
         <td>${esc(nombre)}<div style="font-size:10px;color:var(--gray400)">${esc(d.concepto) || ''}</div></td>
         <td class="monto">${fmx(efectivoDeuda(d))}</td>
         <td class="monto" style="color:${pag ? 'var(--green)' : 'var(--gray400)'}">${pag ? fmx(pag) : '—'}</td>
         <td class="monto" style="color:${deb ? 'var(--red)' : 'var(--gray400)'}">${deb ? fmx(deb) : '—'}</td>
-        <td>${pillHTML(_esPagado(d.status) ? 'Pagado' : 'Pendiente')}</td>
+        <td>${pillHTML(estatusLabel)}</td>
       </tr>`;
     }).join('');
 
@@ -94,8 +101,8 @@ async function renderControlPagos() {
   };
 
   const ordenOps = Object.keys(byOp).sort((a, b) => {
-    const da = byOp[a].filter(d => !_esPagado(d.status)).reduce((s, d) => s + efectivoDeuda(d), 0);
-    const dbb = byOp[b].filter(d => !_esPagado(d.status)).reduce((s, d) => s + efectivoDeuda(d), 0);
+    const da = byOp[a].reduce((s, d) => s + _debemosDeuda(d), 0);
+    const dbb = byOp[b].reduce((s, d) => s + _debemosDeuda(d), 0);
     return dbb - da; // primero los que más debemos
   });
 
@@ -121,8 +128,7 @@ function exportarControlPagosCSV() {
       .concat(deudas.map(d => {
         const o = opMap[d.opId] || {}; const prov = provMap[d.provId] || {};
         const efe = efectivoDeuda(d);
-        const pag = _esPagado(d.status) ? efe : 0; const deb = _esPagado(d.status) ? 0 : efe;
-        return [o.numero || '', prov.nombre || '', d.concepto || '', efe || 0, d.monto || 0, pag || 0, deb || 0, d.status || ''];
+        return [o.numero || '', prov.nombre || '', d.concepto || '', efe || 0, d.monto || 0, _pagadoDeuda(d), _debemosDeuda(d), d.status || ''];
       }));
     const csv = filas.map(f => f.map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
     const a = document.createElement('a');

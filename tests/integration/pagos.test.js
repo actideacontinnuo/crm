@@ -110,6 +110,23 @@ describe('CRUD de pagos (admin)', () => {
   });
 });
 
+describe('"Extra" — cobro fuera de la cotización original (para el Estado de Resultados)', () => {
+  test('un cobro se guarda con extra=false por default', async () => {
+    const res = await request(app).post('/api/pagos')
+      .set('Authorization', `Bearer ${adminToken()}`).send(PAGO_VALIDO);
+    expect(res.body.extra).toBe(false);
+  });
+
+  test('un cobro marcado como extra=true se persiste y regresa', async () => {
+    const res = await request(app).post('/api/pagos')
+      .set('Authorization', `Bearer ${adminToken()}`).send({ ...PAGO_VALIDO, extra: true });
+    expect(res.body.extra).toBe(true);
+
+    const lista = await request(app).get('/api/pagos').set('Authorization', `Bearer ${adminToken()}`);
+    expect(lista.body.find(p => p.id === res.body.id).extra).toBe(true);
+  });
+});
+
 // Fechas relativas a HOY — nunca hardcoded, así el test no se vuelve obsoleto.
 function fechaHace(dias) {
   const d = new Date(); d.setDate(d.getDate() - dias);

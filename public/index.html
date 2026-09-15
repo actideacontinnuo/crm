@@ -751,16 +751,25 @@
 
 <!-- ESTADO DE RESULTADOS -->
 <div class="modal-overlay" id="m-edr" onclick="closeM('edr')">
-<div class="modal" onclick="event.stopPropagation()" style="width:600px">
+<div class="modal" onclick="event.stopPropagation()" style="width:min(96vw,900px)">
   <div class="modal-hdr"><div><div class="modal-eye" id="edr-num">ESTADO DE RESULTADOS</div><div class="modal-title" id="edr-title">—</div></div><button class="modal-close" onclick="closeM('edr')">✕</button></div>
   <div class="modal-body">
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:18px" id="edr-kpis"></div>
-    <div class="sect-label">DESGLOSE P&L POR PROVEEDOR</div>
-    <table class="tbl" style="margin-bottom:14px">
-      <thead><tr><th>PROVEEDOR / CONCEPTO</th><th style="text-align:right">COTIZADO</th><th style="text-align:right">PAGADO</th><th style="text-align:right">DEBEMOS</th></tr></thead>
-      <tbody id="edr-tbody"></tbody>
-    </table>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px" id="edr-bottom"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:start">
+      <div>
+        <div class="sect-label">PROVEEDORES</div>
+        <table class="tbl" style="margin-bottom:8px">
+          <thead><tr><th>NOMBRE</th><th style="text-align:right">COTIZACIÓN</th><th style="text-align:right">PAGADO</th><th style="text-align:right">DEBEMOS</th></tr></thead>
+          <tbody id="edr-tbody"></tbody>
+          <tfoot id="edr-tfoot"></tfoot>
+        </table>
+      </div>
+      <div>
+        <div class="sect-label">COBRANZA</div>
+        <div id="edr-cobranza" style="margin-bottom:18px"></div>
+        <div class="sect-label" id="edr-evento-label">EVENTO</div>
+        <div id="edr-resultados"></div>
+      </div>
+    </div>
   </div>
   <div class="modal-footer" style="justify-content:space-between">
     <button class="btn btn-ghost" onclick="closeM('edr')">Cerrar</button>
@@ -873,6 +882,13 @@
          Utilidad ni el Estado de Resultados. -->
     <div class="fg" id="pg-prov-wrap" style="display:none"><label class="fl">PROVEEDOR</label><select class="fsel-full" id="pg-prov"></select></div>
     <div class="fg"><label class="fl">CONCEPTO</label><input class="fi" id="pg-concepto" placeholder="Anticipo 50%, Liquidación final..."></div>
+    <!-- Solo cuando TIPO=Cobro: si es dinero FUERA de la cotización original
+         de la OP (costo extraordinario no contemplado), se desglosa aparte en
+         el Estado de Resultados — nunca se suma al Precio de Venta cotizado. -->
+    <label class="fg" id="pg-extra-wrap" style="display:flex;align-items:center;gap:8px;cursor:pointer">
+      <input type="checkbox" id="pg-extra" style="width:16px;height:16px">
+      <span style="font-size:12.5px">Es un <strong>extra</strong> — dinero cobrado fuera de la cotización original</span>
+    </label>
     <div class="fgrid">
       <div class="fg"><label class="fl" id="pg-monto-label">MONTO (MXN)</label><input class="fi" id="pg-monto" type="number" placeholder="0.00" oninput="_previewPagoIva()"></div>
       <div class="fg"><label class="fl">FECHA ACORDADA</label><input class="fi" id="pg-fecha" type="date"></div>
@@ -1021,6 +1037,19 @@
     <div id="nd-iva-prev" style="display:none;background:var(--green-dim);border:1px solid var(--green-bdr);border-radius:9px;padding:10px 12px;margin-top:-4px;font-family:'JetBrains Mono',monospace;font-size:12px"></div>
   </div>
   <div class="modal-footer"><button class="btn btn-ghost" onclick="closeM('nueva-deuda')">Cancelar</button><button class="btn btn-primary" onclick="saveDeuda()">Registrar Deuda</button></div>
+</div></div>
+
+<!-- ABONAR A DEUDA — registra un pago SIN duplicar el registro (suma al
+     Pagado existente; nunca crea una deuda nueva). ver api/deudas.js POST /:id/abonar -->
+<div class="modal-overlay" id="m-abono-deuda" onclick="closeM('abono-deuda')">
+<div class="modal" onclick="event.stopPropagation()" style="width:460px">
+  <div class="modal-hdr"><div><div class="modal-eye">REGISTRAR ABONO</div><div class="modal-title" id="ab-title">—</div></div><button class="modal-close" onclick="closeM('abono-deuda')">✕</button></div>
+  <div class="modal-body">
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px" id="ab-kpis"></div>
+    <div class="fg"><label class="fl">MONTO DEL ABONO <span style="color:var(--gray400)">(con IVA, como sale del banco)</span></label><input class="fi" id="ab-monto" type="number" placeholder="0.00" oninput="_previewAbonoIva()"></div>
+    <div id="ab-iva-prev" style="display:none;background:var(--green-dim);border:1px solid var(--green-bdr);border-radius:9px;padding:10px 12px;font-family:'JetBrains Mono',monospace;font-size:12px"></div>
+  </div>
+  <div class="modal-footer"><button class="btn btn-ghost" onclick="closeM('abono-deuda')">Cancelar</button><button class="btn btn-primary" onclick="guardarAbonoDeuda()">Registrar Abono</button></div>
 </div></div>
 
 <!-- MODAL OBJETIVOS -->

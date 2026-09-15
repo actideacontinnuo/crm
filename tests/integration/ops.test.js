@@ -131,6 +131,35 @@ describe('Utilidad — ÚNICA fuente de verdad: cotizado − costos reales de pr
     expect(lista.body.find(o => o.id === opId).utilidad).toBe(65000);
   });
 
+  test('REGRESIÓN — abonar (pagar) una deuda parcial NUNCA mueve la Utilidad (bug real: antes cada abono creaba una deuda nueva y duplicaba el costo)', async () => {
+    const create = await request(app).post('/api/ops')
+      .set('Authorization', `Bearer ${adminToken()}`)
+      .send({ ...OP_VALIDA, cotizado: 100000 });
+    const opId = create.body.id;
+
+    const deuda = await request(app).post('/api/deudas').set('Authorization', `Bearer ${adminToken()}`)
+      .send({ concepto: 'Audio y video', provId: 'p1', opId, montoConIva: 58000 }); // 58000/1.16 = 50000 neto
+
+    let get = await request(app).get(`/api/ops/${opId}`).set('Authorization', `Bearer ${adminToken()}`);
+    expect(get.body.utilidad).toBe(100000 - 50000); // 50000, antes de cualquier abono
+
+    // Dos abonos parciales — como el caso real reportado: Actidea debe 50,000
+    // netos, se paga 20,000 y luego el resto.
+    await request(app).post(`/api/deudas/${deuda.body.id}/abonar`)
+      .set('Authorization', `Bearer ${adminToken()}`).send({ montoConIva: 23200 }); // 20000 neto
+    get = await request(app).get(`/api/ops/${opId}`).set('Authorization', `Bearer ${adminToken()}`);
+    expect(get.body.utilidad).toBe(100000 - 50000); // SIGUE IGUAL — pagar no mueve la utilidad
+
+    await request(app).post(`/api/deudas/${deuda.body.id}/abonar`)
+      .set('Authorization', `Bearer ${adminToken()}`).send({ montoConIva: 34800 }); // resto, 30000 neto
+    get = await request(app).get(`/api/ops/${opId}`).set('Authorization', `Bearer ${adminToken()}`);
+    expect(get.body.utilidad).toBe(100000 - 50000); // SIGUE IGUAL aunque ya quedó 100% pagada
+
+    // Y solo hay UNA deuda registrada — no se duplicó el costo.
+    const deudas = await request(app).get('/api/deudas').set('Authorization', `Bearer ${adminToken()}`);
+    expect(deudas.body.filter(d => d.opId === opId)).toHaveLength(1);
+  });
+
   test('PATCH ignora cualquier utilidad enviada manualmente — nunca se captura directo', async () => {
     const create = await request(app).post('/api/ops')
       .set('Authorization', `Bearer ${adminToken()}`)

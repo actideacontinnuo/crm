@@ -272,6 +272,7 @@ const STATE = {
   selCliente: null,
   selProv: null,
   selCaso: null,
+  selDeuda: null,
 
   // View filters
   opTabFilter: 'todas',
@@ -542,6 +543,81 @@ function _previewDeudaIva() {
     `<div style="display:flex;justify-content:space-between;color:var(--green);font-weight:700;margin-top:3px"><span>Neto sin IVA → utilidad</span><span>${fmx(neto)}</span></div>`;
 }
 
+// ── Abonar a una deuda existente — la ÚNICA forma correcta de registrar un
+// pago a proveedor (ver api/deudas.js POST /:id/abonar). Corrige el bug real:
+// antes cada pago (aunque fuera parcial) creaba una deuda NUEVA en vez de
+// abonar a la existente, duplicando el costo en la Utilidad y el Dashboard.
+async function abrirAbonoDeuda(deudaId) {
+  showSpinner();
+  let deudas, provs, ops;
+  try {
+    [deudas, provs, ops] = await Promise.all([db.deudas.list(), db.proveedores.list(), db.ops.list()]);
+  } catch (e) {
+    toast('Error al cargar la deuda', 'red');
+    return;
+  } finally {
+    hideSpinner();
+  }
+  const d = deudas.find(x => x.id === deudaId);
+  if (!d) { toast('No se encontró la deuda', 'red'); return; }
+  if ((d.debemosConIva ?? 0) <= 0) { toast('Esta deuda ya está pagada por completo', 'amber'); return; }
+
+  STATE.selDeuda = deudaId;
+  const prov = provs.find(p => p.id === d.provId) || {};
+  const op   = ops.find(o => o.id === d.opId) || {};
+
+  document.getElementById('ab-title').textContent = `${prov.nombre || '—'} · ${d.concepto || ''}`;
+  document.getElementById('ab-kpis').innerHTML = `
+    <div class="info-cell" style="text-align:center"><div class="info-cell-label">COTIZACIÓN</div><div style="font-family:'Bebas Neue',cursive;font-size:20px">${fmx(efectivoDeuda(d))}</div></div>
+    <div class="info-cell" style="text-align:center;background:var(--green-dim);border:1px solid var(--green-bdr)"><div class="info-cell-label" style="color:var(--green)">PAGADO</div><div style="font-family:'Bebas Neue',cursive;font-size:20px;color:var(--green)">${fmx(d.pagadoConIva || 0)}</div></div>
+    <div class="info-cell" style="text-align:center;background:var(--red-dim);border:1px solid var(--red-border)"><div class="info-cell-label" style="color:var(--red)">DEBEMOS</div><div style="font-family:'Bebas Neue',cursive;font-size:20px;color:var(--red)">${fmx(d.debemosConIva)}</div></div>`;
+  document.getElementById('ab-monto').value = '';
+  document.getElementById('ab-monto').max = d.debemosConIva;
+  const prev = document.getElementById('ab-iva-prev'); if (prev) { prev.style.display = 'none'; prev.innerHTML = ''; }
+  if (op.id) document.getElementById('ab-title').textContent += ` · ${op.numero || ''}`;
+
+  openM('abono-deuda');
+}
+
+function _previewAbonoIva() {
+  const conIva = parseFloat(document.getElementById('ab-monto')?.value) || 0;
+  const box = document.getElementById('ab-iva-prev');
+  if (!box) return;
+  if (!conIva) { box.style.display = 'none'; box.innerHTML = ''; return; }
+  const neto = conIva / (1 + IVA_RATE);
+  const iva  = conIva - neto;
+  box.style.display = 'block';
+  box.innerHTML =
+    `<div style="display:flex;justify-content:space-between;color:var(--gray600)"><span>IVA 16%</span><span>${fmx(iva)}</span></div>` +
+    `<div style="display:flex;justify-content:space-between;color:var(--green);font-weight:700;margin-top:3px"><span>Neto sin IVA</span><span>${fmx(neto)}</span></div>`;
+}
+
+async function guardarAbonoDeuda() {
+  const id = STATE.selDeuda;
+  if (!id) return;
+  const monto = parseFloat(document.getElementById('ab-monto')?.value) || 0;
+  if (monto <= 0) { toast('Captura un monto válido', 'red'); return; }
+
+  showSpinner();
+  try {
+    await db.deudas.abonar(id, monto);
+    closeM('abono-deuda');
+    toast('✓ Abono registrado');
+    // Refresca cualquier vista que esté mostrando deudas en este momento —
+    // ninguna requiere F5 después de un abono.
+    if (typeof renderDeudasModal === 'function' && document.getElementById('deudas-cards')) renderDeudasModal();
+    if (typeof renderProveedores === 'function' && document.getElementById('prov-tbody')) renderProveedores();
+    if (typeof renderControlPagos === 'function' && document.getElementById('view-controlpagos')) renderControlPagos();
+    if (typeof renderPagos === 'function' && document.getElementById('pagos-tbody')) renderPagos();
+    if (typeof openDetalleProveedor === 'function' && STATE.selProv) openDetalleProveedor(STATE.selProv);
+    if (typeof openEDR === 'function' && STATE.selOP && document.getElementById('m-edr')?.classList.contains('open')) openEDR(STATE.selOP);
+  } catch (e) {
+    toast('Error al registrar abono: ' + e.message, 'red');
+  } finally {
+    hideSpinner();
+  }
+}
+
 // Si se abrió "Registrar pago" desde una OP concreta, ese id se preselecciona
 // aquí una sola vez (mismo patrón que _deudaPrefillOpId para pago a proveedor).
 let _pagoPrefillOpId = null;
@@ -565,8 +641,10 @@ async function _refreshPagoOPSelect() {
 function togglePagoTipo() {
   const tipo = document.getElementById('pg-tipo')?.value;
   const provWrap = document.getElementById('pg-prov-wrap');
+  const extraWrap = document.getElementById('pg-extra-wrap');
   const label = document.getElementById('pg-monto-label');
   if (provWrap) provWrap.style.display = tipo === 'Pago' ? '' : 'none';
+  if (extraWrap) extraWrap.style.display = tipo === 'Cobro' ? 'flex' : 'none';
   if (label) label.textContent = tipo === 'Pago' ? 'MONTO CON IVA (como viene en la factura)' : 'MONTO (MXN)';
   _previewPagoIva();
 }
