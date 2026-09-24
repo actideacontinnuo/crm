@@ -35,7 +35,8 @@ function toRow(data) {
   if (data.num    !== undefined) row.numero = data.num;
   else if (data.numero !== undefined) row.numero = data.numero;
   if (data.desc      !== undefined) row.descripcion = data.desc;
-  if (data.clienteId !== undefined) row.clienteId = data.clienteId;
+  // '__interno__' = OP de gasto interno (sin cliente): se guarda como NULL.
+  if (data.clienteId !== undefined) row.clienteId = (!data.clienteId || data.clienteId === '__interno__') ? null : data.clienteId;
   if (data.ejec      !== undefined) row.ejec = data.ejec;
   if (data.propietario  !== undefined) row.propietario  = data.propietario;
   if (data.ejecCuenta   !== undefined) row.ejecCuenta   = data.ejecCuenta;
@@ -163,6 +164,8 @@ router.post('/', async (req, res) => {
       data.numero = numeroGenerado;
       delete data.num; // 'num' tiene prioridad en toRow — no debe pisar el generado
     }
+    // OP interna (o llamada directa a la API) sin número: se genera uno de respaldo.
+    if (!numeroGenerado && !data.numero && !data.num) data.numero = 'OP-' + Date.now().toString(36).toUpperCase();
     // Los 3 roles SIEMPRE se heredan del cliente aquí — nunca se confía en lo
     // que mande el frontend (mismo criterio que el número/código: si hubiera
     // un bug o alguien llamara a la API directo, antes la OP podía quedar con
@@ -181,14 +184,16 @@ router.post('/', async (req, res) => {
     }
 
     // Si dos OPs del mismo cliente se crean a la vez, ambas calculan el mismo
-    // consecutivo y el índice único rechaza la segunda (409) — se reintenta con el siguiente.
-    let created;
-    for (let saltos = 0; ; saltos++) {
+    // consecutivo y el índice único rechaza la segunda (409): se recalcula con
+    // lo ya guardado (sin saltarse números) y se reintenta.
+    let created, intentos = 0, extra = 0;
+    for (;;) {
       try { created = await createRow('ops', toRow(data)); break; }
       catch (err) {
-        if (err.status !== 409 || !numeroGenerado || saltos >= 5) throw err;
-        numeroGenerado = await _generarNumeroOP(data.clienteId, cli.codigo, saltos + 1);
-        data.numero = numeroGenerado;
+        if (err.status !== 409 || !numeroGenerado || ++intentos > 8) throw err;
+        let nuevo = await _generarNumeroOP(data.clienteId, cli.codigo, extra);
+        if (nuevo === data.numero) nuevo = await _generarNumeroOP(data.clienteId, cli.codigo, ++extra);
+        data.numero = nuevo;
       }
     }
     const [enriched] = await withCobradoReal(await withUtilidadReal([toObj(created)]));

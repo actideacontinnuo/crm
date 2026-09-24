@@ -51,7 +51,7 @@ async function renderComercial() {
     const cerrado = ejs.filter(o => o.status === 'Ejecutado' && enPeriodo(o)).reduce((a, o) => a + (o.cotizado || 0), 0);
     const activo  = ejs.filter(o => o.status === 'En Producción').reduce((a, o) => a + (o.cotizado || 0), 0);
     const util    = ejs.filter(o => o.status === 'Ejecutado' && enPeriodo(o)).reduce((a, o) => a + (o.utilidad || 0), 0);
-    const prosp   = prospectos.filter(p => _prospDe(p, name));
+    const prosp   = prospectos.filter(p => p.status !== 'Convertido' && _prospDe(p, name));
     const cierre  = ejs.length ? Math.round(ejs.filter(o => o.status === 'Ejecutado').length / ejs.length * 100) : 0;
     return { name, short: name.split(' ')[0], color: ejecColor(name), cerrado, activo, util, objetivo: objetivoDe(name), cierre, nProsp: prosp.length };
   }).sort((a, b) => (b.cerrado + b.activo) - (a.cerrado + a.activo));
