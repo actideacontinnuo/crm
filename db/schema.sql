@@ -317,3 +317,11 @@ alter table pagos rename column referencia to ref;
 alter table proveedores rename column razon_social to razon;
 alter table proveedores rename column condiciones to cond;
 alter table proveedores rename column telefono to tel;
+
+-- ── Unicidad solo entre registros activos (el borrado lógico no debe bloquear reutilizar el valor) ──
+alter table usuarios  drop constraint if exists usuarios_usuario_key;
+alter table ops       drop constraint if exists ops_numero_key;
+alter table objetivos drop constraint if exists objetivos_anio_key;
+create unique index if not exists ux_usuarios_usuario  on usuarios(usuario)  where deleted_at is null;
+create unique index if not exists ux_ops_numero        on ops(numero)        where deleted_at is null;
+create unique index if not exists ux_objetivos_anio    on objetivos(anio)    where deleted_at is null;

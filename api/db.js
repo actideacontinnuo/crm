@@ -6,7 +6,15 @@
 // que se corrigió antes de esta migración.
 // ════════════════════════════════════════════════════════════
 require('dotenv').config();
-const { Pool } = require('pg');
+const { Pool, types } = require('pg');
+
+// Contrato con el frontend (heredado de la época de Notion): los números llegan
+// como number y las fechas (sin hora) como 'YYYY-MM-DD'. Por defecto pg entrega
+// NUMERIC como texto ("15.00") y DATE como objeto Date con zona horaria.
+types.setTypeParser(1700, v => (v === null ? null : parseFloat(v))); // NUMERIC
+types.setTypeParser(20,   v => (v === null ? null : parseInt(v, 10))); // BIGINT (count, sum)
+types.setTypeParser(1082, v => v);                                     // DATE → 'YYYY-MM-DD'
+
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
