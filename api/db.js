@@ -42,6 +42,33 @@ function dataToSnake(data) {
   return out;
 }
 
+// Traduce errores de Postgres a mensajes seguros para el usuario: el texto SQL
+// original (nombres de tablas/columnas) solo se registra en el log del servidor.
+function traducirError(err) {
+  if (!err || err.status) return err;
+  const mapa = {
+    '22P02': [400, 'Identificador o valor con formato inválido'],
+    '22003': [400, 'Número fuera del rango permitido'],
+    '22007': [400, 'Fecha con formato inválido'],
+    '22008': [400, 'Fecha con formato inválido'],
+    '23505': [409, 'Ya existe un registro con ese valor'],
+    '23503': [400, 'Referencia inválida: el registro relacionado no existe'],
+    '23514': [400, 'Valor no permitido para este campo'],
+    '23502': [400, 'Falta un dato obligatorio'],
+  };
+  const esErrorPg = typeof err.code === 'string' && /^[0-9A-Z]{5}$/.test(err.code);
+  const esConexion = ['ECONNREFUSED', 'ECONNRESET', 'ETIMEDOUT', 'ENOTFOUND', 'EAI_AGAIN'].includes(err.code) || /timeout|terminating connection|Connection terminated|Tenant or user not found/i.test(err.message || '');
+  if (!esErrorPg && !esConexion) return err;
+  console.error('[db]', err.code || '', err.message);
+  const e = new Error(mapa[err.code] ? mapa[err.code][1] : (esConexion ? 'No se pudo conectar con la base de datos. Intenta de nuevo.' : 'Error de la base de datos'));
+  e.status = mapa[err.code] ? mapa[err.code][0] : 500;
+  e.pgCode = err.code;
+  return e;
+}
+async function run(cli, sql, params) {
+  try { return await cli.query(sql, params); } catch (err) { throw traducirError(err); }
+}
+
 // Nombres de tabla — lista blanca (nunca se interpola un nombre de tabla que
 // no venga de aquí, para que no haya forma de inyectar SQL por esta vía).
 const TABLES = new Set(['usuarios', 'clientes', 'prospectos', 'ops', 'cotizaciones',
@@ -68,13 +95,13 @@ async function queryDB(table, where = null, orderBy = null, opts = {}) {
     const campo = toSnake(orderBy.field);
     sql += ` ORDER BY ${campo} ${orderBy.direction === 'descending' ? 'DESC' : 'ASC'} NULLS LAST`;
   }
-  const res = await pool.query(sql, vals);
+  const res = await run(pool, sql, vals);
   return res.rows.map(rowToCamel);
 }
 
 async function getRow(table, id) {
   const t = _tabla(table);
-  const res = await pool.query(`SELECT * FROM ${t} WHERE id = $1 AND deleted_at IS NULL`, [id]);
+  const res = await run(pool, `SELECT * FROM ${t} WHERE id = $1 AND deleted_at IS NULL`, [id]);
   if (!res.rows[0]) { const e = new Error('Registro no encontrado'); e.status = 404; throw e; }
   return rowToCamel(res.rows[0]);
 }
@@ -86,7 +113,7 @@ async function createRow(table, data) {
   if (!keys.length) throw new Error('createRow: sin datos');
   const cols = keys.join(', ');
   const params = keys.map((_, i) => `$${i + 1}`).join(', ');
-  const res = await pool.query(`INSERT INTO ${t} (${cols}) VALUES (${params}) RETURNING *`, Object.values(snake));
+  const res = await run(pool, `INSERT INTO ${t} (${cols}) VALUES (${params}) RETURNING *`, Object.values(snake));
   return rowToCamel(res.rows[0]);
 }
 
@@ -96,7 +123,7 @@ async function updateRow(table, id, data) {
   const keys = Object.keys(snake);
   if (!keys.length) return getRow(table, id);
   const sets = keys.map((k, i) => `${k} = $${i + 2}`).join(', ');
-  const res = await pool.query(
+  const res = await run(pool, 
     `UPDATE ${t} SET ${sets} WHERE id = $1 AND deleted_at IS NULL RETURNING *`,
     [id, ...Object.values(snake)]
   );
@@ -108,7 +135,7 @@ async function updateRow(table, id, data) {
 // que el archivado de páginas de Notion.
 async function archiveRow(table, id) {
   const t = _tabla(table);
-  const res = await pool.query(`UPDATE ${t} SET deleted_at = now() WHERE id = $1 RETURNING *`, [id]);
+  const res = await run(pool, `UPDATE ${t} SET deleted_at = now() WHERE id = $1 RETURNING *`, [id]);
   return rowToCamel(res.rows[0]);
 }
 
@@ -120,13 +147,13 @@ async function archiveRow(table, id) {
 async function transaccion(fn) {
   const client = await pool.connect();
   try {
-    await client.query('BEGIN');
+    await run(client, 'BEGIN');
     const helpers = {
       // SELECT ... FOR UPDATE — bloquea la fila hasta que termine la transacción,
       // así dos abonos simultáneos a la misma deuda nunca se pisan.
       async getForUpdate(table, id) {
         const t = _tabla(table);
-        const res = await client.query(`SELECT * FROM ${t} WHERE id = $1 AND deleted_at IS NULL FOR UPDATE`, [id]);
+        const res = await run(client, `SELECT * FROM ${t} WHERE id = $1 AND deleted_at IS NULL FOR UPDATE`, [id]);
         if (!res.rows[0]) { const e = new Error('Registro no encontrado'); e.status = 404; throw e; }
         return rowToCamel(res.rows[0]);
       },
@@ -135,15 +162,15 @@ async function transaccion(fn) {
         const snake = dataToSnake(data);
         const keys = Object.keys(snake);
         const sets = keys.map((k, i) => `${k} = $${i + 2}`).join(', ');
-        const res = await client.query(`UPDATE ${t} SET ${sets} WHERE id = $1 RETURNING *`, [id, ...Object.values(snake)]);
+        const res = await run(client, `UPDATE ${t} SET ${sets} WHERE id = $1 RETURNING *`, [id, ...Object.values(snake)]);
         return rowToCamel(res.rows[0]);
       },
     };
     const resultado = await fn(helpers);
-    await client.query('COMMIT');
+    await run(client, 'COMMIT');
     return resultado;
   } catch (err) {
-    await client.query('ROLLBACK');
+    await run(client, 'ROLLBACK');
     throw err;
   } finally {
     client.release();
@@ -156,7 +183,7 @@ async function sumWhere(table, sumField, where = {}) {
   const conds = ['deleted_at IS NULL'];
   const vals = [];
   for (const [k, v] of Object.entries(where)) { vals.push(v); conds.push(`${toSnake(k)} = $${vals.length}`); }
-  const res = await pool.query(`SELECT COALESCE(SUM(${toSnake(sumField)}), 0) AS total FROM ${t} WHERE ${conds.join(' AND ')}`, vals);
+  const res = await run(pool, `SELECT COALESCE(SUM(${toSnake(sumField)}), 0) AS total FROM ${t} WHERE ${conds.join(' AND ')}`, vals);
   return Number(res.rows[0].total);
 }
 
@@ -183,7 +210,7 @@ async function urlFirmada(bucket, ruta, segundos = 3600) {
   return `${process.env.SUPABASE_URL}/storage/v1${signedURL}`;
 }
 
-module.exports = { subirArchivo, urlFirmada,
+module.exports = { traducirError, subirArchivo, urlFirmada,
   pool, queryDB, getRow, createRow, updateRow, archiveRow, transaccion, sumWhere,
   toCamel, toSnake,
 };

@@ -67,7 +67,7 @@ router.get('/', async (req, res) => {
   try {
     const rows = await queryDB('pagos', null, { field: 'fechaAcordada', direction: 'descending' });
     res.json(rows.map(toObj));
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
 });
 
 router.get('/:id', async (req, res) => {
@@ -82,7 +82,7 @@ router.post('/', async (req, res) => {
     const obj = toObj(created);
     _logCobroSiAplica(req, obj);
     res.json(obj);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
 });
 
 router.patch('/:id', async (req, res) => {

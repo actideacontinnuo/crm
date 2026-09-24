@@ -42,7 +42,7 @@ router.get('/', async (req, res) => {
   try {
     const rows = await queryDB('proveedores', null, { field: 'nombre', direction: 'ascending' });
     res.json(rows.map(toObj));
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
 });
 
 router.get('/:id', async (req, res) => {
@@ -55,7 +55,7 @@ router.post('/', async (req, res) => {
   try {
     const created = await createRow('proveedores', toRow(req.body));
     res.json(toObj(created));
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
 });
 
 router.patch('/:id', async (req, res) => {
@@ -69,7 +69,7 @@ router.delete('/:id', async (req, res) => {
   try {
     await archiveRow('proveedores', req.params.id);
     res.json({ ok: true });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
 });
 
 module.exports = router;

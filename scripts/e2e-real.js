@@ -42,6 +42,15 @@ async function counts() { const o = {}; for (const t of ['usuarios','clientes','
     r = await call('POST', '/api/ops', { desc: 'E2E 2', clienteId: cli.id, cotizado: 1 }); track('ops', r.b?.id);
     ok(r.b?.numero === `${cli.codigo}-02`, 'segunda OP → -02', r.b?.numero);
 
+    console.log('\n[2b] Robustez');
+    const sim = await Promise.all([1, 2, 3].map(i => call('POST', '/api/ops', { desc: 'E2E sim ' + i, clienteId: cli.id, cotizado: 1, status: 'En Producción' })));
+    sim.forEach(x => track('ops', x.b?.id));
+    const nums = sim.map(x => x.b?.numero);
+    ok(sim.every(x => x.s === 200) && new Set(nums).size === 3, '3 OPs simultáneas del mismo cliente → 3 números distintos (reintento)', nums);
+    r = await call('GET', '/api/ops/no-es-uuid'); ok(r.s === 400 && !/uuid|syntax/i.test(r.b.error), 'id con formato inválido → 400 sin filtrar SQL', r.b);
+    r = await call('POST', '/api/deudas', { concepto: 'E2E mala ref', provId: 'no-es-uuid', montoConIva: 1 }); ok(r.s === 400 && !/uuid/i.test(r.b.error), 'referencia inválida → 400 amigable', r.b);
+    r = await call('POST', '/api/ops', { desc: 'E2E estatus malo', clienteId: cli.id, status: 'Inventado' }); ok(r.s === 400 && /no permitido/.test(r.b.error), 'estatus no permitido → 400 amigable', r.b);
+
     console.log('\n[3] Proveedor → Deuda → abonos (transacciones y bloqueo)');
     r = await call('POST', '/api/proveedores', { nombre: 'E2E Proveedor', rfc: 'PPP010101AA1', emiteFactura: true, cond: 'Contado' }); const prov = r.b; track('proveedores', prov?.id);
     ok(r.s === 200 && prov.factura.startsWith('Sí'), 'proveedor creado');

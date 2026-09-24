@@ -71,7 +71,7 @@ router.get('/', async (req, res) => {
     let objs = rows.map(toObj);
     if (req.rolFilter) objs = objs.filter(o => perteneceAlRegistro(o, req.rolFilter));
     res.json(objs);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
 });
 
 router.get('/:id', async (req, res) => {
@@ -107,7 +107,7 @@ router.post('/', async (req, res) => {
     data.codigo = _generarCodigoCliente(data.rfc, data.ejecCuenta);
     const created = await createRow('clientes', toRow(data));
     res.json(toObj(created));
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
 });
 
 router.patch('/:id', async (req, res) => {

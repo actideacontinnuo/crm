@@ -63,7 +63,7 @@ router.get('/:anio', authMiddleware, async (req, res) => {
   try {
     const rows = await queryDB('objetivos', { anio: Number(req.params.anio) });
     res.json(rows.length ? toObj(rows[0]) : {});
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
 });
 
 // PUT /api/objetivos/:anio — solo el Admin (Dirección) define los objetivos
@@ -98,7 +98,7 @@ router.put('/:anio', authMiddleware, async (req, res) => {
       ? await updateRow('objetivos', rows[0].id, props)
       : await createRow('objetivos', { anio: Number(req.params.anio), ...props });
     res.json({ ok: true, anio: req.params.anio, objetivos: toObj(row) });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
 });
 
 module.exports = router;

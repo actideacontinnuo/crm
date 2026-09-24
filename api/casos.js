@@ -70,7 +70,7 @@ router.get('/', async (req, res) => {
       objs = objs.filter((o, i) => perteneceAlRegistro(roles[i], req.rolFilter));
     }
     res.json(objs);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
 });
 
 router.get('/:id', async (req, res) => {
@@ -95,7 +95,7 @@ router.post('/', async (req, res) => {
       }
     }
     res.json(toObj(await createRow('casos', toRow(req.body))));
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
 });
 
 router.patch('/:id', async (req, res) => {

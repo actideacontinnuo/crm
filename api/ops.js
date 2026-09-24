@@ -74,10 +74,10 @@ async function _datosClienteParaOP(clienteId) {
 // Formato confirmado: {código del cliente}-{consecutivo por cliente, 01/02/03...}
 // Si la OP es interna (sin cliente) o el cliente no tiene código aún, se
 // conserva el comportamiento previo — no hay de dónde derivar un consecutivo.
-async function _generarNumeroOP(clienteId, codigoCliente) {
+async function _generarNumeroOP(clienteId, codigoCliente, saltos = 0) {
   if (!clienteId || clienteId === '__interno__' || !codigoCliente) return null;
   const opsDelCliente = await queryDB('ops', { clienteId });
-  const consecutivo = String(opsDelCliente.length + 1).padStart(2, '0');
+  const consecutivo = String(opsDelCliente.length + 1 + saltos).padStart(2, '0');
   return `${codigoCliente}-${consecutivo}`;
 }
 
@@ -139,7 +139,7 @@ router.get('/', async (req, res) => {
     let objs = rows.map(toObj);
     if (req.rolFilter) objs = objs.filter(o => perteneceAlRegistro(o, req.rolFilter));
     res.json(await withCobradoReal(await withUtilidadReal(objs)));
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
 });
 
 router.get('/:id', async (req, res) => {
@@ -158,7 +158,7 @@ router.post('/', async (req, res) => {
     delete data.cobrado;  // ídem — se calcula siempre a partir de Pagos reales
 
     const cli = await _datosClienteParaOP(data.clienteId);
-    const numeroGenerado = await _generarNumeroOP(data.clienteId, cli.codigo);
+    let numeroGenerado = await _generarNumeroOP(data.clienteId, cli.codigo);
     if (numeroGenerado) {
       data.numero = numeroGenerado;
       delete data.num; // 'num' tiene prioridad en toRow — no debe pisar el generado
@@ -180,7 +180,17 @@ router.post('/', async (req, res) => {
       data.comision     = cli.comision;
     }
 
-    const created = await createRow('ops', toRow(data));
+    // Si dos OPs del mismo cliente se crean a la vez, ambas calculan el mismo
+    // consecutivo y el índice único rechaza la segunda (409) — se reintenta con el siguiente.
+    let created;
+    for (let saltos = 0; ; saltos++) {
+      try { created = await createRow('ops', toRow(data)); break; }
+      catch (err) {
+        if (err.status !== 409 || !numeroGenerado || saltos >= 5) throw err;
+        numeroGenerado = await _generarNumeroOP(data.clienteId, cli.codigo, saltos + 1);
+        data.numero = numeroGenerado;
+      }
+    }
     const [enriched] = await withCobradoReal(await withUtilidadReal([toObj(created)]));
     // Actividad Reciente (solo Dirección la ve, ver dashboard.js) — evento de
     // negocio real, no el CRUD crudo.
@@ -190,7 +200,7 @@ router.post('/', async (req, res) => {
       ip: clientIp(req), exito: true,
     });
     res.json(enriched);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
 });
 
 router.patch('/:id', async (req, res) => {

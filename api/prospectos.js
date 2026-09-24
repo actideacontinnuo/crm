@@ -67,7 +67,7 @@ router.get('/', async (req, res) => {
     let objs = rows.map(toObj);
     if (req.rolFilter) objs = objs.filter(o => perteneceAlRegistro(o, req.rolFilter));
     res.json(objs);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
 });
 
 router.get('/:id', async (req, res) => {
@@ -96,7 +96,7 @@ router.post('/', async (req, res) => {
       data.ejecCuenta = r2.ejecCuenta; data.comision = r2.comision;
     }
     res.json(toObj(await createRow('prospectos', toRow(data))));
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
 });
 
 router.patch('/:id', async (req, res) => {
@@ -123,7 +123,7 @@ router.patch('/:id', async (req, res) => {
       body.ejecCuenta   = r.ejecCuenta;
     }
     res.json(toObj(await updateRow('prospectos', req.params.id, toRow(body))));
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
 });
 
 router.delete('/:id', async (req, res) => {
@@ -131,7 +131,7 @@ router.delete('/:id', async (req, res) => {
     if (!assertRolAccess(req, res, toObj(await getRow('prospectos', req.params.id)))) return;
     await archiveRow('prospectos', req.params.id);
     res.json({ ok: true });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
 });
 
 module.exports = router;

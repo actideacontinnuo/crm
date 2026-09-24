@@ -98,7 +98,7 @@ router.post('/:tipo', upload.single('file'), async (req, res) => {
 
     res.json({ ok: true, tipo, data: parsed });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(err.status || 500).json({ error: err.message });
   }
 });
 

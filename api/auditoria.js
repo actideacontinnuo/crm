@@ -24,7 +24,7 @@ router.get('/', async (req, res) => {
     const rows = await queryDB('auditoria', null, { field: 'fecha', direction: 'descending' });
     const limit = Math.min(parseInt(req.query.limit) || 200, 1000);
     res.json(rows.slice(0, limit).map(toObj));
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
 });
 
 module.exports = router;

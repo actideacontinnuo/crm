@@ -9,7 +9,7 @@ router.post('/export', async (req, res) => {
     const { data, emailResult } = await runBackup({ trigger: 'manual', usuario: req.user.id });
     res.json({ ok: true, emailResult, backup: data });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(err.status || 500).json({ error: err.message });
   }
 });
 

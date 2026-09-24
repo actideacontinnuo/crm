@@ -73,7 +73,7 @@ router.get('/', async (req, res) => {
   try {
     const rows = await queryDB('deudas', null, { field: 'fechaAcordada', direction: 'ascending' });
     res.json(rows.map(toObj));
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
 });
 
 // Alta de una deuda nueva — SIEMPRE arranca en 'pendiente', Pagado = 0. Los
@@ -86,7 +86,7 @@ router.post('/', async (req, res) => {
     row.status       = 'pendiente';
     const created = await createRow('deudas', row);
     res.json(toObj(created));
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
 });
 
 // Edición de datos NO financieros de una deuda ya creada (concepto, fecha,

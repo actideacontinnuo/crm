@@ -111,7 +111,7 @@ router.post('/reset-password', async (req, res) => {
     });
     await logAudit({ usuario: user.id, accion: 'password_reset_completado', ip: 'email-link', exito: true });
     res.json({ ok: true });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
 });
 
 // ── LOGIN — paso 1: correo + contraseña ──────────────────
@@ -172,7 +172,7 @@ router.post('/login', async (req, res) => {
     await logAudit({ usuario: usuarioId, accion: 'login_exitoso', ip, exito: true });
     res.json({ token, id: user.id, nombre: user.nombre, role: user.role, ejec: user.ejec, mustChangePassword: user.debeCambiarPassword });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(err.status || 500).json({ error: err.message });
   }
 });
 
@@ -203,7 +203,7 @@ router.post('/verify-2fa', async (req, res) => {
     await logAudit({ usuario: user.id, accion: 'login_exitoso', detalle: 'con 2FA', ip, exito: true });
     res.json({ token, id: user.id, nombre: user.nombre, role: user.role, ejec: user.ejec, mustChangePassword: user.debeCambiarPassword });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(err.status || 500).json({ error: err.message });
   }
 });
 
@@ -232,7 +232,7 @@ router.post('/cambiar-password', authMiddleware, async (req, res) => {
     const token = signFullToken({ ...user, debeCambiarPassword: false });
     res.json({ ok: true, token });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(err.status || 500).json({ error: err.message });
   }
 });
 
@@ -245,7 +245,7 @@ router.get('/roster-ejecutivos', authMiddleware, async (req, res) => {
   try {
     const { obtenerRosterEjecutivos } = require('./_roles');
     res.json(await obtenerRosterEjecutivos());
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
 });
 
 // ── Solo Admin: listar usuarios y resetear contraseñas ──────
@@ -257,7 +257,7 @@ router.get('/usuarios', authMiddleware, async (req, res) => {
       id: u.id, nombre: u.nombre, role: u.role, ejec: u.ejec, activo: u.activo,
       twoFAEnabled: u.twoFAEnabled, bloqueado: !!(u.bloqueadoHasta && new Date(u.bloqueadoHasta) > new Date()),
     })));
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
 });
 
 // ── Solo Admin: dar de alta un usuario nuevo ────────────────
@@ -302,7 +302,7 @@ router.post('/usuarios', authMiddleware, async (req, res) => {
 
     await logAudit({ usuario: req.user.id, accion: 'usuario_creado', entidad: usuario, detalle: `rol=${rol} email=${email}`, ip: clientIp(req), exito: true });
     res.status(201).json({ ok: true, usuario: usuario.toLowerCase().trim(), rol, passwordTemporal: tempPassword });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
 });
 
 // ── Solo Admin: activar / desactivar un usuario ─────────────
@@ -318,7 +318,7 @@ router.post('/usuarios/:id/activar', authMiddleware, async (req, res) => {
     await updateRow('usuarios', user.pageId, { activo: !!activo });
     await logAudit({ usuario: req.user.id, accion: activo ? 'usuario_activado' : 'usuario_desactivado', entidad: req.params.id, ip: clientIp(req), exito: true });
     res.json({ ok: true, usuario: user.id, activo: !!activo });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
 });
 
 router.post('/usuarios/:id/resetear-password', authMiddleware, async (req, res) => {
@@ -336,7 +336,7 @@ router.post('/usuarios/:id/resetear-password', authMiddleware, async (req, res) 
     await logAudit({ usuario: req.user.id, accion: 'password_reseteado', entidad: req.params.id, ip: clientIp(req), exito: true });
 
     res.json({ ok: true, usuario: user.id, passwordTemporal: tempPassword });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
 });
 
 // ── Solo Admin: asignar directamente una contraseña que él elige ──
@@ -357,7 +357,7 @@ router.post('/usuarios/:id/set-password', authMiddleware, async (req, res) => {
     });
     await logAudit({ usuario: req.user.id, accion: 'password_asignado', entidad: req.params.id, ip: clientIp(req), exito: true });
     res.json({ ok: true, usuario: user.id });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
 });
 
 router.post('/usuarios/:id/desbloquear', authMiddleware, async (req, res) => {
@@ -367,7 +367,7 @@ router.post('/usuarios/:id/desbloquear', authMiddleware, async (req, res) => {
     if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
     await updateRow('usuarios', user.pageId, { intentosFallidos: 0, bloqueadoHasta: null });
     res.json({ ok: true });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
 });
 
 // ── 2FA: configurar ─────────────────────────────────────────
@@ -384,7 +384,7 @@ router.get('/2fa/setup', authMiddleware, async (req, res) => {
     await updateRow('usuarios', user.pageId, { twoFaSecret: secret, twoFaEnabled: false });
 
     res.json({ secret, qr });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
 });
 
 router.post('/2fa/confirm', authMiddleware, async (req, res) => {
@@ -398,7 +398,7 @@ router.post('/2fa/confirm', authMiddleware, async (req, res) => {
     await updateRow('usuarios', user.pageId, { twoFaEnabled: true });
     await logAudit({ usuario: req.user.id, accion: '2fa_activado', ip: clientIp(req), exito: true });
     res.json({ ok: true });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
 });
 
 router.post('/2fa/disable', authMiddleware, async (req, res) => {
@@ -411,14 +411,14 @@ router.post('/2fa/disable', authMiddleware, async (req, res) => {
     await updateRow('usuarios', user.pageId, { twoFaEnabled: false, twoFaSecret: '' });
     await logAudit({ usuario: req.user.id, accion: '2fa_desactivado', ip: clientIp(req), exito: true });
     res.json({ ok: true });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
 });
 
 router.get('/2fa/status', authMiddleware, async (req, res) => {
   try {
     const user = await findUserById(req.user.id);
     res.json({ enabled: !!user.twoFAEnabled });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
 });
 
 module.exports = router;

@@ -94,7 +94,7 @@ router.get('/', async (req, res) => {
     let rows = await queryDB('cotizaciones', null, { field: 'fecha', direction: 'descending' });
     if (req.rolFilter) rows = rows.filter(r => perteneceAlRegistro(r, req.rolFilter));
     res.json(await Promise.all(rows.map(toObj)));
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
 });
 
 router.get('/:id', async (req, res) => {
@@ -143,7 +143,7 @@ router.post('/', upload.fields([{ name: 'pdf', maxCount: 1 }, { name: 'excel', m
 
     const created = await createRow('cotizaciones', toRow(data));
     res.json(await toObj(created));
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
 });
 
 // Editar metadatos (status, versión). Los archivos se reemplazan re-subiendo.
