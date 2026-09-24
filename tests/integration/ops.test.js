@@ -429,3 +429,37 @@ describe('Número de OP = código del cliente + consecutivo — generado por el 
     expect(get.body.numero).toBe(numeroOriginal);
   });
 });
+
+describe('Ejecutivo por defecto — toda OP se atribuye a alguien en Comercial', () => {
+  async function clienteSinAsignado() {
+    const res = await request(app).post('/api/clientes')
+      .set('Authorization', `Bearer ${adminToken()}`)
+      .send({ nombre: 'Cliente Sin Asignar', razon: 'CSA SA', rfc: 'CSA130814368', dir: 'CDMX', contacto: 'J', cargo: 'G', tel: '5500000000', email: 'j@t.com', propietario: 'Ximena', pago: '30 días', status: 'Activo' });
+    return res.body;
+  }
+
+  test('sin ejecutivo en la petición y sin asignado en el cliente → Natalia Gama', async () => {
+    const cli = await clienteSinAsignado();
+    expect(cli.ejecAsignado).toBe('');
+    const res = await request(app).post('/api/ops').set('Authorization', `Bearer ${adminToken()}`)
+      .send({ desc: 'Sin ejecutivo', clienteId: cli.id, cotizado: 1000, status: 'En Producción' });
+    expect(res.status).toBe(200);
+    expect(res.body.ejec).toBe('Natalia Gama');
+  });
+
+  test('si se elige ejecutivo, se respeta', async () => {
+    const cli = await clienteSinAsignado();
+    const res = await request(app).post('/api/ops').set('Authorization', `Bearer ${adminToken()}`)
+      .send({ desc: 'Con ejecutivo', clienteId: cli.id, ejec: 'Alexia', cotizado: 1000, status: 'En Producción' });
+    expect(res.body.ejec).toBe('Alexia');
+  });
+
+  test('OP interna sin ejecutivo y sin número → Natalia y número de respaldo', async () => {
+    const res = await request(app).post('/api/ops').set('Authorization', `Bearer ${adminToken()}`)
+      .send({ desc: 'Gasto interno', clienteId: '__interno__', cotizado: 0 });
+    expect(res.status).toBe(200);
+    expect(res.body.ejec).toBe('Natalia Gama');
+    expect(res.body.numero).toMatch(/^OP-/);
+    expect(res.body.clienteId).toBe('');
+  });
+});

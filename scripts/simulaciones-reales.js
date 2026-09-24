@@ -146,6 +146,7 @@ async function sim2() {
   await cobro(T.oscar, o, 'SIM-Extra pantalla adicional', 5000, 'Pagado', { extra: true });
   const ven = await cobro(T.oscar, o, 'SIM-Pendiente vencido', 1000, 'Pendiente', { fecha: '2000-01-01' });
   ok(ven.b.status === 'Vencido', 'cobro pendiente con fecha pasada → Vencido', ven.b.status);
+  await call('PATCH', `/api/ops/${o.id}`, { status: 'Ejecutado' }, T.oscar);
   const g = await verificarOP(o, 'OP socio'); ok(g.cobrado === 85000 && g.utilidad === 65000, 'cobrado 85,000 (incluye extra) pero utilidad 65,000 (extra fuera de cotización)', { cob: g.cobrado, util: g.utilidad });
   const pgs = (await call('GET', '/api/pagos')).b.filter(x => x.opId === o.id);
   ok(pgs.filter(x => x.extra).length === 1 && pgs.filter(x => x.extra)[0].monto === 5000, 'el cobro extra queda marcado y separado');
@@ -213,6 +214,7 @@ async function sim4() {
   await pagoProveedor(T.oscar, Bo, prov, 'SIM-Grúa B', 116000);
   await cobro(T.oscar, A, 'SIM-Cobro A', 100000, 'Pagado');
   await cobro(T.oscar, Bo, 'SIM-Cobro B parcial', 50000, 'Pagado');
+  await call('PATCH', `/api/ops/${A.id}`, { status: 'Ejecutado' }, T.oscar);
   const gA = await verificarOP(A, 'Obra A'), gB = await verificarOP(Bo, 'Obra B'), gC = await verificarOP(C, 'Obra C');
   ok(gA.utilidad === 80000 && gB.utilidad === 100000 && gC.utilidad === 50000, 'utilidades aisladas: 80,000 / 100,000 / 50,000', [gA.utilidad, gB.utilidad, gC.utilidad]);
   ok(gA.cobrado === 100000 && gB.cobrado === 50000 && gC.cobrado === 0, 'cobros aislados por OP (sin fugas entre OPs)', [gA.cobrado, gB.cobrado, gC.cobrado]);

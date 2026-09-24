@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { queryDB, getRow, createRow, updateRow } = require('./db');
 const { assertRolAccess, esOficinaTotal, perteneceAlRegistro } = require('./_guard');
+const { NATALIA } = require('./_roles');
 const { logAudit, clientIp } = require('./_audit');
 
 function toObj(row) {
@@ -182,6 +183,10 @@ router.post('/', async (req, res) => {
       // Prospectos — no se recalcula después aunque el cliente cambie de dueño.
       data.comision     = cli.comision;
     }
+
+    // Toda OP debe atribuirse a alguien en Comercial: si no se eligió ejecutivo ni el
+    // cliente tiene uno asignado, la lleva Natalia (Dirección Comercial).
+    data.ejec = data.ejec || NATALIA;
 
     // Si dos OPs del mismo cliente se crean a la vez, ambas calculan el mismo
     // consecutivo y el índice único rechaza la segunda (409): se recalcula con
