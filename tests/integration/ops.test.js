@@ -3,10 +3,8 @@
  * Cubre: CRUD, campos correctos, OP interna, desajustes frontend↔backend
  */
 const request    = require('supertest');
-const mockNotion = require('../helpers/mock-notion');
 const mockDb     = require('../helpers/mock-db');
 
-jest.mock('../../api/notion', () => require('../helpers/mock-notion'));
 jest.mock('../../api/db', () => require('../helpers/mock-db'));
 jest.mock('../../api/_audit', () => ({ logAudit: jest.fn(), clientIp: () => '127.0.0.1' }));
 
@@ -20,7 +18,6 @@ function adminToken() {
 
 let app;
 beforeEach(() => {
-  mockNotion.resetStore();
 
   mockDb.resetStore();
   // Ximena y Alexia como ejecutivas reales del sistema — necesario para el
@@ -64,7 +61,7 @@ describe('POST /api/ops', () => {
     const res = await request(app).post('/api/ops')
       .set('Authorization', `Bearer ${adminToken()}`)
       .send(OP_VALIDA);
-    // clienteId se guarda en Notion como 'Cliente ID' y se lee como clienteId
+    // clienteId se guarda en la base de datos como 'Cliente ID' y se lee como clienteId
     expect(res.body.clienteId).toBe('cliente-test-id');
   });
 

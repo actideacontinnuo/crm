@@ -26,7 +26,7 @@ const BONO_ELEGIBLES = ['Alexia', 'Ximena'];
 // Trae el roster real de ejecutivos (usuarios del sistema, Rol=ejecutivo,
 // Activo=sí) y reconstruye EJEC_LIST/PERSONAS_EJECUTIVO/PERSONAS_PROPIETARIO a
 // partir de él. Se llama una vez al iniciar sesión (ver DOMContentLoaded) —
-// si Notion falla, se quedan los respaldos fijos de arriba, la app no se rompe.
+// si la base de datos falla, se quedan los respaldos fijos de arriba, la app no se rompe.
 async function _cargarRosterEjecutivos() {
   try {
     const roster = await db.roster.ejecutivos();
@@ -42,7 +42,7 @@ async function _cargarRosterEjecutivos() {
     nuevos.forEach((n, i) => { colorMap[n] = EJEC_COL_PALETA[i % EJEC_COL_PALETA.length]; });
     EJEC_COL = colorMap;
   } catch (_) {
-    // Notion no respondió — se sigue con el respaldo fijo, sin romper la app.
+    // la base de datos no respondió — se sigue con el respaldo fijo, sin romper la app.
   }
 }
 
@@ -899,7 +899,7 @@ function marcarTodasLeidas() {
 // Búsqueda en vivo mientras se escribe — con un pequeño debounce (180ms) para
 // no re-renderizar en cada tecla. db.*.list() ya está cacheado en memoria
 // (prefetch al iniciar sesión), así que llamarlo en cada letra no repite
-// consultas a Notion — es barato.
+// consultas a la base de datos — es barato.
 let _globalSearchTimer = null;
 function debouncedGlobalSearch(q) {
   clearTimeout(_globalSearchTimer);
@@ -917,7 +917,7 @@ async function globalSearch(q) {
   try {
     // 'db' (minúsculas) es el objeto real de acceso a datos (public/js/db.js).
     // Antes decía 'DB' (mayúsculas) — residuo del prototipo original en
-    // memoria, de antes de conectar a Notion — esa variable ya no existe, así
+    // memoria, de antes de conectar a la base de datos — esa variable ya no existe, así
     // que la búsqueda truena en silencio cada vez (atrapado por el catch de
     // abajo, mostrando "Error al buscar").
     const [clientes, prospectos, ops] = await Promise.all([

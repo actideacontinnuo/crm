@@ -133,7 +133,7 @@ router.get('/', async (req, res) => {
     // Acceso por jerarquía: la OP hereda los 3 roles del cliente (Propietario /
     // Ejec. de cuenta / Ejec. asignado). Non-admin ve solo donde participa.
     // El filtro OR-entre-3-columnas ya no se resuelve en la base (Postgres no
-    // tiene el helper de Notion) — se trae todo y se filtra en JS, igual que
+    // tiene el helper de la base de datos) — se trae todo y se filtra en JS, igual que
     // antes se hacía con assertRolAccess por registro individual.
     const rows = await queryDB('ops', null, { field: 'fechaEvento', direction: 'descending' });
     let objs = rows.map(toObj);

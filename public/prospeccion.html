@@ -110,7 +110,7 @@
 
     <div class="kpis" style="grid-template-columns:repeat(4,1fr);margin-top:16px">
       <div class="kpi"><div class="kpi-top"><div class="kpi-label">ENCONTRADOS</div></div><div class="kpi-value" id="kpi-total">0</div></div>
-      <div class="kpi"><div class="kpi-top"><div class="kpi-label">GUARDADOS EN NOTION</div></div><div class="kpi-value" id="kpi-guardados">0</div></div>
+      <div class="kpi"><div class="kpi-top"><div class="kpi-label">GUARDADOS EN LA BASE DE DATOS</div></div><div class="kpi-value" id="kpi-guardados">0</div></div>
       <div class="kpi"><div class="kpi-top"><div class="kpi-label">VERIFICADOS</div></div><div class="kpi-value kv-green" id="kpi-verificados">0</div></div>
       <div class="kpi"><div class="kpi-top"><div class="kpi-label">NO VERIFICADOS</div></div><div class="kpi-value kv-amber" id="kpi-noverificados">0</div></div>
     </div>
@@ -121,12 +121,12 @@
     </div>
 
     <!-- Arquitectura confirmada: TODOS los contactos de Apollo con email se
-         guardan de inmediato en Notion (ver api/prospeccion.js). Esta tabla
+         guardan de inmediato en la base de datos (ver api/prospeccion.js). Esta tabla
          solo muestra el resultado de la última corrida — Claude ya corrió
          su verificación y cada fila refleja el estatus final guardado. -->
     <div class="panel" id="resultcard" style="display:none;margin-top:16px">
       <div class="panel-hdr">
-        <div class="panel-title"><span class="dot"></span>RESULTADO DE LA BÚSQUEDA — YA GUARDADOS EN NOTION</div>
+        <div class="panel-title"><span class="dot"></span>RESULTADO DE LA BÚSQUEDA — YA GUARDADOS EN LA BASE DE DATOS</div>
         <span class="tag tag-gray" id="resultchip">0 contactos</span>
       </div>
       <div class="tbl-wrap" style="border:none;border-radius:0;box-shadow:none">
@@ -174,7 +174,7 @@
     <div id="correos-detalle"></div>
   </div>
 
-  <!-- ══════════════════ GENERADOS — historial COMPLETO y PERSISTENTE (Notion
+  <!-- ══════════════════ GENERADOS — historial COMPLETO y PERSISTENTE (la base de datos
        real, Fuente=Apollo) de todos los prospectos que ha generado esta
        herramienta, para no perder de vista ninguno aunque se recargue la
        página o pase el tiempo — a diferencia de "Correos", que solo muestra
@@ -232,7 +232,7 @@
           <label style="cursor:pointer;flex-shrink:0"><input type="checkbox" style="width:18px;height:18px;accent-color:var(--red);cursor:pointer" id="ajuste-claude" onchange="_guardarAjustes()"></label>
         </div>
         <div style="display:flex;align-items:center;justify-content:space-between;gap:var(--gap-lg);padding:var(--gap-md) 0;border-bottom:1px solid var(--border)">
-          <div><div style="font-weight:600;font-size:13px;margin-bottom:var(--gap-xs)">Marcar en Notion al generar correo</div><div style="font-size:11px;color:var(--gray400);line-height:1.5">Cuando generas el correo de un prospecto, lo marca como "correo generado" para no perder la cuenta.</div></div>
+          <div><div style="font-weight:600;font-size:13px;margin-bottom:var(--gap-xs)">Marcar en la base de datos al generar correo</div><div style="font-size:11px;color:var(--gray400);line-height:1.5">Cuando generas el correo de un prospecto, lo marca como "correo generado" para no perder la cuenta.</div></div>
           <label style="cursor:pointer;flex-shrink:0"><input type="checkbox" style="width:18px;height:18px;accent-color:var(--red);cursor:pointer" id="ajuste-marcar" onchange="_guardarAjustes()"></label>
         </div>
         <div style="display:flex;align-items:center;justify-content:space-between;gap:var(--gap-lg);padding:var(--gap-md) 0 0">
@@ -365,7 +365,7 @@ function _guardarAjustes(){
 })();
 
 // ══════════════════ BUSCAR — arquitectura confirmada: Apollo → se guarda TODO
-// de inmediato en Notion → Claude verifica DESPUÉS y marca cada registro ═════
+// de inmediato en la base de datos → Claude verifica DESPUÉS y marca cada registro ═════
 async function runProspect(){
   const sectors=_selectedSectors();
   if(!sectors.length){ toast('Selecciona al menos un sector','red'); return; }
@@ -376,7 +376,7 @@ async function runProspect(){
   const plog=document.getElementById('plog'); plog.innerHTML='';
   document.getElementById('resultcard').style.display='none';
 
-  alog('plog','li','Buscando en Apollo y guardando en Notion...');
+  alog('plog','li','Buscando en Apollo y guardando en la base de datos...');
   alog('plog','la',`Sectores: ${sectors.map(s=>SNAME[s]).join(' · ')} · ${total} prospectos en total`);
 
   let data;
@@ -399,7 +399,7 @@ async function runProspect(){
   }
 
   if(data.descartadosPorDuplicado) alog('plog','lw',`⚠ ${data.descartadosPorDuplicado} descartado(s) — empresa ya prospectada antes`);
-  alog('plog','ls',`${data.guardados} prospecto(s) guardados en Notion de inmediato`);
+  alog('plog','ls',`${data.guardados} prospecto(s) guardados en la base de datos de inmediato`);
   alog('plog','ls',`Claude verificó después de guardar: ${data.verificados} verificado(s) · ${data.noVerificados} no verificado(s)`);
 
   document.getElementById('kpi-total').textContent=data.totalEncontrados;
@@ -485,7 +485,7 @@ renderTplList();
 // ══════════════════ CORREOS — genera (Claude o template estático según
 // Ajustes), Natalia copia y envía ella misma. Nunca se envía nada aquí.
 // Trabaja sobre _ultimosResultados: TODOS los prospectos ya guardados en
-// Notion en esta sesión (arquitectura confirmada: no hay split auto/manual,
+// la base de datos en esta sesión (arquitectura confirmada: no hay split auto/manual,
 // todo con email se guarda de inmediato). ══════════════════
 
 function renderCorreos(){
@@ -544,11 +544,11 @@ async function copiarCorreo(leadId){
   }
   const ajustes=_leerAjustes();
   if(ajustes.marcar){
-    // El prospecto ya se guardó al buscar — usamos su notionPageId directo.
+    // El prospecto ya se guardó al buscar — usamos su registroId directo.
     const lead=_ultimosResultados.find(l=>l.id===leadId);
-    if(lead?.notionPageId){
-      try{ await fetch(`/api/prospeccion/marcar-correo-generado/${lead.notionPageId}`,{method:'PATCH'}); }
-      catch(_){ /* no bloquea la copia si falla marcar en Notion */ }
+    if(lead?.registroId){
+      try{ await fetch(`/api/prospeccion/marcar-correo-generado/${lead.registroId}`,{method:'PATCH'}); }
+      catch(_){ /* no bloquea la copia si falla marcar en la base de datos */ }
     }
   }
 }
@@ -566,9 +566,9 @@ async function generarTodos(){
   toast('✓ Correos generados para todos');
 }
 
-// ══════════════════ GENERADOS — historial persistente desde Notion ══════════
+// ══════════════════ GENERADOS — historial persistente desde la base de datos ══════════
 // A diferencia de "Correos" (que vive en memoria del navegador y se pierde al
-// recargar), esta pestaña lee SIEMPRE de Notion: todos los prospectos que ha
+// recargar), esta pestaña lee SIEMPRE de la base de datos: todos los prospectos que ha
 // generado esta herramienta (Fuente=Apollo), de cualquier sesión y fecha.
 let _generados=[];
 
@@ -694,12 +694,12 @@ async function copiarCorreoHistorial(prospectoId){
   }
   const ajustes=_leerAjustes();
   if(ajustes.marcar){
-    // Aquí SÍ tenemos el id de Notion directo (viene del historial), no hay
+    // Aquí SÍ tenemos el id de la base de datos directo (viene del historial), no hay
     // que buscarlo por email como en la pestaña Correos.
     try{
       await fetch(`/api/prospeccion/marcar-correo-generado/${prospectoId}`,{method:'PATCH'});
       renderGenerados();
-    }catch(_){ /* no bloquea la copia si falla marcar en Notion */ }
+    }catch(_){ /* no bloquea la copia si falla marcar en la base de datos */ }
   }
 }
 

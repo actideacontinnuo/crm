@@ -8,10 +8,8 @@
  * apoya en logAudit + queryDB('auditoria').
  */
 const request    = require('supertest');
-const mockNotion = require('../helpers/mock-notion');
 const mockDb     = require('../helpers/mock-db');
 
-jest.mock('../../api/notion', () => mockNotion);
 jest.mock('../../api/db', () => mockDb);
 jest.mock('node-fetch');
 const fetch = require('node-fetch');
@@ -41,7 +39,6 @@ function jsonResp(status, body) {
 let app;
 const ORIGINAL_ENV = { ...process.env };
 beforeEach(() => {
-  mockNotion.resetStore();
   mockDb.resetStore();
   app = buildAppConAuditoriaReal();
   fetch.mockReset();

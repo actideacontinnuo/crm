@@ -15,7 +15,7 @@ const netoDeConIva = conIva => Math.round((Number(conIva || 0) / (1 + IVA_RATE))
 // de la OP en la Utilidad y el Dashboard. Con Postgres, además, el abono corre
 // dentro de una transacción con el renglón bloqueado (SELECT ... FOR UPDATE) —
 // dos abonos simultáneos a la misma deuda ya no pueden pisarse entre sí, algo
-// que Notion nunca pudo garantizar.
+// que la base de datos nunca pudo garantizar.
 function _status(cotizacionConIva, pagadoConIva) {
   if (pagadoConIva <= 0) return 'pendiente';
   if (pagadoConIva >= cotizacionConIva) return 'pagado';
@@ -23,7 +23,7 @@ function _status(cotizacionConIva, pagadoConIva) {
 }
 
 // Reordena el row de Postgres (ya camelCase) al contrato que el frontend
-// espera desde la época de Notion — 'provId' en vez de 'proveedorId', y los
+// espera desde la época de la base de datos — 'provId' en vez de 'proveedorId', y los
 // campos calculados 'debemos'/'debemosConIva'.
 function toObj(row) {
   const cotizacionConIva = row.montoConIva ?? null;

@@ -12,7 +12,6 @@ module.exports = {
   collectCoverageFrom: [
     'api/**/*.js',
     'middleware/**/*.js',
-    '!api/notion.js',     // módulo de I/O — cubierto por integración
     '!api/_audit.js',
   ],
   // Cobertura mínima obligatoria — si un cambio la baja de 90%, los tests fallan

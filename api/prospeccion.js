@@ -44,7 +44,7 @@ router.get('/config/status', (req, res) => {
   res.json({
     apollo:    !!process.env.APOLLO_API_KEY,
     anthropic: !!process.env.ANTHROPIC_API_KEY,
-    notion:    !!process.env.DATABASE_URL,
+    db:        !!process.env.DATABASE_URL,
   });
 });
 
@@ -185,7 +185,7 @@ async function buscarSectorEnApollo(sectorId, perSector, page = 1) {
 }
 
 // POST /api/prospeccion/buscar  →  busca en Apollo, guarda TODOS los
-// contactos con email en Notion de inmediato, y Claude los verifica después
+// contactos con email en la base de datos de inmediato, y Claude los verifica después
 // (ver verificarYGuardarProspectos). 'total': 1-100, repartido entre los
 // sectores elegidos — reemplaza el viejo "contactos por sector" (los filtros
 // avanzados se retiraron: no filtraban de verdad, ver _construirBusquedaApollo).
@@ -403,7 +403,7 @@ function _normEmpresa(nombre) {
     .replace(/\s+/g, ' ');
 }
 
-// Empresas que YA existen como Prospecto en Notion, normalizadas — fuente de
+// Empresas que YA existen como Prospecto en la base de datos, normalizadas — fuente de
 // verdad para no volver a buscar/prospectar la misma empresa (regla dura:
 // nunca se compara solo por email, porque Apollo trae contactos distintos —
 // otro director, otro puesto— de la MISMA empresa y antes se colaban).
@@ -412,7 +412,7 @@ async function _empresasProspectosExistentes() {
     const rows = await queryDB('prospectos', null);
     return new Set(rows.map(p => _normEmpresa(p.empresa)).filter(Boolean));
   } catch (_) {
-    return new Set(); // si Notion falla leyendo el dedupe, no bloqueamos la búsqueda/carga
+    return new Set(); // si la base de datos falla leyendo el dedupe, no bloqueamos la búsqueda/carga
   }
 }
 
@@ -431,7 +431,7 @@ async function _empresasVistasEnBusquedasAnteriores() {
     });
     return set;
   } catch (_) {
-    return new Set(); // si Notion falla leyendo el historial, no bloqueamos la búsqueda
+    return new Set(); // si la base de datos falla leyendo el historial, no bloqueamos la búsqueda
   }
 }
 
@@ -455,7 +455,7 @@ async function _registrarEmpresasVistas(empresasNorm) {
 // dentro del propio lote (misma empresa en dos sectores/contactos distintos
 // de una sola corrida). Se usa TANTO al buscar (para no ni mostrar una
 // empresa ya prospectada) COMO al subir (última barrera antes de crear el
-// registro en Notion). Registra como "vistas" las que sí pasan el filtro,
+// registro en la base de datos). Registra como "vistas" las que sí pasan el filtro,
 // para que la PRÓXIMA búsqueda tampoco las repita.
 async function _filtrarEmpresasDuplicadas(leads) {
   const [existentes, vistas] = await Promise.all([
@@ -491,7 +491,7 @@ function _notaOrigen(lead) {
   return parts.join(' · ').slice(0, 1990);
 }
 
-// Sube leads como Prospectos reales — misma lógica que /notion/upload, ahora
+// Sube leads como Prospectos reales — misma lógica que /upload, ahora
 // factorizada para que el cron semanal automático también la use sin pasar
 // por HTTP. origen: 'Automático' | 'Manual'. evitarDuplicados: default true.
 async function subirProspectos(leads, { origen = 'Manual', evitarDuplicados = true } = {}) {
@@ -508,7 +508,7 @@ async function subirProspectos(leads, { origen = 'Manual', evitarDuplicados = tr
       emailsExistentes = new Set(rows.map(p => (p.email || '').toLowerCase()).filter(Boolean));
       empresasExistentes = new Set(rows.map(p => _normEmpresa(p.empresa)).filter(Boolean));
     } catch (_) {
-      // Si Notion falla leyendo el dedupe, no bloqueamos la carga — se sube
+      // Si la base de datos falla leyendo el dedupe, no bloqueamos la carga — se sube
       // sin filtrar (mismo criterio de resiliencia que el resto del sistema).
     }
   }
@@ -588,7 +588,7 @@ async function subirProspectos(leads, { origen = 'Manual', evitarDuplicados = tr
       const page = await createRow('prospectos', row);
       if (emailNorm) emailsExistentes.add(emailNorm); // evita duplicados DENTRO del mismo lote también
       if (empresaNorm) empresasExistentes.add(empresaNorm);
-      created.push({ leadId: lead.id, notionPageId: page.id });
+      created.push({ leadId: lead.id, registroId: page.id });
     } catch (err) {
       errors.push({ leadId: lead.id, error: err.message });
     }
@@ -609,7 +609,7 @@ async function verificarYGuardarProspectos(leadsBrutos, { origen }) {
 
   const subida = await subirProspectos(aceptados, { origen, evitarDuplicados: true });
 
-  const idPorLead = Object.fromEntries(subida.creadosDetalle.map(c => [c.leadId, c.notionPageId]));
+  const idPorLead = Object.fromEntries(subida.creadosDetalle.map(c => [c.leadId, c.registroId]));
   const leadsGuardados = aceptados.filter(l => idPorLead[l.id]);
 
   let verificaciones = [];
@@ -640,18 +640,18 @@ async function verificarYGuardarProspectos(leadsBrutos, { origen }) {
       id: v.id, name: v.name, title: v.title, company: v.company, email: v.email,
       sectorTitle: v.sectorTitle, confidence: v.confidence, verified: v.verified !== false,
       numEmpleados: v.numEmpleados ?? null, tamanoEmpresa: v.tamanoEmpresa || null,
-      notionPageId: idPorLead[v.id],
+      registroId: idPorLead[v.id],
     })),
   };
 }
 
-// POST /api/prospeccion/notion/upload  →  crea cada lead como Prospecto REAL de
+// POST /api/prospeccion/upload  →  crea cada lead como Prospecto REAL de
 // la CRM (misma base "Prospectos", mismo esquema/roles que un alta manual) —
 // usa exactamente las mismas reglas de comisión (Fuente="Apollo") que ya aplica
 // POST /api/prospectos, para que no queden registros con roles/notas mal formados.
-router.post('/notion/upload', async (req, res) => {
+router.post('/upload', async (req, res) => {
   // origen: 'Automático' (confianza ≥7, sin revisión) o 'Manual' (Natalia
-  // decidió cargarlo desde la lista de revisión) — queda registrado en Notion
+  // decidió cargarlo desde la lista de revisión) — queda registrado en la base de datos
   // para que el Panel Semanal pueda reportar el desglose real.
   // evitarDuplicados: toggle de Ajustes — si viene true (default), no crea un
   // prospecto si YA existe uno con el mismo email.
@@ -661,7 +661,7 @@ router.post('/notion/upload', async (req, res) => {
 });
 
 // PATCH /api/prospeccion/marcar-correo-generado/:id  →  toggle "Actualizar
-// Notion post-envío": cuando Natalia genera y copia el correo de un prospecto,
+// la base de datos post-envío": cuando Natalia genera y copia el correo de un prospecto,
 // se marca aquí para no perder la cuenta de a quién ya se le redactó uno.
 router.patch('/marcar-correo-generado/:id', async (req, res) => {
   try {

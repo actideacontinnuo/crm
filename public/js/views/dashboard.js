@@ -1,6 +1,6 @@
 // ══════════════════════════════════════
 // DASHBOARD VIEW — réplica exacta del diseño de referencia
-// (Copia de Actidea CRM offline), alimentada con datos reales de Notion.
+// (Copia de Actidea CRM offline), alimentada con datos reales de la base de datos.
 // ══════════════════════════════════════
 
 // ── Helpers compartidos del diseño de referencia ──
@@ -87,7 +87,7 @@ async function renderDashboard() {
   showSpinner();
   let pagosVisibles = true; // pagos es solo-admin: los demás roles ven el resto del dashboard
   // Cada llamada se protege por separado — si UNA falla (timeout/red hacia
-  // Notion), el dashboard sigue mostrando lo que SÍ cargó en vez de romperse
+  // la base de datos), el dashboard sigue mostrando lo que SÍ cargó en vez de romperse
   // completo con un "Error al cargar dashboard" genérico que no dejaba ver nada.
   const [ops, pagos, prospectos, clientes] = await Promise.all([
     db.ops.list().catch(() => { toast('No se pudieron cargar las OPs', 'red'); return []; }),
@@ -176,7 +176,7 @@ async function renderDashboard() {
   // ── Actividad reciente: en lenguaje humano, SOLO Dirección (Natalia) la ve,
   // y SOLO muestra acciones de gente con permisos inferiores a ella (Ximena,
   // Alexia, Oscar, etc.) — nunca las suyas propias. Combina el log real de
-  // eventos de negocio (Notion "Auditoría": OP abierta, cliente actualizado,
+  // eventos de negocio (la base de datos "Auditoría": OP abierta, cliente actualizado,
   // cobro registrado) con "tareas vencidas" DERIVADAS de los seguimientos de
   // Prospectos que ya pasaron de fecha — no es un log, se calcula al vuelo.
   let actividad = [];

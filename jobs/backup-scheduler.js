@@ -3,7 +3,7 @@ const { runBackup } = require('./backup');
 
 // Corre el día 1 de cada mes a las 3:00 am (hora del servidor)
 cron.schedule('0 3 1 * *', async () => {
-  console.log('🗄️  Ejecutando respaldo mensual automático de Notion...');
+  console.log('🗄️  Ejecutando respaldo mensual automático de la base de datos...');
   try {
     const { emailResult } = await runBackup({ trigger: 'cron-mensual' });
     console.log(emailResult.sent ? '✅ Respaldo enviado por correo' : `⚠️  Respaldo generado pero no enviado: ${emailResult.reason}`);

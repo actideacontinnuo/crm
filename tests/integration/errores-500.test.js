@@ -1,13 +1,11 @@
 /**
  * Integration tests — Manejo de errores 500 en TODOS los routers
- * Usa mockNotion.setFailNext() para simular que Notion está caído
+ * Usa mockDb.setFailNext() para simular que Postgres está caído
  * y verificar que cada catch responde 500 con JSON de error (sin crashear).
  */
 const request    = require('supertest');
-const mockNotion = require('../helpers/mock-notion');
 const mockDb     = require('../helpers/mock-db');
 
-jest.mock('../../api/notion', () => require('../helpers/mock-notion'));
 jest.mock('../../api/db', () => require('../helpers/mock-db'));
 jest.mock('../../api/_audit', () => ({ logAudit: jest.fn(), clientIp: () => '127.0.0.1' }));
 
@@ -20,12 +18,11 @@ const adminToken = () =>
 
 let app;
 beforeEach(() => {
-  mockNotion.resetStore();
   mockDb.resetStore();
   app = buildApp();
 });
 
-// Casos [método, ruta, body] — todos deben responder 500 si Notion falla
+// Casos [método, ruta, body] — todos deben responder 500 si la base de datos falla
 const CASOS = [
   ['get',    '/api/prospectos'],
   ['post',   '/api/prospectos',        { empresa: 'X' }],
@@ -69,17 +66,17 @@ const CASOS = [
 ];
 
 // POST /clientes y /prospectos leen el roster de ejecutivos (obtenerRosterEjecutivos,
-// api/_roles.js) ANTES de crear la página — una llamada extra a Notion por
-// request. Si Notion está REALMENTE caído (no un glitch de una sola llamada),
+// api/_roles.js) ANTES de crear la página — una llamada extra a la base de datos por
+// request. Si la base de datos está REALMENTE caído (no un glitch de una sola llamada),
 // esa lectura también falla, así que se simulan 2 fallos seguidos para esos casos.
 const FALLOS_SOSTENIDOS = new Set(['post:/api/clientes', 'post:/api/prospectos']);
 
-describe.each(CASOS)('Notion caído → %s %s', (metodo, ruta, body) => {
+describe.each(CASOS)('Postgres caído → %s %s', (metodo, ruta, body) => {
   test('responde 500 con JSON de error', async () => {
     const veces = FALLOS_SOSTENIDOS.has(`${metodo}:${ruta}`) ? 2 : 1;
-    mockNotion.setFailNext('Notion caído (simulado)', veces);
+
     // Deudas (y lo que se vaya migrando) ya vive en Postgres — se simula la
-    // misma caída ahí también; es inofensivo para las rutas que aún usan Notion.
+    // misma caída ahí también; es inofensivo para las rutas que aún usan la base de datos.
     mockDb.setFailNext('Postgres caído (simulado)', veces);
     let req = request(app)[metodo](ruta).set('Authorization', `Bearer ${adminToken()}`);
     if (body) req = req.send(body);
@@ -90,8 +87,8 @@ describe.each(CASOS)('Notion caído → %s %s', (metodo, ruta, body) => {
 });
 
 describe('Cotizaciones POST (multipart) — error 500', () => {
-  test('responde 500 si Notion falla al crear la página', async () => {
-    mockNotion.setFailNext('Notion caído (simulado)');
+  test('responde 500 si la base de datos falla al crear la página', async () => {
+
     mockDb.setFailNext('Postgres caído (simulado)');
     const res = await request(app).post('/api/cotizaciones')
       .set('Authorization', `Bearer ${adminToken()}`)
@@ -103,106 +100,106 @@ describe('Cotizaciones POST (multipart) — error 500', () => {
 });
 
 describe('Auth — errores 500', () => {
-  test('login responde 500 si Notion falla', async () => {
-    mockNotion.setFailNext(); mockDb.setFailNext();
+  test('login responde 500 si la base de datos falla', async () => {
+mockDb.setFailNext();
     const res = await request(app).post('/api/auth/login')
       .send({ usuario: 'natalia', password: 'AdminTest123!' });
     expect(res.status).toBe(500);
   });
 
-  test('cambiar-password responde 500 si Notion falla', async () => {
-    mockNotion.setFailNext(); mockDb.setFailNext();
+  test('cambiar-password responde 500 si la base de datos falla', async () => {
+mockDb.setFailNext();
     const res = await request(app).post('/api/auth/cambiar-password')
       .set('Authorization', `Bearer ${adminToken()}`)
       .send({ passwordActual: 'AdminTest123!', passwordNuevo: 'NuevaClave2026!!' });
     expect(res.status).toBe(500);
   });
 
-  test('GET /usuarios responde 500 si Notion falla', async () => {
-    mockNotion.setFailNext(); mockDb.setFailNext();
+  test('GET /usuarios responde 500 si la base de datos falla', async () => {
+mockDb.setFailNext();
     const res = await request(app).get('/api/auth/usuarios')
       .set('Authorization', `Bearer ${adminToken()}`);
     expect(res.status).toBe(500);
   });
 
-  test('POST /usuarios responde 500 si Notion falla', async () => {
-    mockNotion.setFailNext(); mockDb.setFailNext();
+  test('POST /usuarios responde 500 si la base de datos falla', async () => {
+mockDb.setFailNext();
     const res = await request(app).post('/api/auth/usuarios')
       .set('Authorization', `Bearer ${adminToken()}`)
       .send({ usuario: 'nuevo', nombre: 'Nuevo', email: 'n@x.com', rol: 'ejecutivo' });
     expect(res.status).toBe(500);
   });
 
-  test('activar usuario responde 500 si Notion falla', async () => {
-    mockNotion.setFailNext(); mockDb.setFailNext();
+  test('activar usuario responde 500 si la base de datos falla', async () => {
+mockDb.setFailNext();
     const res = await request(app).post('/api/auth/usuarios/natalia/activar')
       .set('Authorization', `Bearer ${adminToken()}`)
       .send({ activo: true });
     expect(res.status).toBe(500);
   });
 
-  test('resetear-password responde 500 si Notion falla', async () => {
-    mockNotion.setFailNext(); mockDb.setFailNext();
+  test('resetear-password responde 500 si la base de datos falla', async () => {
+mockDb.setFailNext();
     const res = await request(app).post('/api/auth/usuarios/natalia/resetear-password')
       .set('Authorization', `Bearer ${adminToken()}`);
     expect(res.status).toBe(500);
   });
 
-  test('desbloquear responde 500 si Notion falla', async () => {
-    mockNotion.setFailNext(); mockDb.setFailNext();
+  test('desbloquear responde 500 si la base de datos falla', async () => {
+mockDb.setFailNext();
     const res = await request(app).post('/api/auth/usuarios/natalia/desbloquear')
       .set('Authorization', `Bearer ${adminToken()}`);
     expect(res.status).toBe(500);
   });
 
-  test('2fa/setup responde 500 si Notion falla', async () => {
-    mockNotion.setFailNext(); mockDb.setFailNext();
+  test('2fa/setup responde 500 si la base de datos falla', async () => {
+mockDb.setFailNext();
     const res = await request(app).get('/api/auth/2fa/setup')
       .set('Authorization', `Bearer ${adminToken()}`);
     expect(res.status).toBe(500);
   });
 
-  test('2fa/confirm responde 500 si Notion falla', async () => {
-    mockNotion.setFailNext(); mockDb.setFailNext();
+  test('2fa/confirm responde 500 si la base de datos falla', async () => {
+mockDb.setFailNext();
     const res = await request(app).post('/api/auth/2fa/confirm')
       .set('Authorization', `Bearer ${adminToken()}`)
       .send({ code: '123456' });
     expect(res.status).toBe(500);
   });
 
-  test('2fa/disable responde 500 si Notion falla', async () => {
-    mockNotion.setFailNext(); mockDb.setFailNext();
+  test('2fa/disable responde 500 si la base de datos falla', async () => {
+mockDb.setFailNext();
     const res = await request(app).post('/api/auth/2fa/disable')
       .set('Authorization', `Bearer ${adminToken()}`)
       .send({ password: 'AdminTest123!' });
     expect(res.status).toBe(500);
   });
 
-  test('2fa/status responde 500 si Notion falla', async () => {
-    mockNotion.setFailNext(); mockDb.setFailNext();
+  test('2fa/status responde 500 si la base de datos falla', async () => {
+mockDb.setFailNext();
     const res = await request(app).get('/api/auth/2fa/status')
       .set('Authorization', `Bearer ${adminToken()}`);
     expect(res.status).toBe(500);
   });
 
-  test('verify-2fa responde 500 si Notion falla (token temporal válido)', async () => {
+  test('verify-2fa responde 500 si la base de datos falla (token temporal válido)', async () => {
     const tempToken = jwt.sign({ id: 'natalia', scope: '2fa-pending' }, SECRET, { expiresIn: '5m' });
-    mockNotion.setFailNext(); mockDb.setFailNext();
+mockDb.setFailNext();
     const res = await request(app).post('/api/auth/verify-2fa')
       .send({ tempToken, code: '123456' });
     expect(res.status).toBe(500);
   });
 
-  test('olvide-password NUNCA revela el error (responde ok aunque Notion falle)', async () => {
-    mockNotion.setFailNext(); mockDb.setFailNext();
+  test('olvide-password NUNCA revela el error (responde ok aunque la base de datos falle)', async () => {
+mockDb.setFailNext();
     const res = await request(app).post('/api/auth/olvide-password')
       .send({ email: 'natalia@actideacontinnuo.com' });
     expect(res.status).toBe(200);
     expect(res.body.ok).toBe(true);
   });
 
-  test('reset-password responde 500 si Notion falla', async () => {
-    mockNotion.setFailNext(); mockDb.setFailNext();
+  test('reset-password responde 500 si la base de datos falla', async () => {
+mockDb.setFailNext();
     const res = await request(app).post('/api/auth/reset-password')
       .send({ token: 'algo', nueva: 'ClaveValida2026!!' });
     expect(res.status).toBe(500);

@@ -1,7 +1,7 @@
 // ════════════════════════════════════════════════════════════
-// Capa de acceso a datos — Postgres (Supabase). Reemplaza a api/notion.js.
+// Capa de acceso a datos — Postgres (Supabase). Reemplazó a la antigua capa de Notion.
 // Mismo espíritu que aquel (funciones simples, sin ORM), pero con relaciones
-// REALES (foreign keys) y transacciones — lo que api/notion.js nunca pudo
+// REALES (foreign keys) y transacciones — lo que Notion nunca pudo
 // tener, y lo que hizo posible el bug de duplicación de pagos a proveedor
 // que se corrigió antes de esta migración.
 // ════════════════════════════════════════════════════════════
@@ -16,7 +16,7 @@ const pool = new Pool({
 
 // snake_case (columnas de Postgres) ↔ camelCase (objetos JS del API) —
 // automático, así cada api/*.js no tiene que repetir un mapeo campo por
-// campo como antes hacía con prop_text/read_text para cada propiedad de Notion.
+// campo como antes hacía con prop_text/read_text para cada propiedad de la base de datos.
 function toSnake(s) { return s.replace(/[A-Z]/g, l => '_' + l.toLowerCase()); }
 function toCamel(s) { return s.replace(/_([a-z0-9])/g, (_, l) => l.toUpperCase()); }
 
@@ -97,7 +97,7 @@ async function updateRow(table, id, data) {
 }
 
 // Archiva (soft-delete) — recuperable, nunca borra de verdad. Mismo criterio
-// que archivePage en api/notion.js.
+// que el archivado de páginas de Notion.
 async function archiveRow(table, id) {
   const t = _tabla(table);
   const res = await pool.query(`UPDATE ${t} SET deleted_at = now() WHERE id = $1 RETURNING *`, [id]);
@@ -107,7 +107,7 @@ async function archiveRow(table, id) {
 // ─── Transacciones ──────────────────────────────────────────
 // Para operaciones que deben ser atómicas (p. ej. abonar a una deuda: leer
 // el Pagado actual + sumar + escribir, sin que otra petición se cruce en
-// medio — algo que Notion nunca pudo garantizar). 'fn' recibe un cliente de
+// medio — algo que la base de datos nunca pudo garantizar). 'fn' recibe un cliente de
 // Postgres con los mismos helpers, ya dentro de BEGIN/COMMIT.
 async function transaccion(fn) {
   const client = await pool.connect();

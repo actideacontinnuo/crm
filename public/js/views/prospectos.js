@@ -88,7 +88,7 @@ async function openEditarProspecto() {
   document.getElementById('np-notas').value     = '';
 
   // Campos bloqueados tras el alta — salvo para oficina total (Natalia/Oscar),
-  // que pueden editar TODO sin entrar a Notion.
+  // que pueden editar TODO sin entrar a la base de datos.
   if (soyOficinaTotal()) {
     _unlockProspFields();
   } else {

@@ -1,14 +1,12 @@
 /**
- * Integration tests — Cotizaciones (modelo SOLO archivos: PDF + Excel en Notion)
+ * Integration tests — Cotizaciones (modelo SOLO archivos: PDF + Excel en la base de datos)
  * Cubre: alta con archivos, lectura de URLs, y el modelo de 3 roles HEREDADOS
  * de la OP (o del cliente si no hay OP) — Propietario/Ejec.cuenta/Ejec.asignado
  * nunca se capturan a mano, siempre se derivan en el servidor.
  */
 const request    = require('supertest');
-const mockNotion = require('../helpers/mock-notion');
 const mockDb     = require('../helpers/mock-db');
 
-jest.mock('../../api/notion', () => require('../helpers/mock-notion'));
 jest.mock('../../api/db', () => require('../helpers/mock-db'));
 jest.mock('../../api/_audit', () => ({ logAudit: jest.fn(), clientIp: () => '127.0.0.1' }));
 
@@ -55,7 +53,6 @@ async function crearClienteYOp({ propietario = 'Natalia Gama' } = {}) {
 
 let app;
 beforeEach(() => {
-  mockNotion.resetStore();
 
   mockDb.resetStore();
   // Ximena y Alexia como ejecutivas reales del sistema — necesario para el

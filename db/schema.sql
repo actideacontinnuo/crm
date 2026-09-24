@@ -1,8 +1,8 @@
 -- ════════════════════════════════════════════════════════════
 -- Actidea CRM — Esquema Postgres (Supabase)
--- Migración desde Notion — ver conversación. Cada tabla espeja una base de
--- Notion existente, pero con relaciones REALES (foreign keys) en vez de los
--- campos de texto "ID pelón" que Notion usaba — eso es justo lo que hizo
+-- Esquema Postgres (Supabase). Cada tabla espeja una base de
+-- entidad del CRM, con relaciones REALES (foreign keys) en vez de los
+-- campos de texto "ID pelón" que se usaban antes — eso es justo lo que hizo
 -- posible el bug de duplicación de pagos a proveedor que se corrigió antes
 -- de esta migración: sin llaves foráneas ni transacciones, nada impedía que
 -- un pago se guardara dos veces.
@@ -299,7 +299,7 @@ alter table objetivos add column if not exists meta_pipeline numeric(14,2);
 alter table objetivos add column if not exists objetivo_ejecutivo numeric(14,2);
 alter table objetivos add column if not exists objetivos_individuales jsonb default '{}';
 alter table objetivos alter column meta_clientes type numeric(14,2);
--- Interruptor de emergencia (antes "Panel de Seguridad" en Notion)
+-- Interruptor de emergencia (interruptor de emergencia)
 alter table seguridad alter column tipo drop not null;
 alter table seguridad add column if not exists bloquear_todo_el_acceso boolean not null default false;
 insert into seguridad (bloquear_todo_el_acceso) select false where not exists (select 1 from seguridad);

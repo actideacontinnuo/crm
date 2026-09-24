@@ -26,18 +26,8 @@ function identidadRol(user) {
 }
 
 // ── Modelo de 3 roles comerciales ──────────────────────────
-// Filtro de Notion: registros donde la identidad aparece en cualquiera de los 3 roles
-// (o en el campo legado 'Ejecutivo', para registros creados antes de este módulo).
-function filtroRolesNotion(ident) {
-  return {
-    or: [
-      { property: 'Propietario',       select: { equals: ident } },
-      { property: 'EjecutivoCuenta',   select: { equals: ident } },
-      { property: 'EjecutivoAsignado', select: { equals: ident } },
-      { property: 'Ejecutivo',         select: { equals: ident } },
-    ],
-  };
-}
+// Registros donde la identidad aparece en cualquiera de los 3 roles (o en el
+// campo legado 'ejec'). El filtrado por fila se hace con perteneceAlRegistro.
 
 // ¿La identidad aparece en alguno de los 3 roles (o el legado) del objeto ya mapeado?
 function perteneceAlRegistro(obj, ident) {
@@ -72,6 +62,6 @@ function soloNatalia(req, res, next) {
 
 module.exports = {
   esOficinaTotal, identidadRol,
-  filtroRolesNotion, perteneceAlRegistro, assertRolAccess,
+  perteneceAlRegistro, assertRolAccess,
   esNatalia, soloNatalia,
 };

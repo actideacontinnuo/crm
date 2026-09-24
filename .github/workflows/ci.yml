@@ -21,19 +21,6 @@ jobs:
     env:
       NODE_ENV: test
       JWT_SECRET: ci-secret-2026
-      NOTION_TOKEN: test-token
-      NOTION_DB_PROSPECTOS: test-db-prospectos
-      NOTION_DB_CLIENTES: test-db-clientes
-      NOTION_DB_OPS: test-db-ops
-      NOTION_DB_COTIZACIONES: test-db-cotizaciones
-      NOTION_DB_PAGOS: test-db-pagos
-      NOTION_DB_PROVEEDORES: test-db-proveedores
-      NOTION_DB_DEUDAS: test-db-deudas
-      NOTION_DB_CASOS: test-db-casos
-      NOTION_DB_TICKETS: test-db-tickets
-      NOTION_DB_USUARIOS: test-db-usuarios
-      NOTION_DB_OBJETIVOS: test-db-objetivos
-      NOTION_DB_AUDITORIA: test-db-auditoria
       RESEND_API_KEY: test-resend-key
       ANTHROPIC_API_KEY: test-anthropic-key
 
@@ -95,19 +82,6 @@ jobs:
       BASE_URL: http://localhost:3000
       PORT: 3000
       JWT_SECRET: ci-secret-2026
-      NOTION_TOKEN: test-token
-      NOTION_DB_PROSPECTOS: test-db-prospectos
-      NOTION_DB_CLIENTES: test-db-clientes
-      NOTION_DB_OPS: test-db-ops
-      NOTION_DB_COTIZACIONES: test-db-cotizaciones
-      NOTION_DB_PAGOS: test-db-pagos
-      NOTION_DB_PROVEEDORES: test-db-proveedores
-      NOTION_DB_DEUDAS: test-db-deudas
-      NOTION_DB_CASOS: test-db-casos
-      NOTION_DB_TICKETS: test-db-tickets
-      NOTION_DB_USUARIOS: test-db-usuarios
-      NOTION_DB_OBJETIVOS: test-db-objetivos
-      NOTION_DB_AUDITORIA: test-db-auditoria
       RESEND_API_KEY: test-resend-key
       ANTHROPIC_API_KEY: test-anthropic-key
       CI: true

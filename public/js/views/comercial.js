@@ -1,6 +1,6 @@
 // ══════════════════════════════════════
 // COMERCIAL / REPORTES — réplica exacta del diseño de referencia
-// (Copia de Actidea CRM offline), alimentada con datos reales de Notion.
+// (Copia de Actidea CRM offline), alimentada con datos reales de la base de datos.
 // ══════════════════════════════════════
 
 // Periodo de la vista comercial: mes | tri | anual

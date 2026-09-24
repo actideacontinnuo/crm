@@ -11,7 +11,7 @@ function setOPTab(f, el) {
 async function renderOPs() {
   showSpinner();
   // Cada llamada se protege por separado: si una falla (timeout/red hacia
-  // Notion), la vista sigue mostrando lo que sí cargó en vez de un
+  // la base de datos), la vista sigue mostrando lo que sí cargó en vez de un
   // "Error al cargar OPs" genérico que dejaba la pantalla en blanco.
   const [ops, clientes] = await Promise.all([
     db.ops.list().catch(() => { toast('No se pudieron cargar las OPs', 'red'); return []; }),
@@ -70,7 +70,7 @@ async function saveOP() {
 
   // La OP hereda los 3 roles comerciales del cliente. El "dueño" operativo de la
   // OP (Ejecutivo) es SIEMPRE el Ejecutivo asignado del cliente. Natalia y el
-  // Ejec. de cuenta conservan acceso por jerarquía (ver filtroRolesNotion backend).
+  // Ejec. de cuenta conservan acceso por jerarquía (ver filtroRolesla base de datos backend).
   let cli = null;
   if (cliId && cliId !== '__interno__') { try { cli = await getClienteById(cliId); } catch (_) {} }
   const propietario  = cli?.propietario  || '';
@@ -121,7 +121,7 @@ async function saveOP() {
 async function openDetalleOP(id) {
   showSpinner();
   // La OP misma (o) es indispensable — sin ella no hay nada que mostrar. Los
-  // demás datos se degradan solos si fallan (timeout/red hacia Notion) en vez
+  // demás datos se degradan solos si fallan (timeout/red hacia la base de datos) en vez
   // de tumbar el modal completo con un "Error al cargar OP" genérico.
   let o, clientes, pagos, cots;
   try {

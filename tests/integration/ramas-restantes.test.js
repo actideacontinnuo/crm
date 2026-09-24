@@ -1,13 +1,11 @@
 /**
  * Integration tests — Ramas restantes de cobertura
  * Cubre: filtro por ejecutivo en listados, aliases de campos,
- * JSON malformado guardado en Notion, y variantes de docs/historial.
+ * JSON malformado guardado en la base de datos, y variantes de docs/historial.
  */
 const request    = require('supertest');
-const mockNotion = require('../helpers/mock-notion');
 const mockDb     = require('../helpers/mock-db');
 
-jest.mock('../../api/notion', () => require('../helpers/mock-notion'));
 jest.mock('../../api/db', () => require('../helpers/mock-db'));
 jest.mock('../../api/_audit', () => ({ logAudit: jest.fn(), clientIp: () => '127.0.0.1' }));
 
@@ -22,7 +20,6 @@ const ejecToken = () =>
 
 let app;
 beforeEach(() => {
-  mockNotion.resetStore();
 
   mockDb.resetStore();
   app = buildApp();
@@ -131,31 +128,20 @@ describe('Aliases y variantes de campos', () => {
   });
 });
 
-describe('JSON malformado guardado en Notion (no debe romper la lectura)', () => {
-  function paginaConTexto(campoTitulo, titulo, campoTexto, texto) {
-    return {
-      id: 'seed-' + campoTexto.toLowerCase().replace(/\s/g, '-'),
-      properties: {
-        [campoTitulo]: { title: [{ plain_text: titulo }] },
-        [campoTexto]:  { rich_text: [{ plain_text: texto }] },
-      },
-    };
-  }
-
+describe('JSON malformado guardado en la base (no debe romper la lectura)', () => {
   test('prospecto con Notas corruptas devuelve notas []', async () => {
-    mockNotion.getStore().prospectos.push(paginaConTexto('Empresa', 'Corrupta', 'Notas', '{esto-no-es-json'));
-    mockNotion.getStore().prospectos.push(paginaConTexto('Empresa', 'NoArray', 'Notas', '{"a":1}'));
+    mockDb.getStore().prospectos.push({ id: 'seed-1', empresa: 'Corrupta', notas: '{esto-no-es-json', deletedAt: null });
+    mockDb.getStore().prospectos.push({ id: 'seed-2', empresa: 'NoArray', notas: '{"a":1}', deletedAt: null });
     const res = await request(app).get('/api/prospectos').set('Authorization', `Bearer ${adminToken()}`);
     expect(res.status).toBe(200);
     for (const p of res.body) expect(p.notas).toEqual([]);
   });
 
   test('caso con Historial corrupto devuelve historial []', async () => {
-    mockNotion.getStore().casos.push(paginaConTexto('Título', 'Corrupto', 'Historial', 'no-json'));
-    mockNotion.getStore().casos.push(paginaConTexto('Título', 'NoArray', 'Historial', '"texto"'));
+    mockDb.getStore().casos.push({ id: 'seed-3', titulo: 'Corrupto', historial: 'no-json', deletedAt: null });
+    mockDb.getStore().casos.push({ id: 'seed-4', titulo: 'NoArray', historial: '"texto"', deletedAt: null });
     const res = await request(app).get('/api/casos').set('Authorization', `Bearer ${adminToken()}`);
     expect(res.status).toBe(200);
     for (const c of res.body) expect(c.historial).toEqual([]);
   });
-
 });

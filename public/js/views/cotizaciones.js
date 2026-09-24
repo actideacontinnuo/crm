@@ -1,5 +1,5 @@
 // ══════════════════════════════════════
-// COTIZACIONES — SOLO ARCHIVOS (PDF + Excel en Notion)
+// COTIZACIONES — SOLO ARCHIVOS (PDF + Excel en Supabase Storage)
 // Cada cotización es un PDF y/o un Excel adjunto. Sin cotizador ni cálculos.
 //
 // El NOMBRE de la OP nunca cambia (CODIGOCLIENTE-01 DESCRIPCIÓN). Cada versión

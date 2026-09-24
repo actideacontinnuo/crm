@@ -3,10 +3,8 @@
  * Cubre: CRUD, mapeo de factura, DELETE solo admin
  */
 const request    = require('supertest');
-const mockNotion = require('../helpers/mock-notion');
 const mockDb     = require('../helpers/mock-db');
 
-jest.mock('../../api/notion', () => require('../helpers/mock-notion'));
 jest.mock('../../api/db', () => require('../helpers/mock-db'));
 jest.mock('../../api/_audit', () => ({ logAudit: jest.fn(), clientIp: () => '127.0.0.1' }));
 
@@ -23,7 +21,6 @@ function ejecToken() {
 
 let app;
 beforeEach(() => {
-  mockNotion.resetStore();
 
   mockDb.resetStore();
   app = buildApp();

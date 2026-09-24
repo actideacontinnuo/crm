@@ -3,16 +3,14 @@
  * pedidos explícitamente por el usuario para confirmar el comportamiento
  * correcto de Estado de Resultados y Dashboard tras el fix de duplicación de
  * pagos a proveedor. Corre contra el MISMO código real de producción
- * (api/clientes.js, api/ops.js, api/deudas.js, api/pagos.js) — solo Notion
- * está simulado en memoria (ver tests/helpers/mock-notion.js), para no tocar
+ * (api/clientes.js, api/ops.js, api/deudas.js, api/pagos.js) — solo la base de datos
+ * está simulado en memoria (ver tests/helpers/mock-db.js), para no tocar
  * el workspace real (que además está al límite de su plan gratuito — ver
  * conversación: "This workspace has used all of its free blocks").
  */
 const request    = require('supertest');
-const mockNotion = require('../helpers/mock-notion');
 const mockDb     = require('../helpers/mock-db');
 
-jest.mock('../../api/notion', () => require('../helpers/mock-notion'));
 jest.mock('../../api/db', () => require('../helpers/mock-db'));
 jest.mock('../../api/_audit', () => ({ logAudit: jest.fn(), clientIp: () => '127.0.0.1' }));
 
@@ -24,7 +22,6 @@ const adminToken = () => jwt.sign({ id: 'natalia', nombre: 'Natalia', role: 'adm
 
 let app;
 beforeEach(() => {
-  mockNotion.resetStore();
 
   mockDb.resetStore();
   app = buildApp();

@@ -1,7 +1,7 @@
 /**
  * Mock de Postgres (api/db.js) para tests de integración — reemplaza
  * queryDB/createRow/updateRow/archiveRow/transaccion con una base de datos
- * en memoria. A diferencia de mock-notion.js, no hace falta traducir
+ * en memoria. A diferencia de mock-db.js, no hace falta traducir
  * propiedades (Postgres ya devuelve objetos JS planos) — mucho más simple.
  * Cada suite recibe un store limpio a través de `resetStore()`.
  */

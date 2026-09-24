@@ -10,7 +10,7 @@ function setPagosTab(f, el) {
 
 // "Vencido" para una Deuda (Pago a proveedor) se calcula igual que en Pagos:
 // pendiente + fecha acordada ya pasada = Vencido. Deudas solo guarda
-// 'pendiente'/'pagado' en Notion — el resto (Vencido) es un estatus EFECTIVO
+// 'pendiente'/'pagado' en la base de datos — el resto (Vencido) es un estatus EFECTIVO
 // calculado aquí, para que el filtro/columna de la tabla fusionada sea
 // consistente entre Cobros y Pagos.
 function _statusEfectivoDeuda(d) {

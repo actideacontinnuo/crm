@@ -1,6 +1,6 @@
 require('dotenv').config();
 // Forzar resolución IPv4 primero: Railway sale por IPv6 y las conexiones salientes
-// (Notion, Resend, Anthropic) por IPv6 se caen con "Premature close".
+// (la base de datos, Resend, Anthropic) por IPv6 se caen con "Premature close".
 require('dns').setDefaultResultOrder('ipv4first');
 const express   = require('express');
 const cors      = require('cors');
@@ -126,7 +126,7 @@ app.use('/api/casos',        rolFilterCliente());
 app.use('/api/tickets',      rolFilterCliente());
 
 // Pagos y control de pagos (deudas a proveedores): Dirección + Oscar (oficina total).
-// Oscar gestiona todo desde el CRM sin entrar a Notion; eliminar sigue siendo solo admin.
+// Oscar gestiona todo desde el CRM sin entrar a la base de datos; eliminar sigue siendo solo admin.
 app.use('/api/pagos',        oficinaOnly);
 app.use('/api/deudas',       oficinaOnly);
 

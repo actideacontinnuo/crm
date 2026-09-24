@@ -3,10 +3,8 @@
  * Verifica que las restricciones de rol se apliquen en TODOS los endpoints
  */
 const request    = require('supertest');
-const mockNotion = require('../helpers/mock-notion');
 const mockDb     = require('../helpers/mock-db');
 
-jest.mock('../../api/notion', () => require('../helpers/mock-notion'));
 jest.mock('../../api/db', () => require('../helpers/mock-db'));
 jest.mock('../../api/_audit', () => ({ logAudit: jest.fn(), clientIp: () => '127.0.0.1' }));
 
@@ -20,7 +18,6 @@ function token(role, ejec = null) {
 
 let app;
 beforeEach(() => {
-  mockNotion.resetStore();
 
   mockDb.resetStore();
   // Ximena y Alexia como ejecutivas reales del sistema — necesario para el

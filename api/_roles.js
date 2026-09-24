@@ -8,7 +8,7 @@ const { queryDB } = require('./db');
 // ganan 15% como Propietario, Regla 2) — YA NO son nombres fijos: se leen de
 // los usuarios del sistema con Rol=ejecutivo y Activo=sí, así que dar de alta
 // un ejecutivo nuevo lo habilita solo, sin tocar código. Se cachea 60s para no
-// pegarle a la base en cada alta/edición; si Notion falla, se usa el último
+// pegarle a la base en cada alta/edición; si la base de datos falla, se usa el último
 // roster conocido y, en última instancia, este respaldo fijo.
 const PERSONAS_EJECUTIVO_FALLBACK = ['Natalia Gama', 'Ximena', 'Alexia'];
 const ROSTER_TTL_MS = 60 * 1000;

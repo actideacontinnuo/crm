@@ -9,7 +9,7 @@ const BUCKET = 'cotizaciones';
 // Supabase Storage (bucket privado). No hay cotizador, secciones ni cálculos: el documento es la fuente.
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 20 * 1024 * 1024 }, // 20 MB por archivo (límite single_part de Notion)
+  limits: { fileSize: 20 * 1024 * 1024 }, // 20 MB por archivo (límite single_part de la base de datos)
   fileFilter(req, file, cb) {
     const ok = [
       'application/pdf',
@@ -62,7 +62,7 @@ function toRow(data) {
 // vez los heredó del cliente); si no tiene OP pero sí cliente, vienen del
 // cliente directo. Mismo criterio que "OP hereda de Cliente" — Propietario/
 // Ejec. de cuenta/Ejec. asignado SIEMPRE reflejan al dueño real del proyecto,
-// para que el acceso por fila (filtroRolesNotion) nunca deje una cotización
+// para que el acceso por fila (filtroRolesla base de datos) nunca deje una cotización
 // invisible para quien sí debería verla.
 async function _heredarRoles(opId, clienteId) {
   const vacio = { propietario: '', ejecCuenta: '', ejecAsignado: '', ejec: '' };
