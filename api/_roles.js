@@ -2,13 +2,13 @@
 // Roles comerciales y reglas de comisión — Brief v2 (14 jul 2026)
 // Propietario / Ejecutivo de cuenta / Ejecutivo asignado + comisión.
 // ════════════════════════════════════════════════════════════
-const { queryDB, read_text, read_select, read_checkbox } = require('./notion');
+const { queryDB } = require('./db');
 
 // Roster de "ejecutivos reales" (quiénes pueden ser Ejec. de cuenta/asignado y
 // ganan 15% como Propietario, Regla 2) — YA NO son nombres fijos: se leen de
 // los usuarios del sistema con Rol=ejecutivo y Activo=sí, así que dar de alta
 // un ejecutivo nuevo lo habilita solo, sin tocar código. Se cachea 60s para no
-// pegarle a Notion en cada alta/edición; si Notion falla, se usa el último
+// pegarle a la base en cada alta/edición; si Notion falla, se usa el último
 // roster conocido y, en última instancia, este respaldo fijo.
 const PERSONAS_EJECUTIVO_FALLBACK = ['Natalia Gama', 'Ximena', 'Alexia'];
 const ROSTER_TTL_MS = 60 * 1000;
@@ -22,23 +22,16 @@ async function obtenerRosterEjecutivos() {
     // comercialmente cuenta como ejecutiva (Regla 2), igual que Ximena/Alexia.
     // Un futuro segundo admin que NO deba entrar aquí se excluye a mano —
     // no hay forma automática de distinguir "admin operativo" vs "admin comercial".
-    const pages = await queryDB('usuarios', {
-      and: [
-        { or: [
-            { property: 'Rol', select: { equals: 'ejecutivo' } },
-            { property: 'Rol', select: { equals: 'admin' } },
-          ] },
-        { property: 'Activo', checkbox: { equals: true } },
-      ],
-    });
-    const roster = pages
-      .map(p => (read_text(p.properties['Ejecutivo']) || read_text(p.properties['Nombre']) || '').trim())
+    const usuarios = await queryDB('usuarios', null);
+    const roster = usuarios
+      .filter(u => (u.rol === 'ejecutivo' || u.rol === 'admin') && u.activo === true)
+      .map(u => (u.ejec || u.nombre || '').trim())
       .filter(Boolean);
     const unico = [...new Set(roster)];
     _rosterCache = { list: unico.length ? unico : PERSONAS_EJECUTIVO_FALLBACK, expires: ahora + ROSTER_TTL_MS };
     return _rosterCache.list;
   } catch (_) {
-    // Notion falló: no rompemos comisiones/roles — se usa el último roster
+    // la base falló: no rompemos comisiones/roles — se usa el último roster
     // conocido, o el respaldo fijo si nunca se pudo leer.
     return _rosterCache.list || PERSONAS_EJECUTIVO_FALLBACK;
   }

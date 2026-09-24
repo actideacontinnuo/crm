@@ -1,10 +1,10 @@
 /**
- * Unit tests — Respaldo de Notion (jobs/backup.js)
- * Notion y fetch mockeados: no toca servicios reales.
+ * Unit tests — Respaldo de la base (jobs/backup.js)
+ * La base y fetch mockeados: no toca servicios reales.
  */
-const mockNotion = require('../helpers/mock-notion');
+const mockDb = require('../helpers/mock-db');
 
-jest.mock('../../api/notion', () => require('../helpers/mock-notion'));
+jest.mock('../../api/db', () => require('../helpers/mock-db'));
 jest.mock('../../api/_audit', () => ({ logAudit: jest.fn().mockResolvedValue(undefined), clientIp: () => '127.0.0.1' }));
 
 const { runBackup, buildBackupJson, sendBackupEmail } = require('../../jobs/backup');
@@ -15,22 +15,8 @@ const ENV_ORIGINAL = { ...process.env };
 beforeEach(() => {
   jest.clearAllMocks();
   process.env = { ...ENV_ORIGINAL };
-  mockNotion.resetStore({
-    clientes: [{
-      id: 'cli-1',
-      created_time: '2026-01-01T00:00:00Z',
-      last_edited_time: '2026-06-01T00:00:00Z',
-      properties: {
-        'Nombre': { type: 'title', title: [{ plain_text: 'Grupo Modelo' }] },
-        'RFC':    { type: 'rich_text', rich_text: [{ plain_text: 'GMO123456AB1' }] },
-        'Status': { type: 'select', select: { name: 'Activo' } },
-        'Email':  { type: 'email', email: 'x@y.com' },
-        'Tel':    { type: 'phone_number', phone_number: '555' },
-        'Monto':  { type: 'number', number: 100 },
-        'Activo': { type: 'checkbox', checkbox: true },
-        'Fecha':  { type: 'date', date: { start: '2026-06-01' } },
-      },
-    }],
+  mockDb.resetStore({
+    clientes: [{ id: 'cli-1', nombre: 'Grupo Modelo', rfc: 'GMO123456AB1', status: 'Activo', deletedAt: null }],
   });
 });
 
@@ -42,21 +28,19 @@ describe('buildBackupJson', () => {
     expect(data.generadoEn).toBeDefined();
     expect(data.entidades.clientes.length).toBe(1);
     const c = data.entidades.clientes[0];
-    expect(c.properties['Nombre']).toBe('Grupo Modelo');
-    expect(c.properties['RFC']).toBe('GMO123456AB1');
-    expect(c.properties['Status']).toBe('Activo');
-    expect(c.properties['Monto']).toBe(100);
-    expect(c.properties['Activo']).toBe(true);
-    expect(c.properties['Fecha']).toBe('2026-06-01');
+    expect(c.nombre).toBe('Grupo Modelo');
+    expect(c.rfc).toBe('GMO123456AB1');
+    expect(c.status).toBe('Activo');
   });
 
-  test('NUNCA incluye PasswordHash ni TwoFASecret de usuarios', async () => {
+  test('NUNCA incluye passwordHash, twoFaSecret ni resetToken de usuarios', async () => {
     const data = await buildBackupJson();
     const usuarios = data.entidades.usuarios;
     expect(Array.isArray(usuarios)).toBe(true);
     for (const u of usuarios) {
-      expect(u.properties.PasswordHash).toBeUndefined();
-      expect(u.properties.TwoFASecret).toBeUndefined();
+      expect(u.passwordHash).toBeUndefined();
+      expect(u.twoFaSecret).toBeUndefined();
+      expect(u.resetToken).toBeUndefined();
     }
   });
 });

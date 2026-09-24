@@ -3,9 +3,13 @@
  * Usar en pruebas de integración con supertest.
  */
 
-// Parchear el módulo ANTES de que server.js o cualquier api/*.js lo requiera
+// Parchear el módulo ANTES de que server.js o cualquier api/*.js lo requiera.
+// Dos mocks en paralelo mientras dura la migración Notion→Postgres: los
+// archivos ya migrados requieren './db', los que faltan siguen en './notion'.
 const mockNotion = require('./mock-notion');
 jest.mock('../../api/notion', () => mockNotion);
+const mockDb = require('./mock-db');
+jest.mock('../../api/db', () => mockDb);
 // Silenciar el audit log en tests
 jest.mock('../../api/_audit', () => ({
   logAudit: jest.fn().mockResolvedValue(undefined),

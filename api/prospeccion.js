@@ -1,5 +1,5 @@
 // ════════════════════════════════════════════════════════════
-// Prospección — Apollo (búsqueda) + Claude (verificación/redacción) + Notion
+// Prospección — Apollo (búsqueda) + Claude (verificación/redacción) + Postgres
 // (carga como Prospecto real de la CRM). Todo SÍNCRONO: sin cola de jobs ni
 // dependencia de que un humano procese algo a mano — responde directo al
 // request. Acceso restringido a Natalia (ver soloNatalia en server.js).
@@ -7,11 +7,7 @@
 const express = require('express');
 const router = express.Router();
 const fetch = require('node-fetch');
-const {
-  createPage, updatePage, queryDB,
-  prop_title, prop_text, prop_phone, prop_email, prop_select, prop_number, prop_checkbox,
-  read_title, read_text, read_email, read_select,
-} = require('./notion');
+const { createRow, updateRow, queryDB } = require('./db');
 const { aplicarReglasComision, obtenerRosterEjecutivos, NATALIA } = require('./_roles');
 const { logAudit } = require('./_audit');
 
@@ -48,7 +44,7 @@ router.get('/config/status', (req, res) => {
   res.json({
     apollo:    !!process.env.APOLLO_API_KEY,
     anthropic: !!process.env.ANTHROPIC_API_KEY,
-    notion:    !!process.env.NOTION_TOKEN,
+    notion:    !!process.env.DATABASE_URL,
   });
 });
 
@@ -413,10 +409,8 @@ function _normEmpresa(nombre) {
 // otro director, otro puesto— de la MISMA empresa y antes se colaban).
 async function _empresasProspectosExistentes() {
   try {
-    const pages = await queryDB('prospectos', null);
-    return new Set(
-      pages.map(p => _normEmpresa(read_title(p.properties['Empresa']))).filter(Boolean)
-    );
+    const rows = await queryDB('prospectos', null);
+    return new Set(rows.map(p => _normEmpresa(p.empresa)).filter(Boolean));
   } catch (_) {
     return new Set(); // si Notion falla leyendo el dedupe, no bloqueamos la búsqueda/carga
   }
@@ -430,10 +424,10 @@ async function _empresasProspectosExistentes() {
 // para no ensuciar esa base con empresas que nunca se llegaron a cargar.
 async function _empresasVistasEnBusquedasAnteriores() {
   try {
-    const registros = await queryDB('auditoria', { property: 'Accion', select: { equals: 'prospeccion_empresa_vista' } });
+    const registros = await queryDB('auditoria', { accion: 'prospeccion_empresa_vista' });
     const set = new Set();
-    registros.forEach(page => {
-      read_text(page.properties['Entidad']).split(',').map(s => s.trim()).filter(Boolean).forEach(k => set.add(k));
+    registros.forEach(reg => {
+      (reg.entidad || '').split(',').map(s => s.trim()).filter(Boolean).forEach(k => set.add(k));
     });
     return set;
   } catch (_) {
@@ -510,13 +504,9 @@ async function subirProspectos(leads, { origen = 'Manual', evitarDuplicados = tr
   let empresasExistentes = new Set();
   if (evitarDuplicados) {
     try {
-      const pages = await queryDB('prospectos', null);
-      emailsExistentes = new Set(
-        pages.map(p => (read_email(p.properties['Email']) || '').toLowerCase()).filter(Boolean)
-      );
-      empresasExistentes = new Set(
-        pages.map(p => _normEmpresa(read_title(p.properties['Empresa']))).filter(Boolean)
-      );
+      const rows = await queryDB('prospectos', null);
+      emailsExistentes = new Set(rows.map(p => (p.email || '').toLowerCase()).filter(Boolean));
+      empresasExistentes = new Set(rows.map(p => _normEmpresa(p.empresa)).filter(Boolean));
     } catch (_) {
       // Si Notion falla leyendo el dedupe, no bloqueamos la carga — se sube
       // sin filtrar (mismo criterio de resiliencia que el resto del sistema).
@@ -568,35 +558,34 @@ async function subirProspectos(leads, { origen = 'Manual', evitarDuplicados = tr
       data.ejecAsignado = r.ejecAsignado;
       data.comision     = r.comision;
 
-      const props = {
-        'Empresa':      prop_title(data.empresa),
-        'Contacto':     prop_text(data.contacto),
-        'Cargo':        prop_text(data.cargo),
-        'Telefono':     prop_phone(data.tel),
-        'Email':        prop_email(data.email),
-        'Fuente':       prop_select(data.fuente),
-        'Status':       prop_select(data.status),
-        'Notas':        prop_text(JSON.stringify(data.notas).substring(0, 1990)),
-        'Ejecutivo':    prop_select(data.ejec),
-        'Propietario':  prop_select(data.propietario),
-        'EjecutivoCuenta':   prop_select(data.ejecCuenta),
-        'EjecutivoAsignado': prop_select(data.ejecAsignado),
-        'Comision':     prop_number(data.comision),
-        'Sector':       prop_select(lead.sectorTitle || lead.sector || ''),
-        // ConfianzaIA/VerificacionIA: Claude corre DESPUÉS de guardar (ver
+      const row = {
+        empresa:      data.empresa,
+        contacto:     data.contacto,
+        cargo:        data.cargo,
+        telefono:     data.tel,
+        email:        data.email,
+        fuente:       data.fuente,
+        status:       data.status,
+        notas:        JSON.stringify(data.notas),
+        ejec:         data.ejec,
+        propietario:  data.propietario,
+        ejecCuenta:   data.ejecCuenta,
+        ejecAsignado: data.ejecAsignado,
+        comision:     data.comision,
+        sector:       lead.sectorTitle || lead.sector || '',
+        // confianzaIa/verificacionIa: Claude corre DESPUÉS de guardar (ver
         // verificarYGuardarProspectos) — aquí queda "Pendiente" hasta que se
         // marque; si el lead ya trae confidence (llamada directa con datos
         // pre-verificados) se respeta.
-        'ConfianzaIA':     prop_number(lead.confidence),
-        'VerificacionIA':  prop_select(lead.confidence !== undefined ? (lead.verified === false ? 'No verificado' : 'Verificado') : 'Pendiente'),
-        'OrigenCarga':  prop_select(origen),
-        // Tamaño real de la empresa (empleados) — para ver de un vistazo qué
-        // tan buen prospecto es, sin abrir el registro. null cuando Apollo no
-        // trae el dato (no se inventa).
-        'NumEmpleados':   prop_number(lead.numEmpleados ?? null),
-        'TamanoEmpresa':  prop_select(lead.tamanoEmpresa || null),
+        confianzaIa:     lead.confidence,
+        verificacionIa:  lead.confidence !== undefined ? (lead.verified === false ? 'No verificado' : 'Verificado') : 'Pendiente',
+        origenCarga:     origen,
+        // Tamaño real de la empresa (empleados) — null cuando Apollo no trae
+        // el dato (no se inventa).
+        numEmpleados:    lead.numEmpleados ?? null,
+        tamanoEmpresa:   lead.tamanoEmpresa || null,
       };
-      const page = await createPage('prospectos', props);
+      const page = await createRow('prospectos', row);
       if (emailNorm) emailsExistentes.add(emailNorm); // evita duplicados DENTRO del mismo lote también
       if (empresaNorm) empresasExistentes.add(empresaNorm);
       created.push({ leadId: lead.id, notionPageId: page.id });
@@ -629,10 +618,10 @@ async function verificarYGuardarProspectos(leadsBrutos, { origen }) {
     await Promise.all(verificaciones.map(v => {
       const pageId = idPorLead[v.id];
       if (!pageId) return null;
-      return updatePage(pageId, {
-        'ConfianzaIA':    prop_number(v.confidence || null),
-        'VerificacionIA': prop_select(v.verified === false ? 'No verificado' : 'Verificado'),
-      }).catch(() => null); // si Notion falla al marcar, el prospecto ya quedó guardado — no se pierde
+      return updateRow('prospectos', pageId, {
+        confianzaIa:    v.confidence || null,
+        verificacionIa: v.verified === false ? 'No verificado' : 'Verificado',
+      }).catch(() => null); // si la base falla al marcar, el prospecto ya quedó guardado — no se pierde
     }));
   }
 
@@ -676,7 +665,8 @@ router.post('/notion/upload', async (req, res) => {
 // se marca aquí para no perder la cuenta de a quién ya se le redactó uno.
 router.patch('/marcar-correo-generado/:id', async (req, res) => {
   try {
-    await updatePage(req.params.id, { 'CorreoGenerado': prop_checkbox(true) });
+    await updateRow('prospectos', req.params.id, { correoGenerado: true });
+    
     res.json({ ok: true });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -687,7 +677,7 @@ router.patch('/marcar-correo-generado/:id', async (req, res) => {
 // de "Nuevo" a cualquier otro status = alguien contestó o se les dio seguimiento).
 router.get('/semanal', async (req, res) => {
   try {
-    const pages = await queryDB('prospectos', { property: 'Fuente', select: { equals: 'Apollo' } });
+    const pages = await queryDB('prospectos', { fuente: 'Apollo' });
 
     const ahora = new Date();
     const diaSemana = (ahora.getDay() + 6) % 7; // lunes=0 ... domingo=6
@@ -698,13 +688,12 @@ router.get('/semanal', async (req, res) => {
     let autoCount = 0, manualCount = 0, totalSemana = 0;
 
     pages.forEach(page => {
-      const creado = new Date(page.created_time);
+      const creado = new Date(page.createdAt);
       if (creado < inicioSemana) return; // solo esta semana
       totalSemana++;
-      const p = page.properties;
-      const sector = read_select(p['Sector']) || 'Sin sector';
-      const status = read_select(p['Status']) || 'Nuevo';
-      const origen = read_select(p['OrigenCarga']) || 'Manual';
+      const sector = page.sector || 'Sin sector';
+      const status = page.status || 'Nuevo';
+      const origen = page.origenCarga || 'Manual';
       if (origen === 'Automático') autoCount++; else manualCount++;
 
       if (!porSector[sector]) porSector[sector] = { sector, total: 0, respondieron: 0 };
@@ -728,19 +717,18 @@ router.get('/semanal', async (req, res) => {
 // suavizado (Laplace: +1/+2) para que quede a la mitad de la tabla y sí
 // tenga oportunidad de probarse.
 async function _rankearSectoresPorRespuesta() {
-  const pages = await queryDB('prospectos', { property: 'Fuente', select: { equals: 'Apollo' } });
+  const pages = await queryDB('prospectos', { fuente: 'Apollo' });
   const porSector = {};
   Object.keys(SECTOR_MAP).forEach(id => { porSector[id] = { total: 0, respondieron: 0, ultimaFecha: null }; });
 
   pages.forEach(page => {
-    const p = page.properties;
-    const sectorTitle = read_select(p['Sector']);
+    const sectorTitle = page.sector;
     const sectorId = Object.keys(SECTOR_MAP).find(id => SECTOR_MAP[id].title === sectorTitle);
     if (!sectorId) return;
-    const status = read_select(p['Status']) || 'Nuevo';
+    const status = page.status || 'Nuevo';
     porSector[sectorId].total++;
     if (status !== 'Nuevo') porSector[sectorId].respondieron++;
-    const creado = page.created_time || '';
+    const creado = page.createdAt ? new Date(page.createdAt).toISOString() : '';
     if (!porSector[sectorId].ultimaFecha || creado > porSector[sectorId].ultimaFecha) porSector[sectorId].ultimaFecha = creado;
   });
 

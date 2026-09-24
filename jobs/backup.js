@@ -1,47 +1,23 @@
-const { queryDB } = require('../api/notion');
+const { queryDB } = require('../api/db');
 const { logAudit } = require('../api/_audit');
 
 // Entidades de negocio a respaldar. Usuarios se excluye su PasswordHash por seguridad.
 const ENTIDADES = ['prospectos', 'clientes', 'ops', 'cotizaciones', 'pagos', 'proveedores', 'deudas', 'casos', 'tickets', 'objetivos'];
 
-function simplifyPage(page) {
-  const out = { id: page.id, created: page.created_time, lastEdited: page.last_edited_time, properties: {} };
-  for (const [key, prop] of Object.entries(page.properties)) {
-    switch (prop.type) {
-      case 'title':      out.properties[key] = prop.title.map(t => t.plain_text).join(''); break;
-      case 'rich_text':  out.properties[key] = prop.rich_text.map(t => t.plain_text).join(''); break;
-      case 'number':     out.properties[key] = prop.number; break;
-      case 'select':     out.properties[key] = prop.select?.name ?? null; break;
-      case 'date':       out.properties[key] = prop.date?.start ?? null; break;
-      case 'checkbox':   out.properties[key] = prop.checkbox; break;
-      case 'email':      out.properties[key] = prop.email; break;
-      case 'phone_number': out.properties[key] = prop.phone_number; break;
-      default: break;
-    }
-  }
-  return out;
-}
-
 async function buildBackupJson() {
   const data = { generadoEn: new Date().toISOString(), entidades: {} };
   for (const ent of ENTIDADES) {
     try {
-      const pages = await queryDB(ent);
-      data.entidades[ent] = pages.map(simplifyPage);
+      data.entidades[ent] = await queryDB(ent, null);
     } catch (err) {
       data.entidades[ent] = { error: err.message };
     }
   }
 
-  // Usuarios: se incluye sin el hash de contraseña ni el secreto 2FA
+  // Usuarios: se incluye sin el hash de contraseña, el secreto 2FA ni el token de reseteo
   try {
-    const userPages = await queryDB('usuarios');
-    data.entidades['usuarios'] = userPages.map(p => {
-      const s = simplifyPage(p);
-      delete s.properties.PasswordHash;
-      delete s.properties.TwoFASecret;
-      return s;
-    });
+    const usuarios = await queryDB('usuarios', null);
+    data.entidades['usuarios'] = usuarios.map(({ passwordHash, twoFaSecret, resetToken, ...seguro }) => seguro);
   } catch (err) {
     data.entidades['usuarios'] = { error: err.message };
   }
@@ -66,7 +42,7 @@ async function sendBackupEmail(jsonData) {
       from: process.env.EMAIL_FROM || 'Actidea CRM <onboarding@resend.dev>',
       to: [to],
       subject: `Respaldo mensual Actidea CRM — ${new Date().toLocaleDateString('es-MX')}`,
-      html: `<p>Respaldo automático de las bases de datos de Notion del CRM Actidea.</p><p>Generado: ${jsonData.generadoEn}</p>`,
+      html: `<p>Respaldo automático de la base de datos del CRM Actidea.</p><p>Generado: ${jsonData.generadoEn}</p>`,
       attachments: [{ filename, content }],
     }),
   });

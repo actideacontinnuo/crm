@@ -1,10 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const {
-  notion, queryDB, createPage, updatePage,
-  prop_title, prop_text, prop_number, prop_select, prop_date, prop_checkbox,
-  read_title, read_text, read_number, read_select, read_date, read_checkbox,
-} = require('./notion');
+const { queryDB, getRow, createRow, updateRow } = require('./db');
 const { logAudit, clientIp } = require('./_audit');
 
 // Registra en Actividad Reciente (solo Dirección la ve) cuando un Cobro a
@@ -23,7 +19,7 @@ function _logCobroSiAplica(req, obj) {
 
 // "Vencido" se calcula SIEMPRE por fecha, no depende de que alguien lo marque
 // a mano: un cobro/pago "Pendiente" cuya fecha acordada ya pasó es "Vencido".
-// No se sobrescribe lo guardado en Notion — solo el estatus EFECTIVO que ve
+// No se sobrescribe lo guardado en la base — solo el estatus EFECTIVO que ve
 // el resto de la app (Dashboard, notificaciones, pestaña Vencidos de Pagos).
 function _hoyISO() { return new Date().toISOString().slice(0, 10); }
 function _statusEfectivo(status, fechaAcordada) {
@@ -31,62 +27,59 @@ function _statusEfectivo(status, fechaAcordada) {
   return status;
 }
 
-function toObj(page) {
-  const p = page.properties;
-  const fechaAcordada = read_date(p['Fecha Acordada']);
+function toObj(row) {
   return {
-    id:            page.id,
-    concepto:      read_title(p['Concepto']),
-    tipo:          read_select(p['Tipo']),
-    opId:          read_text(p['OP ID']),
-    monto:         read_number(p['Monto']),
-    fechaAcordada,
-    fechaReal:     read_date(p['Fecha Real']),
-    status:        _statusEfectivo(read_select(p['Status']), fechaAcordada),
-    forma:         read_select(p['Forma de Pago']),
-    ref:           read_text(p['Referencia']),
-    comprobante:   read_checkbox(p['Comprobante']),
+    id:            row.id,
+    concepto:      row.concepto || '',
+    tipo:          row.tipo || '',
+    opId:          row.opId || '',
+    monto:         Number(row.monto) || 0,
+    fechaAcordada: row.fechaAcordada ?? null,
+    fechaReal:     row.fechaReal ?? null,
+    status:        _statusEfectivo(row.status || '', row.fechaAcordada),
+    forma:         row.forma || '',
+    ref:           row.ref || '',
+    comprobante:   !!row.comprobante,
     // Cobro "extra": dinero cobrado al cliente por algo FUERA de la
     // cotización original de la OP (no estaba contemplado). Se desglosa aparte
     // en el Estado de Resultados — nunca se suma al Precio de Venta cotizado.
-    extra:         read_checkbox(p['Extra']),
+    extra:         !!row.extra,
   };
 }
 
-function toProps(data) {
-  const props = {};
-  if (data.concepto      !== undefined) props['Concepto']      = prop_title(data.concepto);
-  if (data.tipo          !== undefined) props['Tipo']          = prop_select(data.tipo);
-  if (data.opId          !== undefined) props['OP ID']         = prop_text(data.opId);
-  if (data.monto         !== undefined) props['Monto']         = prop_number(data.monto);
-  if (data.fechaAcordada !== undefined) props['Fecha Acordada'] = prop_date(data.fechaAcordada);
-  if (data.fechaReal     !== undefined) props['Fecha Real']    = prop_date(data.fechaReal);
-  if (data.status        !== undefined) props['Status']        = prop_select(data.status);
-  if (data.forma         !== undefined) props['Forma de Pago'] = prop_select(data.forma);
-  if (data.ref           !== undefined) props['Referencia']    = prop_text(data.ref);
-  if (data.comprobante   !== undefined) props['Comprobante']   = prop_checkbox(data.comprobante);
-  if (data.extra         !== undefined) props['Extra']         = prop_checkbox(data.extra);
-  return props;
+function toRow(data) {
+  const row = {};
+  if (data.concepto      !== undefined) row.concepto      = data.concepto;
+  if (data.tipo          !== undefined) row.tipo          = data.tipo;
+  if (data.opId          !== undefined) row.opId          = data.opId || null;
+  if (data.monto         !== undefined) row.monto         = data.monto;
+  if (data.fechaAcordada !== undefined) row.fechaAcordada = data.fechaAcordada || null;
+  if (data.fechaReal     !== undefined) row.fechaReal     = data.fechaReal || null;
+  if (data.status        !== undefined) row.status        = data.status;
+  if (data.forma         !== undefined) row.forma         = data.forma;
+  if (data.ref           !== undefined) row.ref           = data.ref;
+  if (data.comprobante   !== undefined) row.comprobante   = !!data.comprobante;
+  if (data.extra         !== undefined) row.extra         = !!data.extra;
+  return row;
 }
 
 router.get('/', async (req, res) => {
   try {
-    const pages = await queryDB('pagos', null, [{ property: 'Fecha Acordada', direction: 'descending' }]);
-    res.json(pages.map(toObj));
+    const rows = await queryDB('pagos', null, { field: 'fechaAcordada', direction: 'descending' });
+    res.json(rows.map(toObj));
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 router.get('/:id', async (req, res) => {
   try {
-    const page = await notion.pages.retrieve({ page_id: req.params.id });
-    res.json(toObj(page));
-  } catch (err) { res.status(500).json({ error: err.message }); }
+    res.json(toObj(await getRow('pagos', req.params.id)));
+  } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
 });
 
 router.post('/', async (req, res) => {
   try {
-    const page = await createPage('pagos', toProps(req.body));
-    const obj = toObj(page);
+    const created = await createRow('pagos', toRow(req.body));
+    const obj = toObj(created);
     _logCobroSiAplica(req, obj);
     res.json(obj);
   } catch (err) { res.status(500).json({ error: err.message }); }
@@ -94,11 +87,11 @@ router.post('/', async (req, res) => {
 
 router.patch('/:id', async (req, res) => {
   try {
-    const page = await updatePage(req.params.id, toProps(req.body));
-    const obj = toObj(page);
+    const updated = await updateRow('pagos', req.params.id, toRow(req.body));
+    const obj = toObj(updated);
     _logCobroSiAplica(req, obj);
     res.json(obj);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
 });
 
 module.exports = router;

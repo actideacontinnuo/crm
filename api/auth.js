@@ -3,11 +3,7 @@ const router  = express.Router();
 const bcrypt  = require('bcryptjs');
 const jwt     = require('jsonwebtoken');
 const { SECRET, authMiddleware } = require('../middleware/auth');
-const {
-  notion, queryDB, updatePage,
-  prop_title, prop_text, prop_select, prop_checkbox, prop_number, prop_date,
-  read_title, read_text, read_select, read_checkbox, read_number, read_date,
-} = require('./notion');
+const { queryDB, createRow, updateRow } = require('./db');
 const { validatePasswordStrength, generateStrongTempPassword } = require('./_password');
 const { generateSecret, generateOtpUri, generateQrDataUrl, verifyToken } = require('./_twofa');
 const { logAudit, clientIp } = require('./_audit');
@@ -15,34 +11,33 @@ const { logAudit, clientIp } = require('./_audit');
 const MAX_INTENTOS = 5;
 const BLOQUEO_MIN  = 15;
 
-function toUser(page) {
-  const p = page.properties;
+function toUser(row) {
   return {
-    pageId:    page.id,
-    id:        read_title(p['Usuario']),
-    nombre:    read_text(p['Nombre']),
-    email:     p['Email']?.email || null,
-    role:      read_select(p['Rol']),
-    ejec:      read_text(p['Ejecutivo']) || null,
-    hash:      read_text(p['PasswordHash']),
-    activo:    read_checkbox(p['Activo']),
-    debeCambiarPassword: read_checkbox(p['DebeCambiarPassword']),
-    twoFASecret:  read_text(p['TwoFASecret']),
-    twoFAEnabled: read_checkbox(p['TwoFAEnabled']),
-    intentosFallidos: read_number(p['IntentosFallidos']),
-    bloqueadoHasta:   read_date(p['BloqueadoHasta']),
+    pageId:    row.id,
+    id:        row.usuario,
+    nombre:    row.nombre || '',
+    email:     row.email || null,
+    role:      row.rol || '',
+    ejec:      row.ejec || null,
+    hash:      row.passwordHash || '',
+    activo:    !!row.activo,
+    debeCambiarPassword: !!row.mustChangePassword,
+    twoFASecret:  row.twoFaSecret || '',
+    twoFAEnabled: !!row.twoFaEnabled,
+    intentosFallidos: Number(row.intentosFallidos) || 0,
+    bloqueadoHasta:   row.bloqueadoHasta || null,
   };
 }
 
 async function findUserById(usuario) {
-  const pages = await queryDB('usuarios', { property: 'Usuario', title: { equals: usuario } });
-  return pages.length ? toUser(pages[0]) : null;
+  const rows = await queryDB('usuarios', { usuario });
+  return rows.length ? toUser(rows[0]) : null;
 }
 
 async function findUserByEmail(email) {
   const all = await queryDB('usuarios', null);
-  const page = all.find(p => (p.properties['Email']?.email || '').toLowerCase() === email.toLowerCase());
-  return page ? toUser(page) : null;
+  const row = all.find(r => (r.email || '').toLowerCase() === email.toLowerCase());
+  return row ? toUser(row) : null;
 }
 
 function signFullToken(user) {
@@ -67,10 +62,7 @@ router.post('/olvide-password', async (req, res) => {
     const token  = crypto.randomBytes(32).toString('hex');
     const expira = new Date(Date.now() + 60 * 60 * 1000); // 1 hora
 
-    await updatePage(user.pageId, {
-      'ResetToken':  prop_text(token),
-      'ResetExpira': prop_date(expira.toISOString()),
-    });
+    await updateRow('usuarios', user.pageId, { resetToken: token, resetTokenExpira: expira.toISOString() });
 
     const resetUrl = `${process.env.APP_URL || 'https://actidea-os.up.railway.app'}/reset-password?token=${token}`;
     const resendKey = process.env.RESEND_API_KEY;
@@ -106,22 +98,16 @@ router.post('/reset-password', async (req, res) => {
   const validation = validatePasswordStrength(nueva);
   if (validation) return res.status(400).json({ error: validation });
   try {
-    const all  = await queryDB('usuarios', null);
-    const page = all.find(p => (p.properties['ResetToken']?.rich_text?.[0]?.text?.content || '') === token);
-    if (!page) return res.status(400).json({ error: 'Enlace inválido o ya utilizado' });
-    const user   = toUser(page);
-    const expira = user.bloqueadoHasta; // reutilizamos el lector de fecha
-    const expiryDate = page.properties['ResetExpira']?.date?.start;
-    if (!expiryDate || new Date(expiryDate) < new Date()) return res.status(400).json({ error: 'El enlace ha expirado. Solicita uno nuevo.' });
+    const encontrados = await queryDB('usuarios', { resetToken: token });
+    const row = encontrados[0];
+    if (!row) return res.status(400).json({ error: 'Enlace inválido o ya utilizado' });
+    const user = toUser(row);
+    if (!row.resetTokenExpira || new Date(row.resetTokenExpira) < new Date()) return res.status(400).json({ error: 'El enlace ha expirado. Solicita uno nuevo.' });
 
     const hash = bcrypt.hashSync(nueva, 12);
-    await updatePage(page.id, {
-      'PasswordHash':        prop_text(hash),
-      'DebeCambiarPassword': prop_checkbox(false),
-      'ResetToken':          prop_text(''),
-      'ResetExpira':         { date: null },
-      'IntentosFallidos':    prop_number(0),
-      'BloqueadoHasta':      { date: null },
+    await updateRow('usuarios', row.id, {
+      passwordHash: hash, mustChangePassword: false, resetToken: '', resetTokenExpira: null,
+      intentosFallidos: 0, bloqueadoHasta: null,
     });
     await logAudit({ usuario: user.id, accion: 'password_reset_completado', ip: 'email-link', exito: true });
     res.json({ ok: true });
@@ -159,20 +145,20 @@ router.post('/login', async (req, res) => {
 
     if (!passwordOk) {
       const nuevosIntentos = (user.intentosFallidos || 0) + 1;
-      const props = { 'IntentosFallidos': prop_number(nuevosIntentos) };
+      const props = { intentosFallidos: nuevosIntentos };
       if (nuevosIntentos >= MAX_INTENTOS) {
         const hasta = new Date(Date.now() + BLOQUEO_MIN * 60000);
-        props['BloqueadoHasta'] = prop_date(hasta.toISOString());
+        props.bloqueadoHasta = hasta.toISOString();
         await logAudit({ usuario: usuarioId, accion: 'cuenta_bloqueada', detalle: `${nuevosIntentos} intentos fallidos`, ip, exito: false });
       }
-      await updatePage(user.pageId, props);
+      await updateRow('usuarios', user.pageId, props);
       await logAudit({ usuario: usuarioId, accion: 'login_fallido', detalle: `intento ${nuevosIntentos}/${MAX_INTENTOS}`, ip, exito: false });
       return res.status(401).json({ error: 'Usuario o contraseña incorrectos' });
     }
 
     // Contraseña correcta — resetear contador de intentos
     if (user.intentosFallidos || user.bloqueadoHasta) {
-      await updatePage(user.pageId, { 'IntentosFallidos': prop_number(0), 'BloqueadoHasta': { date: null } });
+      await updateRow('usuarios', user.pageId, { intentosFallidos: 0, bloqueadoHasta: null });
     }
 
     // ── 2FA activado: pedir segundo paso ──
@@ -239,10 +225,7 @@ router.post('/cambiar-password', authMiddleware, async (req, res) => {
     }
 
     const newHash = bcrypt.hashSync(passwordNuevo, 12);
-    await updatePage(user.pageId, {
-      'PasswordHash': prop_text(newHash),
-      'DebeCambiarPassword': prop_checkbox(false),
-    });
+    await updateRow('usuarios', user.pageId, { passwordHash: newHash, mustChangePassword: false });
     await logAudit({ usuario: req.user.id, accion: 'password_cambiado', ip, exito: true });
 
     // Token nuevo sin la bandera de "debe cambiar password"
@@ -269,8 +252,8 @@ router.get('/roster-ejecutivos', authMiddleware, async (req, res) => {
 router.get('/usuarios', authMiddleware, async (req, res) => {
   if (req.user.role !== 'admin') return res.status(403).json({ error: 'Solo el Admin puede ver esto' });
   try {
-    const pages = await queryDB('usuarios', null, [{ property: 'Usuario', direction: 'ascending' }]);
-    res.json(pages.map(toUser).map(u => ({
+    const rows = await queryDB('usuarios', null, { field: 'usuario', direction: 'ascending' });
+    res.json(rows.map(toUser).map(u => ({
       id: u.id, nombre: u.nombre, role: u.role, ejec: u.ejec, activo: u.activo,
       twoFAEnabled: u.twoFAEnabled, bloqueado: !!(u.bloqueadoHasta && new Date(u.bloqueadoHasta) > new Date()),
     })));
@@ -304,18 +287,17 @@ router.post('/usuarios', authMiddleware, async (req, res) => {
     const tempPassword = generateStrongTempPassword();
     const hash = bcrypt.hashSync(tempPassword, 12);
 
-    const { createPage } = require('./notion');
-    await createPage('usuarios', {
-      'Usuario':             prop_title(usuario.toLowerCase().trim()),
-      'Nombre':              prop_text(nombre.trim()),
-      'Email':               { email: email.trim() },
-      'Rol':                 prop_select(rol),
-      'Ejecutivo':           prop_text(rol === 'ejecutivo' ? (ejecutivo || nombre.trim()) : (ejecutivo || '')),
-      'PasswordHash':        prop_text(hash),
-      'Activo':              prop_checkbox(true),
-      'DebeCambiarPassword': prop_checkbox(true), // debe cambiarla en su primer login
-      'TwoFAEnabled':        prop_checkbox(false),
-      'IntentosFallidos':    prop_number(0),
+    await createRow('usuarios', {
+      usuario:            usuario.toLowerCase().trim(),
+      nombre:             nombre.trim(),
+      email:              email.trim(),
+      rol,
+      ejec:               rol === 'ejecutivo' ? (ejecutivo || nombre.trim()) : (ejecutivo || ''),
+      passwordHash:       hash,
+      activo:             true,
+      mustChangePassword: true, // debe cambiarla en su primer login
+      twoFaEnabled:       false,
+      intentosFallidos:   0,
     });
 
     await logAudit({ usuario: req.user.id, accion: 'usuario_creado', entidad: usuario, detalle: `rol=${rol} email=${email}`, ip: clientIp(req), exito: true });
@@ -333,7 +315,7 @@ router.post('/usuarios/:id/activar', authMiddleware, async (req, res) => {
     if (user.id === req.user.id && activo === false) {
       return res.status(400).json({ error: 'No puedes desactivar tu propia cuenta' });
     }
-    await updatePage(user.pageId, { 'Activo': prop_checkbox(!!activo) });
+    await updateRow('usuarios', user.pageId, { activo: !!activo });
     await logAudit({ usuario: req.user.id, accion: activo ? 'usuario_activado' : 'usuario_desactivado', entidad: req.params.id, ip: clientIp(req), exito: true });
     res.json({ ok: true, usuario: user.id, activo: !!activo });
   } catch (err) { res.status(500).json({ error: err.message }); }
@@ -347,11 +329,9 @@ router.post('/usuarios/:id/resetear-password', authMiddleware, async (req, res) 
 
     const tempPassword = generateStrongTempPassword();
     const newHash = bcrypt.hashSync(tempPassword, 12);
-    await updatePage(user.pageId, {
-      'PasswordHash': prop_text(newHash),
-      'DebeCambiarPassword': prop_checkbox(true), // debe cambiarla en su próximo login
-      'IntentosFallidos': prop_number(0),
-      'BloqueadoHasta': { date: null },
+    await updateRow('usuarios', user.pageId, {
+      passwordHash: newHash, mustChangePassword: true, // debe cambiarla en su próximo login
+      intentosFallidos: 0, bloqueadoHasta: null,
     });
     await logAudit({ usuario: req.user.id, accion: 'password_reseteado', entidad: req.params.id, ip: clientIp(req), exito: true });
 
@@ -370,11 +350,10 @@ router.post('/usuarios/:id/set-password', authMiddleware, async (req, res) => {
   try {
     const user = await findUserById(req.params.id);
     if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
-    await updatePage(user.pageId, {
-      'PasswordHash': prop_text(bcrypt.hashSync(password, 12)),
-      'DebeCambiarPassword': prop_checkbox(forzarCambio !== false), // por defecto pide cambiarla; si mandan false, no
-      'IntentosFallidos': prop_number(0),
-      'BloqueadoHasta': { date: null },
+    await updateRow('usuarios', user.pageId, {
+      passwordHash: bcrypt.hashSync(password, 12),
+      mustChangePassword: forzarCambio !== false, // por defecto pide cambiarla; si mandan false, no
+      intentosFallidos: 0, bloqueadoHasta: null,
     });
     await logAudit({ usuario: req.user.id, accion: 'password_asignado', entidad: req.params.id, ip: clientIp(req), exito: true });
     res.json({ ok: true, usuario: user.id });
@@ -386,7 +365,7 @@ router.post('/usuarios/:id/desbloquear', authMiddleware, async (req, res) => {
   try {
     const user = await findUserById(req.params.id);
     if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
-    await updatePage(user.pageId, { 'IntentosFallidos': prop_number(0), 'BloqueadoHasta': { date: null } });
+    await updateRow('usuarios', user.pageId, { intentosFallidos: 0, bloqueadoHasta: null });
     res.json({ ok: true });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -402,7 +381,7 @@ router.get('/2fa/setup', authMiddleware, async (req, res) => {
     const user = await findUserById(req.user.id);
     // Apagar 2FA hasta que confirme con un código del NUEVO secreto — así,
     // si nunca confirma, no queda con TwoFAEnabled=true y un secreto que no coincide.
-    await updatePage(user.pageId, { 'TwoFASecret': prop_text(secret), 'TwoFAEnabled': prop_checkbox(false) });
+    await updateRow('usuarios', user.pageId, { twoFaSecret: secret, twoFaEnabled: false });
 
     res.json({ secret, qr });
   } catch (err) { res.status(500).json({ error: err.message }); }
@@ -416,7 +395,7 @@ router.post('/2fa/confirm', authMiddleware, async (req, res) => {
     if (!verifyToken(code, user.twoFASecret)) {
       return res.status(401).json({ error: 'Código incorrecto. Verifica la hora de tu teléfono e intenta de nuevo.' });
     }
-    await updatePage(user.pageId, { 'TwoFAEnabled': prop_checkbox(true) });
+    await updateRow('usuarios', user.pageId, { twoFaEnabled: true });
     await logAudit({ usuario: req.user.id, accion: '2fa_activado', ip: clientIp(req), exito: true });
     res.json({ ok: true });
   } catch (err) { res.status(500).json({ error: err.message }); }
@@ -429,7 +408,7 @@ router.post('/2fa/disable', authMiddleware, async (req, res) => {
     if (!bcrypt.compareSync(password || '', user.hash)) {
       return res.status(401).json({ error: 'Contraseña incorrecta' });
     }
-    await updatePage(user.pageId, { 'TwoFAEnabled': prop_checkbox(false), 'TwoFASecret': prop_text('') });
+    await updateRow('usuarios', user.pageId, { twoFaEnabled: false, twoFaSecret: '' });
     await logAudit({ usuario: req.user.id, accion: '2fa_desactivado', ip: clientIp(req), exito: true });
     res.json({ ok: true });
   } catch (err) { res.status(500).json({ error: err.message }); }

@@ -1,77 +1,69 @@
 const express = require('express');
 const router = express.Router();
-const {
-  notion, queryDB, createPage, updatePage,
-  prop_title, prop_text, prop_number, prop_select, prop_date,
-  read_title, read_text, read_number, read_select, read_date,
-} = require('./notion');
-const { filtroRolesNotion, assertRolAccess, esOficinaTotal } = require('./_guard');
+const { queryDB, getRow, createRow, updateRow } = require('./db');
+const { assertRolAccess, esOficinaTotal, perteneceAlRegistro } = require('./_guard');
 const { logAudit, clientIp } = require('./_audit');
 
-function toObj(page) {
-  const p = page.properties;
+function toObj(row) {
   return {
-    id:         page.id,
-    num:        read_title(p['Número OP']),
-    numero:     read_title(p['Número OP']),
-    desc:       read_text(p['Descripción']),
-    clienteId:  read_text(p['Cliente ID']),
-    ejec:       read_select(p['Ejecutivo']),         // legado / operativo
-    propietario:  read_select(p['Propietario']),      // heredados del cliente (jerarquía)
-    ejecCuenta:   read_select(p['EjecutivoCuenta']),
-    ejecAsignado: read_select(p['EjecutivoAsignado']),
-    fechaEvento: read_date(p['Fecha Evento']),
-    cotizado:   read_number(p['Cotizado']),
-    cobrado:    read_number(p['Cobrado']),
-    utilidad:   read_number(p['Utilidad']),
-    status:     read_select(p['Status']),
-    bono:       read_text(p['Bono']),
+    id:         row.id,
+    num:        row.numero || '',
+    numero:     row.numero || '',
+    desc:       row.descripcion || '',
+    clienteId:  row.clienteId || '',
+    ejec:       row.ejec || '',               // legado / operativo
+    propietario:  row.propietario || '',      // heredados del cliente (jerarquía)
+    ejecCuenta:   row.ejecCuenta || '',
+    ejecAsignado: row.ejecAsignado || '',
+    fechaEvento: row.fechaEvento ?? null,
+    cotizado:   Number(row.cotizado) || 0,
+    cobrado:    Number(row.cobrado) || 0,
+    utilidad:   Number(row.utilidad) || 0,
+    status:     row.status || '',
+    bono:       row.bono || '',
     // % de comisión del ejecutivo — heredado del Cliente al crear la OP (Regla
     // 2 = 15%, Regla 3 = 7.5%, ver api/_roles.js) y FIJO desde entonces, igual
     // que ya se hace con la comisión de Clientes/Prospectos: no se recalcula
     // si el cliente cambia de dueño después. null en OPs viejas (antes de este
     // campo) — se sigue mostrando 7.5% como respaldo, no un dato inventado.
-    comision:   p['Comision']?.number ?? null,
+    comision:   row.comision ?? null,
   };
 }
 
-function toProps(data) {
-  const props = {};
-  if (data.num    !== undefined) props['Número OP']   = prop_title(data.num);
-  else if (data.numero !== undefined) props['Número OP'] = prop_title(data.numero);
-  if (data.desc     !== undefined) props['Descripción'] = prop_text(data.desc);
-  if (data.clienteId !== undefined) props['Cliente ID']  = prop_text(data.clienteId);
-  if (data.ejec     !== undefined) props['Ejecutivo']   = prop_select(data.ejec);
-  if (data.propietario  !== undefined) props['Propietario']       = prop_select(data.propietario);
-  if (data.ejecCuenta   !== undefined) props['EjecutivoCuenta']   = prop_select(data.ejecCuenta);
-  if (data.ejecAsignado !== undefined) props['EjecutivoAsignado'] = prop_select(data.ejecAsignado);
-  if (data.fechaEvento !== undefined) props['Fecha Evento'] = prop_date(data.fechaEvento);
-  else if (data.fecha  !== undefined) props['Fecha Evento'] = prop_date(data.fecha);
-  if (data.cotizado !== undefined) props['Cotizado']    = prop_number(data.cotizado);
-  if (data.cobrado  !== undefined) props['Cobrado']     = prop_number(data.cobrado);
-  if (data.utilidad !== undefined) props['Utilidad']    = prop_number(data.utilidad);
-  if (data.status   !== undefined) props['Status']      = prop_select(data.status);
-  if (data.bono     !== undefined) props['Bono']        = prop_text(data.bono);
-  if (data.comision !== undefined) props['Comision']    = prop_number(data.comision);
-  return props;
+function toRow(data) {
+  const row = {};
+  if (data.num    !== undefined) row.numero = data.num;
+  else if (data.numero !== undefined) row.numero = data.numero;
+  if (data.desc      !== undefined) row.descripcion = data.desc;
+  if (data.clienteId !== undefined) row.clienteId = data.clienteId;
+  if (data.ejec      !== undefined) row.ejec = data.ejec;
+  if (data.propietario  !== undefined) row.propietario  = data.propietario;
+  if (data.ejecCuenta   !== undefined) row.ejecCuenta   = data.ejecCuenta;
+  if (data.ejecAsignado !== undefined) row.ejecAsignado = data.ejecAsignado;
+  if (data.fechaEvento !== undefined) row.fechaEvento = data.fechaEvento || null;
+  else if (data.fecha  !== undefined) row.fechaEvento = data.fecha || null;
+  if (data.cotizado !== undefined) row.cotizado = data.cotizado;
+  if (data.status   !== undefined) row.status   = data.status;
+  if (data.bono     !== undefined) row.bono     = data.bono;
+  if (data.comision !== undefined) row.comision = data.comision;
+  return row;
 }
 
 // Datos del cliente que la OP necesita HEREDAR al crearse — código (para el
-// número) y los 3 roles comerciales. Una sola lectura a Notion, autoridad del
-// servidor: nunca se confía en lo que mande el cliente HTTP para ninguno de
-// estos campos (mismo criterio que api/clientes.js _generarCodigoCliente).
+// número) y los 3 roles comerciales. Una sola lectura a Postgres, autoridad
+// del servidor: nunca se confía en lo que mande el cliente HTTP para ninguno
+// de estos campos (mismo criterio que api/clientes.js _generarCodigoCliente).
 async function _datosClienteParaOP(clienteId) {
   const vacio = { codigo: '', propietario: '', ejecCuenta: '', ejecAsignado: '', comision: null };
   if (!clienteId || clienteId === '__interno__') return vacio;
   try {
-    const clientePage = await notion.pages.retrieve({ page_id: clienteId });
-    const p = clientePage.properties;
+    const cliente = await getRow('clientes', clienteId);
     return {
-      codigo:       read_text(p['Codigo']),
-      propietario:  read_select(p['Propietario']),
-      ejecCuenta:   read_select(p['EjecutivoCuenta']),
-      ejecAsignado: read_select(p['EjecutivoAsignado']),
-      comision:     p['Comision']?.number ?? null,
+      codigo:       cliente.codigo || '',
+      propietario:  cliente.propietario || '',
+      ejecCuenta:   cliente.ejecCuenta || '',
+      ejecAsignado: cliente.ejecAsignado || '',
+      comision:     cliente.comision ?? null,
     };
   } catch (_) {
     return vacio; // clienteId inválido/inexistente — no se puede heredar nada
@@ -84,7 +76,7 @@ async function _datosClienteParaOP(clienteId) {
 // conserva el comportamiento previo — no hay de dónde derivar un consecutivo.
 async function _generarNumeroOP(clienteId, codigoCliente) {
   if (!clienteId || clienteId === '__interno__' || !codigoCliente) return null;
-  const opsDelCliente = await queryDB('ops', { property: 'Cliente ID', rich_text: { equals: clienteId } }, null);
+  const opsDelCliente = await queryDB('ops', { clienteId });
   const consecutivo = String(opsDelCliente.length + 1).padStart(2, '0');
   return `${codigoCliente}-${consecutivo}`;
 }
@@ -96,18 +88,16 @@ async function _generarNumeroOP(clienteId, codigoCliente) {
 async function withUtilidadReal(objs) {
   let deudas;
   try {
-    deudas = await queryDB('deudas', null, null);
+    deudas = await queryDB('deudas', null);
   } catch (_) {
-    // Si Notion falla al traer los costos, no reventamos el listado de OPs —
-    // se conserva el valor bruto ya guardado (respaldo, puede estar desfasado).
+    // Si Postgres falla al traer los costos, no reventamos el listado de OPs
+    // — se conserva el valor bruto ya guardado (respaldo, puede estar desfasado).
     return objs;
   }
   const costosPorOP = {};
-  deudas.forEach(page => {
-    const p = page.properties;
-    const opId = read_text(p['OP ID']);
-    if (!opId) return;
-    costosPorOP[opId] = (costosPorOP[opId] || 0) + read_number(p['Monto']);
+  deudas.forEach(d => {
+    if (!d.opId) return;
+    costosPorOP[d.opId] = (costosPorOP[d.opId] || 0) + (Number(d.monto) || 0);
   });
   return objs.map(o => ({
     ...o,
@@ -124,18 +114,16 @@ async function withUtilidadReal(objs) {
 async function withCobradoReal(objs) {
   let pagos;
   try {
-    pagos = await queryDB('pagos', null, null);
+    pagos = await queryDB('pagos', null);
   } catch (_) {
-    return objs; // si Notion falla, se conserva el valor bruto ya guardado (respaldo)
+    return objs; // si Postgres falla, se conserva el valor bruto ya guardado (respaldo)
   }
   const cobradoPorOP = {};
-  pagos.forEach(page => {
-    const p = page.properties;
-    if (read_select(p['Tipo']) !== 'Cobro a cliente') return;
-    if (read_select(p['Status']) !== 'Pagado') return;
-    const opId = read_text(p['OP ID']);
-    if (!opId) return;
-    cobradoPorOP[opId] = (cobradoPorOP[opId] || 0) + read_number(p['Monto']);
+  pagos.forEach(p => {
+    if (p.tipo !== 'Cobro a cliente') return;
+    if (p.status !== 'Pagado') return;
+    if (!p.opId) return;
+    cobradoPorOP[p.opId] = (cobradoPorOP[p.opId] || 0) + (Number(p.monto) || 0);
   });
   return objs.map(o => ({ ...o, cobrado: Math.round(cobradoPorOP[o.id] || 0) }));
 }
@@ -144,20 +132,23 @@ router.get('/', async (req, res) => {
   try {
     // Acceso por jerarquía: la OP hereda los 3 roles del cliente (Propietario /
     // Ejec. de cuenta / Ejec. asignado). Non-admin ve solo donde participa.
-    const filter = req.rolFilter ? filtroRolesNotion(req.rolFilter) : null;
-    const pages = await queryDB('ops', filter, [{ property: 'Fecha Evento', direction: 'descending' }]);
-    res.json(await withCobradoReal(await withUtilidadReal(pages.map(toObj))));
+    // El filtro OR-entre-3-columnas ya no se resuelve en la base (Postgres no
+    // tiene el helper de Notion) — se trae todo y se filtra en JS, igual que
+    // antes se hacía con assertRolAccess por registro individual.
+    const rows = await queryDB('ops', null, { field: 'fechaEvento', direction: 'descending' });
+    let objs = rows.map(toObj);
+    if (req.rolFilter) objs = objs.filter(o => perteneceAlRegistro(o, req.rolFilter));
+    res.json(await withCobradoReal(await withUtilidadReal(objs)));
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 router.get('/:id', async (req, res) => {
   try {
-    const page = await notion.pages.retrieve({ page_id: req.params.id });
-    const obj = toObj(page);
+    const obj = toObj(await getRow('ops', req.params.id));
     if (!assertRolAccess(req, res, obj)) return;
     const [enriched] = await withCobradoReal(await withUtilidadReal([obj]));
     res.json(enriched);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
 });
 
 router.post('/', async (req, res) => {
@@ -170,7 +161,7 @@ router.post('/', async (req, res) => {
     const numeroGenerado = await _generarNumeroOP(data.clienteId, cli.codigo);
     if (numeroGenerado) {
       data.numero = numeroGenerado;
-      delete data.num; // 'num' tiene prioridad en toProps — no debe pisar el generado
+      delete data.num; // 'num' tiene prioridad en toRow — no debe pisar el generado
     }
     // Los 3 roles SIEMPRE se heredan del cliente aquí — nunca se confía en lo
     // que mande el frontend (mismo criterio que el número/código: si hubiera
@@ -189,8 +180,8 @@ router.post('/', async (req, res) => {
       data.comision     = cli.comision;
     }
 
-    const page = await createPage('ops', toProps(data));
-    const [enriched] = await withCobradoReal(await withUtilidadReal([toObj(page)]));
+    const created = await createRow('ops', toRow(data));
+    const [enriched] = await withCobradoReal(await withUtilidadReal([toObj(created)]));
     // Actividad Reciente (solo Dirección la ve, ver dashboard.js) — evento de
     // negocio real, no el CRUD crudo.
     logAudit({
@@ -204,8 +195,7 @@ router.post('/', async (req, res) => {
 
 router.patch('/:id', async (req, res) => {
   try {
-    const existing = await notion.pages.retrieve({ page_id: req.params.id });
-    const existingObj = toObj(existing);
+    const existingObj = toObj(await getRow('ops', req.params.id));
     if (!assertRolAccess(req, res, existingObj)) return;
     const body = { ...req.body };
     // La Utilidad y el Cobrado ya NO se capturan a mano: se calculan siempre en
@@ -228,10 +218,10 @@ router.patch('/:id', async (req, res) => {
     } else if (body.ejecAsignado !== undefined) {
       body.ejec = body.ejecAsignado; // el dueño operativo sigue al ejec. asignado
     }
-    const page = await updatePage(req.params.id, toProps(body));
-    const [enriched] = await withCobradoReal(await withUtilidadReal([toObj(page)]));
+    const updated = await updateRow('ops', req.params.id, toRow(body));
+    const [enriched] = await withCobradoReal(await withUtilidadReal([toObj(updated)]));
     res.json(enriched);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
 });
 
 module.exports = router;

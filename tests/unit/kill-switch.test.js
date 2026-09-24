@@ -1,10 +1,10 @@
 /**
- * Unit tests — Interruptor de emergencia (kill switch controlado desde Notion)
+ * Unit tests — Interruptor de emergencia (kill switch controlado desde la base)
  */
-jest.mock('../../api/notion', () => ({ queryDB: jest.fn() }));
+jest.mock('../../api/db', () => ({ queryDB: jest.fn() }));
 jest.mock('../../api/_audit', () => ({ logAudit: jest.fn(), clientIp: () => '127.0.0.1' }));
 
-const { queryDB } = require('../../api/notion');
+const { queryDB } = require('../../api/db');
 const { logAudit } = require('../../api/_audit');
 const { killSwitchMiddleware, isAccessBlocked, _resetCache } = require('../../middleware/kill-switch');
 
@@ -15,20 +15,20 @@ function fakeRes() {
   return res;
 }
 
-const filaBloqueada    = { properties: { 'BloquearTodoElAcceso': { checkbox: true } } };
-const filaDesbloqueada = { properties: { 'BloquearTodoElAcceso': { checkbox: false } } };
+const filaBloqueada    = { bloquearTodoElAcceso: true };
+const filaDesbloqueada = { bloquearTodoElAcceso: false };
 
 beforeEach(() => {
   jest.clearAllMocks();
   _resetCache();
-  process.env.NOTION_DB_SEGURIDAD = 'test-db-seguridad';
+  process.env.DATABASE_URL = 'postgres://test';
 });
 
-afterAll(() => { delete process.env.NOTION_DB_SEGURIDAD; });
+afterAll(() => { delete process.env.DATABASE_URL; });
 
 describe('isAccessBlocked', () => {
-  test('sin panel configurado nunca bloquea (y no consulta Notion)', async () => {
-    delete process.env.NOTION_DB_SEGURIDAD;
+  test('sin panel configurado nunca bloquea (y no consulta la base)', async () => {
+    delete process.env.DATABASE_URL;
     expect(await isAccessBlocked()).toBe(false);
     expect(queryDB).not.toHaveBeenCalled();
   });
@@ -48,23 +48,23 @@ describe('isAccessBlocked', () => {
     expect(logAudit).not.toHaveBeenCalled();
   });
 
-  test('usa el caché: dos llamadas seguidas solo consultan Notion una vez', async () => {
+  test('usa el caché: dos llamadas seguidas solo consultan la base una vez', async () => {
     queryDB.mockResolvedValue([filaDesbloqueada]);
     await isAccessBlocked();
     await isAccessBlocked();
     expect(queryDB).toHaveBeenCalledTimes(1);
   });
 
-  test('si Notion falla, mantiene el último estado conocido', async () => {
+  test('si la base falla, mantiene el último estado conocido', async () => {
     const silencio = jest.spyOn(console, 'error').mockImplementation(() => {});
-    queryDB.mockRejectedValue(new Error('Notion caído'));
+    queryDB.mockRejectedValue(new Error('la base caído'));
     expect(await isAccessBlocked()).toBe(false); // estado inicial: no bloqueado
     silencio.mockRestore();
   });
 });
 
 describe('killSwitchMiddleware', () => {
-  test('/health siempre pasa sin consultar Notion', async () => {
+  test('/health siempre pasa sin consultar la base', async () => {
     const next = jest.fn();
     await killSwitchMiddleware({ path: '/health' }, fakeRes(), next);
     expect(next).toHaveBeenCalled();

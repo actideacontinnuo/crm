@@ -6,8 +6,10 @@
  */
 const request    = require('supertest');
 const mockNotion = require('../helpers/mock-notion');
+const mockDb     = require('../helpers/mock-db');
 
 jest.mock('../../api/notion', () => require('../helpers/mock-notion'));
+jest.mock('../../api/db', () => require('../helpers/mock-db'));
 jest.mock('../../api/_audit', () => ({ logAudit: jest.fn(), clientIp: () => '127.0.0.1' }));
 jest.mock('node-fetch');
 const fetch = require('node-fetch');
@@ -33,6 +35,7 @@ let app;
 const ORIGINAL_ENV = { ...process.env };
 beforeEach(() => {
   mockNotion.resetStore();
+  mockDb.resetStore();
   app = buildApp();
   fetch.mockReset();
   process.env = { ...ORIGINAL_ENV, APOLLO_API_KEY: 'apollo-test', ANTHROPIC_API_KEY: 'anthropic-test', HIGGSFIELD_API_KEY: 'hfid:hfsecret' };
@@ -138,10 +141,10 @@ describe('Prospección — POST /buscar (Apollo)', () => {
     expect(res.body.detalle[0].name).toBe('Juan Pérez'); // apellido COMPLETO, no el obfuscado
     expect(res.body.detalle[0].confidence).toBe(9);
 
-    const store = mockNotion.getStore();
-    const pagina = store.prospectos.find(p => p.properties['Email']?.email === 'juan@acme.com');
-    expect(pagina.properties['VerificacionIA']?.select?.name).toBe('Verificado');
-    expect(pagina.properties['ConfianzaIA']?.number).toBe(9);
+    const store = mockDb.getStore();
+    const pagina = store.prospectos.find(p => p.email === 'juan@acme.com');
+    expect(pagina.verificacionIa).toBe('Verificado');
+    expect(pagina.confianzaIa).toBe(9);
   });
 
   test('arquitectura confirmada: un contacto con email pero SIN "verified" de Apollo se guarda igual — Claude lo marca DESPUÉS, no se descarta antes', async () => {
@@ -215,10 +218,10 @@ describe('Prospección — POST /buscar (Apollo)', () => {
     expect(res.body.detalle[0].numEmpleados).toBe(120);
     expect(res.body.detalle[0].tamanoEmpresa).toBe('Mediana (50-200)');
 
-    const store = mockNotion.getStore();
-    const pagina = store.prospectos.find(p => p.properties['Email']?.email === 'juan@medianasa.com');
-    expect(pagina.properties['NumEmpleados']?.number).toBe(120);
-    expect(pagina.properties['TamanoEmpresa']?.select?.name).toBe('Mediana (50-200)');
+    const store = mockDb.getStore();
+    const pagina = store.prospectos.find(p => p.email === 'juan@medianasa.com');
+    expect(pagina.numEmpleados).toBe(120);
+    expect(pagina.tamanoEmpresa).toBe('Mediana (50-200)');
   });
 
   test('"total" se reparte entre los sectores elegidos (1-100 en una sola corrida)', async () => {
@@ -386,11 +389,11 @@ describe('Prospección — Panel Semanal: sector, confianza y origen de carga', 
       .send({ origen: 'Automático', leads: [{ id: 'p2', company: 'Acme2', name: 'Ana Ruiz', email: 'ana@acme2.com', sectorTitle: 'Automotriz', confidence: 9 }] });
     expect(res.status).toBe(200);
     expect(res.body.created).toBe(1);
-    const store = mockNotion.getStore();
-    const pagina = store.prospectos.find(p => p.properties['Email']?.email === 'ana@acme2.com');
-    expect(pagina.properties['Sector']?.select?.name).toBe('Automotriz');
-    expect(pagina.properties['ConfianzaIA']?.number).toBe(9);
-    expect(pagina.properties['OrigenCarga']?.select?.name).toBe('Automático');
+    const store = mockDb.getStore();
+    const pagina = store.prospectos.find(p => p.email === 'ana@acme2.com');
+    expect(pagina.sector).toBe('Automotriz');
+    expect(pagina.confianzaIa).toBe(9);
+    expect(pagina.origenCarga).toBe('Automático');
   });
 
   test('evitarDuplicados=true NO crea un prospecto con email ya existente', async () => {
@@ -457,9 +460,9 @@ describe('Prospección — Panel Semanal: sector, confianza y origen de carga', 
       .set('Authorization', `Bearer ${natToken()}`)
       .send({ leads: [{ id: 'i4', company: 'Cualquier Empresa SA', name: 'W', email: 'w@cualquierempresa.com' }] });
     expect(res.body.created).toBe(1);
-    const store = mockNotion.getStore();
-    const pagina = store.prospectos.find(p => p.properties['Email']?.email === 'w@cualquierempresa.com');
-    expect(pagina.properties['Ejecutivo']?.select?.name).toBe('Natalia Gama');
+    const store = mockDb.getStore();
+    const pagina = store.prospectos.find(p => p.email === 'w@cualquierempresa.com');
+    expect(pagina.ejec).toBe('Natalia Gama');
   });
 
   test('evitarDuplicados=false SÍ crea aunque el email ya exista', async () => {
@@ -495,9 +498,9 @@ describe('Prospección — Panel Semanal: sector, confianza y origen de carga', 
     const pagina = lista.body.find(p => p.id === pageId);
     // read_checkbox no está expuesto en toObj de prospectos.js — se verifica
     // directo contra el store mock, que es la fuente de verdad del PATCH.
-    const store = mockNotion.getStore();
+    const store = mockDb.getStore();
     const raw = store.prospectos.find(p => p.id === pageId);
-    expect(raw.properties['CorreoGenerado']?.checkbox).toBe(true);
+    expect(raw.correoGenerado).toBe(true);
   });
 
   test('GET /semanal agrupa por sector y calcula tasa de respuesta', async () => {

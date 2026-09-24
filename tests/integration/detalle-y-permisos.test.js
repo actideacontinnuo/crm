@@ -4,8 +4,10 @@
  */
 const request    = require('supertest');
 const mockNotion = require('../helpers/mock-notion');
+const mockDb     = require('../helpers/mock-db');
 
 jest.mock('../../api/notion', () => require('../helpers/mock-notion'));
+jest.mock('../../api/db', () => require('../helpers/mock-db'));
 jest.mock('../../api/_audit', () => ({ logAudit: jest.fn(), clientIp: () => '127.0.0.1' }));
 
 const { buildApp } = require('../helpers/test-app');
@@ -20,6 +22,8 @@ const ejecToken = (ejec = 'Alexia') =>
 let app;
 beforeEach(() => {
   mockNotion.resetStore();
+
+  mockDb.resetStore();
   app = buildApp();
 });
 
@@ -186,8 +190,8 @@ describe('Backup — POST /api/backup/export', () => {
     expect(res.body.backup.entidades).toBeDefined();
     // El respaldo de usuarios nunca incluye hashes ni secretos 2FA
     const usuarios = res.body.backup.entidades.usuarios;
-    expect(usuarios[0].properties.PasswordHash).toBeUndefined();
-    expect(usuarios[0].properties.TwoFASecret).toBeUndefined();
+    expect(usuarios[0].passwordHash).toBeUndefined();
+    expect(usuarios[0].twoFaSecret).toBeUndefined();
   });
 
   test('si el envío del correo explota, responde 500 con error', async () => {

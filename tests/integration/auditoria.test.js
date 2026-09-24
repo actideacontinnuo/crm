@@ -2,9 +2,9 @@
  * Integration tests — Log de auditoría (solo admin)
  */
 const request    = require('supertest');
-const mockNotion = require('../helpers/mock-notion');
+const mockDb     = require('../helpers/mock-db');
 
-jest.mock('../../api/notion', () => require('../helpers/mock-notion'));
+jest.mock('../../api/db', () => require('../helpers/mock-db'));
 jest.mock('../../api/_audit', () => ({ logAudit: jest.fn(), clientIp: () => '127.0.0.1' }));
 
 const { buildApp } = require('../helpers/test-app');
@@ -21,17 +21,9 @@ function ejecToken() {
 function eventoAuditoria(n) {
   return {
     id: `audit-${n}`,
-    properties: {
-      'Evento':         { title: [{ plain_text: `login_exitoso · natalia · evento ${n}` }] },
-      'Usuario':        { rich_text: [{ plain_text: 'natalia' }] },
-      'Accion':         { select: { name: 'login_exitoso' } },
-      'Entidad':        { rich_text: [] },
-      'Detalle':        { rich_text: [{ plain_text: `detalle ${n}` }] },
-      'IP':             { rich_text: [{ plain_text: '127.0.0.1' }] },
-      'Exito':          { checkbox: true },
-      'FueraDeHorario': { checkbox: false },
-      'Fecha':          { date: { start: '2026-07-01' } },
-    },
+    usuario: 'natalia', accion: 'login_exitoso', entidad: '',
+    detalle: `detalle ${n}`, ip: '127.0.0.1', exito: true, fueraDeHorario: false,
+    fecha: '2026-07-01T12:00:00.000Z', deletedAt: null,
   };
 }
 
@@ -39,7 +31,7 @@ let app;
 
 describe('GET /api/auditoria', () => {
   test('ejecutivo NO puede ver la auditoría (403)', async () => {
-    mockNotion.resetStore();
+    mockDb.resetStore();
     app = buildApp();
     const res = await request(app).get('/api/auditoria')
       .set('Authorization', `Bearer ${ejecToken()}`);
@@ -47,7 +39,7 @@ describe('GET /api/auditoria', () => {
   });
 
   test('admin ve los eventos con todos los campos', async () => {
-    mockNotion.resetStore({ auditoria: [eventoAuditoria(1), eventoAuditoria(2)] });
+    mockDb.resetStore({ auditoria: [eventoAuditoria(1), eventoAuditoria(2)] });
     app = buildApp();
     const res = await request(app).get('/api/auditoria')
       .set('Authorization', `Bearer ${adminToken()}`);
@@ -60,7 +52,7 @@ describe('GET /api/auditoria', () => {
   });
 
   test('respeta el parámetro limit', async () => {
-    mockNotion.resetStore({ auditoria: [eventoAuditoria(1), eventoAuditoria(2), eventoAuditoria(3)] });
+    mockDb.resetStore({ auditoria: [eventoAuditoria(1), eventoAuditoria(2), eventoAuditoria(3)] });
     app = buildApp();
     const res = await request(app).get('/api/auditoria?limit=2')
       .set('Authorization', `Bearer ${adminToken()}`);
@@ -68,7 +60,7 @@ describe('GET /api/auditoria', () => {
   });
 
   test('limit no numérico usa default 200', async () => {
-    mockNotion.resetStore({ auditoria: [eventoAuditoria(1)] });
+    mockDb.resetStore({ auditoria: [eventoAuditoria(1)] });
     app = buildApp();
     const res = await request(app).get('/api/auditoria?limit=abc')
       .set('Authorization', `Bearer ${adminToken()}`);
@@ -77,7 +69,7 @@ describe('GET /api/auditoria', () => {
   });
 
   test('limit mayor a 1000 se recorta a 1000', async () => {
-    mockNotion.resetStore({ auditoria: [eventoAuditoria(1)] });
+    mockDb.resetStore({ auditoria: [eventoAuditoria(1)] });
     app = buildApp();
     const res = await request(app).get('/api/auditoria?limit=99999')
       .set('Authorization', `Bearer ${adminToken()}`);

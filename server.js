@@ -86,8 +86,8 @@ const loginLimiter = rateLimit({
 const APP_BUILD = process.env.RAILWAY_GIT_COMMIT_SHA || String(Date.now());
 app.get('/api/health', (req, res) => res.json({ ok: true, ts: new Date().toISOString(), build: APP_BUILD }));
 
-// ── Interruptor de emergencia (Notion → 🔐 Panel de Seguridad) ──
-// Bloquea TODA la API (incluido login) si la casilla está marcada en Notion.
+// ── Interruptor de emergencia (tabla seguridad en la base) ──
+// Bloquea TODA la API (incluido login) si bloquear_todo_el_acceso está activo en la base.
 const { killSwitchMiddleware } = require('./middleware/kill-switch');
 app.use('/api', killSwitchMiddleware);
 
@@ -250,7 +250,7 @@ app.listen(PORT, () => {
   console.log(`  http://localhost:${PORT}\n`);
 });
 
-// ── Respaldo automático mensual de Notion (1ro de cada mes, 3:00 am) ──
+// ── Respaldo automático mensual de la base (1ro de cada mes, 3:00 am) ──
 require('./jobs/backup-scheduler');
 
 // ── Prospección automática semanal (domingos 8:00 am, hora CDMX) ──

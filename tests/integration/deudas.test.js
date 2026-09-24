@@ -3,8 +3,10 @@
  */
 const request    = require('supertest');
 const mockNotion = require('../helpers/mock-notion');
+const mockDb     = require('../helpers/mock-db');
 
 jest.mock('../../api/notion', () => require('../helpers/mock-notion'));
+jest.mock('../../api/db', () => require('../helpers/mock-db'));
 jest.mock('../../api/_audit', () => ({ logAudit: jest.fn(), clientIp: () => '127.0.0.1' }));
 
 const { buildApp } = require('../helpers/test-app');
@@ -21,6 +23,7 @@ function ejecToken() {
 let app;
 beforeEach(() => {
   mockNotion.resetStore();
+  mockDb.resetStore(); // Deudas ya vive en Postgres (mock) — ver migración
   app = buildApp();
 });
 
@@ -90,11 +93,11 @@ describe('CRUD de deudas (admin)', () => {
     expect(res.body.status).toBe('pendiente'); // sigue pendiente, no se coló el status forzado
   });
 
-  test('PATCH con id inexistente → 500 controlado', async () => {
+  test('PATCH con id inexistente → 404 (Postgres: getRow/updateRow distinguen "no existe" de un error real)', async () => {
     const res = await request(app).patch('/api/deudas/no-existe')
       .set('Authorization', `Bearer ${adminToken()}`)
       .send({ concepto: 'x' });
-    expect(res.status).toBe(500);
+    expect(res.status).toBe(404);
   });
 });
 

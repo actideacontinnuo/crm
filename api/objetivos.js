@@ -1,7 +1,7 @@
 const express = require('express');
 const router  = express.Router();
 const { authMiddleware } = require('../middleware/auth');
-const { queryDB, createPage, updatePage, prop_title, prop_number, prop_text, read_number, read_text } = require('./notion');
+const { queryDB, createRow, updateRow } = require('./db');
 
 // Objetivos ANUALES de Actidea en 3 CAPAS — un solo registro por año (no por
 // mes). Dirección los captura/revisa cuando quiere (típicamente enero y a
@@ -22,50 +22,47 @@ const { queryDB, createPage, updatePage, prop_title, prop_number, prop_text, rea
 //   CAPA 3 · INDIVIDUALES (cada ejecutiva contribuye a la empresa) → Comercial/Reportes
 //     objetivoEjecutivo   → objetivo ANUAL por defecto para quien no tenga uno propio
 //     objetivosIndividuales → { "Ximena": 18000000, "Alexia": 12000000, ... } (JSON, ANUAL)
-function toObj(page) {
-  const p = page.properties;
-  let individuales = {};
-  try { individuales = JSON.parse(read_text(p['ObjetivosIndividuales']) || '{}') || {}; }
-  catch { individuales = {}; }
-  if (typeof individuales !== 'object' || Array.isArray(individuales)) individuales = {};
+function toObj(row) {
+  let individuales = row.objetivosIndividuales;
+  if (typeof individuales === 'string') { try { individuales = JSON.parse(individuales); } catch { individuales = {}; } }
+  if (!individuales || typeof individuales !== 'object' || Array.isArray(individuales)) individuales = {};
+  const n = v => Number(v) || 0;
   return {
-    pageId:            page.id,
+    pageId:            row.id,
     // Capa 1 — Empresa
-    metaVentas:        read_number(p['Cotizado']),
-    metaProduccion:    read_number(p['OpsActivas']),
-    metaPipeline:      read_number(p['Pipeline']),
-    metaClientes:      read_number(p['ClientesActivos']),
+    metaVentas:        n(row.metaVentas),
+    metaProduccion:    n(row.metaProduccion),
+    metaPipeline:      n(row.metaPipeline),
+    metaClientes:      n(row.metaClientes),
     // Capa 2 — Dirección
-    metaUtilidad:      read_number(p['MetaUtilidad']),
-    metaCobranza:      read_number(p['MetaCobranza']),
+    metaUtilidad:      n(row.metaUtilidad),
+    metaCobranza:      n(row.metaCobranza),
     // Capa 3 — Individuales
-    objetivoEjecutivo:     read_number(p['ObjetivoEjecutivo']),
+    objetivoEjecutivo:     n(row.objetivoEjecutivo),
     objetivosIndividuales: individuales,
   };
 }
 
-// Campos numéricos simples → columna de Notion
+// Campos numéricos simples → columna de Postgres
 const CAMPOS_NUM = {
-  metaVentas:        'Cotizado',
-  metaProduccion:    'OpsActivas',
-  metaPipeline:      'Pipeline',
-  metaClientes:      'ClientesActivos',
-  metaUtilidad:      'MetaUtilidad',
-  metaCobranza:      'MetaCobranza',
-  objetivoEjecutivo: 'ObjetivoEjecutivo',
+  metaVentas:        'metaVentas',
+  metaProduccion:    'metaProduccion',
+  metaPipeline:      'metaPipeline',
+  metaClientes:      'metaClientes',
+  metaUtilidad:      'metaUtilidad',
+  metaCobranza:      'metaCobranza',
+  objetivoEjecutivo: 'objetivoEjecutivo',
 };
 
-// El periodo de un objetivo es SIEMPRE un año completo: "2026". Se guarda en
-// la misma columna Notion 'Mes' (título) que antes usaba "YYYY-MM" — solo
-// cambia el formato validado, no el esquema.
+// El periodo de un objetivo es SIEMPRE un año completo: "2026". Se guarda en la columna 'anio'.
 function validarPeriodo(periodo) { return /^\d{4}$/.test(periodo); }
 
 // GET /api/objetivos/:anio — cualquier usuario autenticado puede VER las metas
 router.get('/:anio', authMiddleware, async (req, res) => {
   if (!validarPeriodo(req.params.anio)) return res.status(400).json({ error: 'Año inválido. Formato: YYYY' });
   try {
-    const pages = await queryDB('objetivos', { property: 'Mes', title: { equals: req.params.anio } });
-    res.json(pages.length ? toObj(pages[0]) : {});
+    const rows = await queryDB('objetivos', { anio: Number(req.params.anio) });
+    res.json(rows.length ? toObj(rows[0]) : {});
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -79,7 +76,7 @@ router.put('/:anio', authMiddleware, async (req, res) => {
       if (req.body[campo] === undefined) continue;
       const n = Number(req.body[campo]);
       if (isNaN(n) || n < 0) return res.status(400).json({ error: `El campo ${campo} debe ser un número positivo` });
-      props[columna] = prop_number(n);
+      props[columna] = n;
     }
     // Capa 3 — objetivos individuales por ejecutiva (objeto nombre→monto)
     if (req.body.objetivosIndividuales !== undefined) {
@@ -93,17 +90,14 @@ router.put('/:anio', authMiddleware, async (req, res) => {
         if (isNaN(n) || n < 0) return res.status(400).json({ error: `El objetivo de ${nombre} debe ser un número positivo` });
         if (n > 0) limpio[nombre] = n;
       }
-      props['ObjetivosIndividuales'] = prop_text(JSON.stringify(limpio));
+      props.objetivosIndividuales = JSON.stringify(limpio);
     }
 
-    const pages = await queryDB('objetivos', { property: 'Mes', title: { equals: req.params.anio } });
-    let page;
-    if (pages.length) {
-      page = await updatePage(pages[0].id, props);
-    } else {
-      page = await createPage('objetivos', { 'Mes': prop_title(req.params.anio), ...props });
-    }
-    res.json({ ok: true, anio: req.params.anio, objetivos: toObj(page) });
+    const rows = await queryDB('objetivos', { anio: Number(req.params.anio) });
+    const row = rows.length
+      ? await updateRow('objetivos', rows[0].id, props)
+      : await createRow('objetivos', { anio: Number(req.params.anio), ...props });
+    res.json({ ok: true, anio: req.params.anio, objetivos: toObj(row) });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 

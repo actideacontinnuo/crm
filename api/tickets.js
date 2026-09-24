@@ -1,36 +1,31 @@
 const express = require('express');
 const router = express.Router();
-const {
-  notion, queryDB, createPage, updatePage,
-  prop_title, prop_text, prop_select, prop_date,
-  read_title, read_text, read_select, read_date,
-} = require('./notion');
+const { queryDB, getRow, createRow, updateRow } = require('./db');
 const { perteneceAlRegistro } = require('./_guard');
 
-function toObj(page) {
-  const p = page.properties;
+function toObj(row) {
   return {
-    id:       page.id,
-    tipo:     read_title(p['Tipo']),
-    cotId:    read_text(p['Cotización ID']),
-    monto:    read_text(p['Monto Afectado']),
-    quien:    read_text(p['Quién']),
-    motivo:   read_text(p['Motivo']),
-    status:   read_select(p['Status']),
-    fecha:    read_date(p['Fecha']),
+    id:       row.id,
+    tipo:     row.tipo || '',
+    cotId:    row.cotizacionId || '',
+    monto:    row.montoAfectado || '',
+    quien:    row.quien || '',
+    motivo:   row.motivo || '',
+    status:   row.status || '',
+    fecha:    row.fecha ?? null,
   };
 }
 
-function toProps(data) {
-  const props = {};
-  if (data.tipo   !== undefined) props['Tipo']           = prop_title(data.tipo);
-  if (data.cotId  !== undefined) props['Cotización ID']  = prop_text(data.cotId);
-  if (data.monto  !== undefined) props['Monto Afectado'] = prop_text(data.monto);
-  if (data.quien  !== undefined) props['Quién']          = prop_text(data.quien);
-  if (data.motivo !== undefined) props['Motivo']         = prop_text(data.motivo);
-  if (data.status !== undefined) props['Status']         = prop_select(data.status);
-  if (data.fecha  !== undefined) props['Fecha']          = prop_date(data.fecha);
-  return props;
+function toRow(data) {
+  const row = {};
+  if (data.tipo   !== undefined) row.tipo          = data.tipo;
+  if (data.cotId  !== undefined) row.cotizacionId  = data.cotId || null;
+  if (data.monto  !== undefined) row.montoAfectado = data.monto;
+  if (data.quien  !== undefined) row.quien         = data.quien;
+  if (data.motivo !== undefined) row.motivo        = data.motivo;
+  if (data.status !== undefined) row.status        = data.status;
+  if (data.fecha  !== undefined) row.fecha         = data.fecha || null;
+  return row;
 }
 
 // Un ticket no tiene columnas de rol propias — hereda los 3 roles de la
@@ -39,13 +34,12 @@ async function _rolesEnlazados(cotId) {
   const vacio = { propietario: '', ejecCuenta: '', ejecAsignado: '', ejec: '' };
   if (!cotId) return vacio;
   try {
-    const page = await notion.pages.retrieve({ page_id: cotId });
-    const p = page.properties;
+    const reg = await getRow('cotizaciones', cotId);
     return {
-      propietario:  read_select(p['Propietario']),
-      ejecCuenta:   read_select(p['EjecutivoCuenta']),
-      ejecAsignado: read_select(p['EjecutivoAsignado']),
-      ejec:         read_select(p['Ejecutivo']),
+      propietario:  reg.propietario || '',
+      ejecCuenta:   reg.ejecCuenta || '',
+      ejecAsignado: reg.ejecAsignado || '',
+      ejec:         reg.ejec || '',
     };
   } catch (_) {
     return vacio; // cotId inválido o inaccesible — no participa
@@ -54,8 +48,8 @@ async function _rolesEnlazados(cotId) {
 
 router.get('/', async (req, res) => {
   try {
-    const pages = await queryDB('tickets', null, [{ property: 'Fecha', direction: 'descending' }]);
-    let objs = pages.map(toObj);
+    const rows = await queryDB('tickets', null, { field: 'fecha', direction: 'descending' });
+    let objs = rows.map(toObj);
     if (req.rolFilter) {
       const roles = await Promise.all(objs.map(o => _rolesEnlazados(o.cotId)));
       objs = objs.filter((o, i) => perteneceAlRegistro(roles[i], req.rolFilter));
@@ -72,24 +66,21 @@ router.post('/', async (req, res) => {
         return res.status(403).json({ error: 'No tienes permiso para crear un ticket en esta cotización' });
       }
     }
-    const page = await createPage('tickets', toProps(req.body));
-    res.json(toObj(page));
+    res.json(toObj(await createRow('tickets', toRow(req.body))));
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 router.patch('/:id', async (req, res) => {
   try {
-    const existing = await notion.pages.retrieve({ page_id: req.params.id });
-    const existingObj = toObj(existing);
+    const existingObj = toObj(await getRow('tickets', req.params.id));
     if (req.rolFilter) {
       const roles = await _rolesEnlazados(existingObj.cotId);
       if (!perteneceAlRegistro(roles, req.rolFilter)) {
         return res.status(403).json({ error: 'No tienes permiso para modificar este ticket' });
       }
     }
-    const page = await updatePage(req.params.id, toProps(req.body));
-    res.json(toObj(page));
-  } catch (err) { res.status(500).json({ error: err.message }); }
+    res.json(toObj(await updateRow('tickets', req.params.id, toRow(req.body))));
+  } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
 });
 
 module.exports = router;

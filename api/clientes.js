@@ -1,11 +1,7 @@
 const express = require('express');
 const router = express.Router();
-const {
-  notion, queryDB, createPage, updatePage, archivePage,
-  prop_title, prop_text, prop_number, prop_select, prop_email, prop_phone,
-  read_title, read_text, read_number, read_select, read_email, read_phone,
-} = require('./notion');
-const { filtroRolesNotion, assertRolAccess } = require('./_guard');
+const { queryDB, getRow, createRow, updateRow, archiveRow } = require('./db');
+const { assertRolAccess, perteneceAlRegistro } = require('./_guard');
 const { aplicarReglasComision, obtenerRosterEjecutivos } = require('./_roles');
 const { logAudit, clientIp } = require('./_audit');
 
@@ -24,69 +20,66 @@ function _generarCodigoCliente(rfc, ejecCuenta) {
   return `${r}-${e}-${dd}${mm}${yy}`;
 }
 
-function toObj(page) {
-  const p = page.properties;
+function toObj(row) {
   return {
-    id:       page.id,
-    nombre:   read_title(p['Nombre']),
-    codigo:   read_text(p['Codigo']),
-    razon:    read_text(p['Razon Social']),
-    rfc:      read_text(p['RFC']),
-    dir:      read_text(p['Direccion']),
-    contacto: read_text(p['Contacto']),
-    cargo:    read_text(p['Cargo']),
-    tel:      read_phone(p['Telefono']),
-    email:    read_email(p['Email']),
-    ejec:         read_select(p['Ejecutivo']),      // legado
-    propietario:  read_select(p['Propietario']),
-    ejecCuenta:   read_select(p['EjecutivoCuenta']),
-    ejecAsignado: read_select(p['EjecutivoAsignado']),
-    comision:     p['Comision']?.number ?? null,
-    pago:     read_select(p['Condiciones de Pago']),
-    status:   read_select(p['Status']),
-    docs:     read_text(p['Docs']),
+    id:       row.id,
+    nombre:   row.nombre || '',
+    codigo:   row.codigo || '',
+    razon:    row.razon || '',
+    rfc:      row.rfc || '',
+    dir:      row.dir || '',
+    contacto: row.contacto || '',
+    cargo:    row.cargo || '',
+    tel:      row.tel || '',
+    email:    row.email || '',
+    ejec:         row.ejec || '',       // legado
+    propietario:  row.propietario || '',
+    ejecCuenta:   row.ejecCuenta || '',
+    ejecAsignado: row.ejecAsignado || '',
+    comision:     row.comision ?? null,
+    pago:     row.pago || '',
+    status:   row.status || '',
+    docs:     row.docs || '',
   };
 }
 
-function toProps(data) {
-  const props = {};
-  if (data.nombre   !== undefined) props['Nombre']             = prop_title(data.nombre);
-  if (data.codigo   !== undefined) props['Codigo']             = prop_text(data.codigo);
-  if (data.razon    !== undefined) props['Razon Social']       = prop_text(data.razon);
-  if (data.rfc      !== undefined) props['RFC']                = prop_text(data.rfc);
-  if (data.dir      !== undefined) props['Direccion']          = prop_text(data.dir);
-  if (data.contacto !== undefined) props['Contacto']           = prop_text(data.contacto);
-  if (data.cargo    !== undefined) props['Cargo']              = prop_text(data.cargo);
-  if (data.tel      !== undefined) props['Telefono']           = prop_phone(data.tel);
-  if (data.email    !== undefined) props['Email']              = prop_email(data.email);
-  if (data.ejec         !== undefined) props['Ejecutivo']         = prop_select(data.ejec);
-  if (data.propietario  !== undefined) props['Propietario']       = prop_select(data.propietario);
-  if (data.ejecCuenta   !== undefined) props['EjecutivoCuenta']   = prop_select(data.ejecCuenta);
-  if (data.ejecAsignado !== undefined) props['EjecutivoAsignado'] = prop_select(data.ejecAsignado);
-  if (data.comision     !== undefined) props['Comision']          = prop_number(data.comision);
-  if (data.pago     !== undefined) props['Condiciones de Pago'] = prop_select(data.pago);
-  if (data.status   !== undefined) props['Status']             = prop_select(data.status);
-  if (data.docs     !== undefined) props['Docs']               = prop_text(
-    typeof data.docs === 'object' ? JSON.stringify(data.docs) : String(data.docs)
-  );
-  return props;
+function toRow(data) {
+  const row = {};
+  if (data.nombre   !== undefined) row.nombre   = data.nombre;
+  if (data.codigo   !== undefined) row.codigo   = data.codigo;
+  if (data.razon    !== undefined) row.razon    = data.razon;
+  if (data.rfc      !== undefined) row.rfc      = data.rfc;
+  if (data.dir      !== undefined) row.dir      = data.dir;
+  if (data.contacto !== undefined) row.contacto = data.contacto;
+  if (data.cargo    !== undefined) row.cargo    = data.cargo;
+  if (data.tel      !== undefined) row.tel      = data.tel;
+  if (data.email    !== undefined) row.email    = data.email;
+  if (data.ejec         !== undefined) row.ejec         = data.ejec;
+  if (data.propietario  !== undefined) row.propietario  = data.propietario;
+  if (data.ejecCuenta   !== undefined) row.ejecCuenta   = data.ejecCuenta;
+  if (data.ejecAsignado !== undefined) row.ejecAsignado = data.ejecAsignado;
+  if (data.comision     !== undefined) row.comision     = data.comision;
+  if (data.pago     !== undefined) row.pago     = data.pago;
+  if (data.status   !== undefined) row.status   = data.status;
+  if (data.docs     !== undefined) row.docs     = typeof data.docs === 'object' ? JSON.stringify(data.docs) : String(data.docs);
+  return row;
 }
 
 router.get('/', async (req, res) => {
   try {
-    const filter = req.rolFilter ? filtroRolesNotion(req.rolFilter) : null;
-    const pages = await queryDB('clientes', filter, [{ property: 'Nombre', direction: 'ascending' }]);
-    res.json(pages.map(toObj));
+    const rows = await queryDB('clientes', null, { field: 'nombre', direction: 'ascending' });
+    let objs = rows.map(toObj);
+    if (req.rolFilter) objs = objs.filter(o => perteneceAlRegistro(o, req.rolFilter));
+    res.json(objs);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 router.get('/:id', async (req, res) => {
   try {
-    const page = await notion.pages.retrieve({ page_id: req.params.id });
-    const obj = toObj(page);
+    const obj = toObj(await getRow('clientes', req.params.id));
     if (!assertRolAccess(req, res, obj)) return;
     res.json(obj);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
 });
 
 router.post('/', async (req, res) => {
@@ -112,15 +105,14 @@ router.post('/', async (req, res) => {
     // Código de cliente: SIEMPRE se calcula aquí, con el ejecCuenta ya
     // resuelto — cualquier 'codigo' que haya mandado el cliente se ignora.
     data.codigo = _generarCodigoCliente(data.rfc, data.ejecCuenta);
-    const page = await createPage('clientes', toProps(data));
-    res.json(toObj(page));
+    const created = await createRow('clientes', toRow(data));
+    res.json(toObj(created));
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 router.patch('/:id', async (req, res) => {
   try {
-    const existing = await notion.pages.retrieve({ page_id: req.params.id });
-    const existingObj = toObj(existing);
+    const existingObj = toObj(await getRow('clientes', req.params.id));
     if (!assertRolAccess(req, res, existingObj)) return;
     const body = { ...req.body };
     // El PROPIETARIO de un cliente NUNCA cambia ni se reasigna (regla de negocio
@@ -131,8 +123,8 @@ router.patch('/:id', async (req, res) => {
     delete body.codigo;
     delete body.propietario;
     delete body.ejecCuenta;
-    const page = await updatePage(req.params.id, toProps(body));
-    const obj = toObj(page);
+    const updated = await updateRow('clientes', req.params.id, toRow(body));
+    const obj = toObj(updated);
     // Actividad Reciente (solo Dirección la ve, ver dashboard.js) — evento de
     // negocio real, no el CRUD crudo.
     logAudit({
@@ -141,16 +133,16 @@ router.patch('/:id', async (req, res) => {
       ip: clientIp(req), exito: true,
     });
     res.json(obj);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
 });
 
 router.delete('/:id', async (req, res) => {
   try {
-    const existing = await notion.pages.retrieve({ page_id: req.params.id });
-    if (!assertRolAccess(req, res, toObj(existing))) return;
-    await archivePage(req.params.id);
+    const existing = toObj(await getRow('clientes', req.params.id));
+    if (!assertRolAccess(req, res, existing)) return;
+    await archiveRow('clientes', req.params.id);
     res.json({ ok: true });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
 });
 
 module.exports = router;

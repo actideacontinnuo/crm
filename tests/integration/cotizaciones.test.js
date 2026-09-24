@@ -6,8 +6,10 @@
  */
 const request    = require('supertest');
 const mockNotion = require('../helpers/mock-notion');
+const mockDb     = require('../helpers/mock-db');
 
 jest.mock('../../api/notion', () => require('../helpers/mock-notion'));
+jest.mock('../../api/db', () => require('../helpers/mock-db'));
 jest.mock('../../api/_audit', () => ({ logAudit: jest.fn(), clientIp: () => '127.0.0.1' }));
 
 const { buildApp } = require('../helpers/test-app');
@@ -54,10 +56,12 @@ async function crearClienteYOp({ propietario = 'Natalia Gama' } = {}) {
 let app;
 beforeEach(() => {
   mockNotion.resetStore();
+
+  mockDb.resetStore();
   // Ximena y Alexia como ejecutivas reales del sistema — necesario para el
   // roster dinámico de comisiones (Regla 2). Natalia ya viene por defecto (admin).
-  mockNotion.addEjecutivo('Ximena', 'ximena');
-  mockNotion.addEjecutivo('Alexia', 'alexia-roster');
+  mockDb.addEjecutivo('Ximena', 'ximena');
+  mockDb.addEjecutivo('Alexia', 'alexia-roster');
   require('../../api/_roles')._resetRosterCacheForTests();
   app = buildApp();
 });

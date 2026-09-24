@@ -1,10 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const {
-  notion, queryDB, createPage, updatePage,
-  prop_title, prop_text, prop_number, prop_select, prop_date,
-  read_title, read_text, read_number, read_select, read_date,
-} = require('./notion');
+const { queryDB, createRow, updateRow, transaccion } = require('./db');
 
 // IVA mexicano. El gasto de proveedor se CAPTURA con IVA (como la factura) y el
 // Estado de Resultados trabaja en NETO (costo, venta y utilidad, todo sin IVA).
@@ -16,67 +12,67 @@ const netoDeConIva = conIva => Math.round((Number(conIva || 0) / (1 + IVA_RATE))
 // sin nunca rebasar la cotización). Registrar un pago SIEMPRE abona a la deuda
 // existente (ver POST /:id/abonar) — nunca crea un segundo registro, que era
 // el bug real: antes cada abono generaba una deuda nueva y duplicaba el costo
-// de la OP en la Utilidad y el Dashboard.
+// de la OP en la Utilidad y el Dashboard. Con Postgres, además, el abono corre
+// dentro de una transacción con el renglón bloqueado (SELECT ... FOR UPDATE) —
+// dos abonos simultáneos a la misma deuda ya no pueden pisarse entre sí, algo
+// que Notion nunca pudo garantizar.
 function _status(cotizacionConIva, pagadoConIva) {
   if (pagadoConIva <= 0) return 'pendiente';
   if (pagadoConIva >= cotizacionConIva) return 'pagado';
   return 'parcial';
 }
 
-function toObj(page) {
-  const p = page.properties;
-  const fecha = read_date(p['Fecha Acordada']);
-  const cotizacionConIva = p['Monto con IVA']?.number ?? null;
-  const pagadoConIva = p['Pagado con IVA']?.number ?? 0;
-  // 'monto'/'montoConIva' = COTIZACIÓN (nombre legado, es lo que ya usaba el
-  // resto del sistema — Utilidad, Estado de Resultados — como costo
-  // comprometido; NUNCA cambia cuando se abona, confirmado con el usuario:
-  // la Utilidad se calcula sobre lo cotizado, no sobre lo pagado).
+// Reordena el row de Postgres (ya camelCase) al contrato que el frontend
+// espera desde la época de Notion — 'provId' en vez de 'proveedorId', y los
+// campos calculados 'debemos'/'debemosConIva'.
+function toObj(row) {
+  const cotizacionConIva = row.montoConIva ?? null;
+  const pagadoConIva = row.pagadoConIva ?? 0;
   return {
-    id:       page.id,
-    concepto: read_title(p['Concepto']),
-    provId:   read_text(p['Proveedor ID']),
-    opId:     read_text(p['OP ID']),
-    monto:    read_number(p['Monto']),                 // neto sin IVA (cotización)
-    montoConIva: cotizacionConIva,                      // con IVA (cotización) — null en deudas viejas sin este campo
-    pagado:      p['Pagado']?.number ?? 0,               // neto sin IVA abonado
-    pagadoConIva,                                        // con IVA abonado
-    debemos:        Math.max(0, read_number(p['Monto']) - (p['Pagado']?.number ?? 0)),
-    debemosConIva:  Math.max(0, (cotizacionConIva ?? read_number(p['Monto'])) - pagadoConIva),
-    fecha,                 // nombre legado
-    fechaAcordada: fecha,  // nombre usado por el frontend (proveedores/control de pagos)
-    status:   read_select(p['Status']),
+    id:       row.id,
+    concepto: row.concepto,
+    provId:   row.proveedorId,
+    opId:     row.opId,
+    monto:    Number(row.monto) || 0,                     // neto sin IVA (cotización)
+    montoConIva: cotizacionConIva !== null ? Number(cotizacionConIva) : null,
+    pagado:      Number(row.pagado) || 0,                  // neto sin IVA abonado
+    pagadoConIva: Number(pagadoConIva) || 0,
+    debemos:        Math.max(0, (Number(row.monto) || 0) - (Number(row.pagado) || 0)),
+    debemosConIva:  Math.max(0, (Number(cotizacionConIva ?? row.monto) || 0) - (Number(pagadoConIva) || 0)),
+    fecha:         row.fechaAcordada,   // nombre legado
+    fechaAcordada: row.fechaAcordada,   // nombre usado por el frontend (proveedores/control de pagos)
+    status:   row.status,
   };
 }
 
-function toProps(data) {
-  const props = {};
-  if (data.concepto !== undefined) props['Concepto']      = prop_title(data.concepto);
-  if (data.provId   !== undefined) props['Proveedor ID']  = prop_text(data.provId);
-  if (data.opId     !== undefined) props['OP ID']         = prop_text(data.opId);
+function toRow(data) {
+  const row = {};
+  if (data.concepto !== undefined) row.concepto     = data.concepto;
+  if (data.provId   !== undefined) row.proveedorId  = data.provId || null;
+  if (data.opId     !== undefined) row.opId         = data.opId || null;
   // Captura con IVA: el frontend manda 'montoConIva' (el total de la factura) y
   // el servidor deriva el neto ÷1.16 — autoridad del servidor, no se confía en
   // que el navegador mande el neto ya calculado. Se guardan LOS DOS: el con IVA
   // (lo que sale del banco) y el neto (el que cuenta para la utilidad).
   if (data.montoConIva !== undefined && data.montoConIva !== null) {
     const conIva = Number(data.montoConIva) || 0;
-    props['Monto con IVA'] = prop_number(conIva);
-    props['Monto']         = prop_number(netoDeConIva(conIva));
+    row.montoConIva = conIva;
+    row.monto       = netoDeConIva(conIva);
   } else if (data.monto !== undefined) {
     // Respaldo / compatibilidad: si algún flujo aún manda 'monto' directo (sin
     // IVA), se respeta tal cual — no se re-deriva nada.
-    props['Monto'] = prop_number(data.monto);
+    row.monto = data.monto;
   }
   // El frontend envía 'fechaAcordada'; aceptamos también el alias legado 'fecha'.
-  if (data.fechaAcordada !== undefined) props['Fecha Acordada'] = prop_date(data.fechaAcordada);
-  else if (data.fecha    !== undefined) props['Fecha Acordada'] = prop_date(data.fecha);
-  return props;
+  if (data.fechaAcordada !== undefined) row.fechaAcordada = data.fechaAcordada || null;
+  else if (data.fecha    !== undefined) row.fechaAcordada = data.fecha || null;
+  return row;
 }
 
 router.get('/', async (req, res) => {
   try {
-    const pages = await queryDB('deudas', null, [{ property: 'Fecha Acordada', direction: 'ascending' }]);
-    res.json(pages.map(toObj));
+    const rows = await queryDB('deudas', null, { field: 'fechaAcordada', direction: 'ascending' });
+    res.json(rows.map(toObj));
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -84,12 +80,12 @@ router.get('/', async (req, res) => {
 // pagos posteriores NUNCA vuelven a llamar aquí: van por POST /:id/abonar.
 router.post('/', async (req, res) => {
   try {
-    const props = toProps(req.body);
-    props['Pagado con IVA'] = prop_number(0);
-    props['Pagado']         = prop_number(0);
-    props['Status']         = prop_select('pendiente');
-    const page = await createPage('deudas', props);
-    res.json(toObj(page));
+    const row = toRow(req.body);
+    row.pagadoConIva = 0;
+    row.pagado       = 0;
+    row.status       = 'pendiente';
+    const created = await createRow('deudas', row);
+    res.json(toObj(created));
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -100,9 +96,9 @@ router.post('/', async (req, res) => {
 // no puede quedar un "pagado" que no cuadra con lo realmente abonado.
 router.patch('/:id', async (req, res) => {
   try {
-    const page = await updatePage(req.params.id, toProps(req.body));
-    res.json(toObj(page));
-  } catch (err) { res.status(500).json({ error: err.message }); }
+    const updated = await updateRow('deudas', req.params.id, toRow(req.body));
+    res.json(toObj(updated));
+  } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
 });
 
 // POST /api/deudas/:id/abonar  →  registra un ABONO a una deuda existente.
@@ -110,35 +106,39 @@ router.patch('/:id', async (req, res) => {
 // Pagado acumulado (nunca lo reemplaza, nunca crea un registro nuevo) y
 // recalcula el status automáticamente. Corrige el bug reportado: antes cada
 // pago (aunque fuera parcial) creaba una deuda nueva, duplicando el costo de
-// la OP en la Utilidad y el Dashboard.
+// la OP en la Utilidad y el Dashboard. Corre en una transacción con el
+// renglón bloqueado — dos abonos simultáneos nunca se pisan.
 router.post('/:id/abonar', async (req, res) => {
   try {
     const montoConIva = Number(req.body.montoConIva) || 0;
     if (montoConIva <= 0) return res.status(400).json({ error: 'El monto del abono debe ser mayor a 0' });
 
-    const existing = await notion.pages.retrieve({ page_id: req.params.id });
-    const actual = toObj(existing);
-    const cotizacionConIva = actual.montoConIva ?? actual.monto; // respaldo para deudas viejas sin 'Monto con IVA'
+    let errorNegocio = null;
+    const resultado = await transaccion(async (tx) => {
+      const actual = toObj(await tx.getForUpdate('deudas', req.params.id));
+      const cotizacionConIva = actual.montoConIva ?? actual.monto; // respaldo para deudas viejas sin 'Monto con IVA'
 
-    const nuevoPagadoConIva = Math.round((actual.pagadoConIva + montoConIva) * 100) / 100;
-    // No se permite abonar más de lo cotizado — evita un "debemos" negativo
-    // que no tendría sentido de negocio (si la factura cambió, se edita la
-    // cotización, no se sobre-abona).
-    if (nuevoPagadoConIva > cotizacionConIva + 0.01) {
-      return res.status(400).json({
-        error: `El abono deja Pagado (${nuevoPagadoConIva.toFixed(2)}) por encima de lo cotizado (${cotizacionConIva.toFixed(2)}). Si la factura cambió, edita la cotización primero.`,
+      const nuevoPagadoConIva = Math.round((actual.pagadoConIva + montoConIva) * 100) / 100;
+      // No se permite abonar más de lo cotizado — evita un "debemos" negativo
+      // que no tendría sentido de negocio (si la factura cambió, se edita la
+      // cotización, no se sobre-abona).
+      if (nuevoPagadoConIva > cotizacionConIva + 0.01) {
+        errorNegocio = `El abono deja Pagado (${nuevoPagadoConIva.toFixed(2)}) por encima de lo cotizado (${cotizacionConIva.toFixed(2)}). Si la factura cambió, edita la cotización primero.`;
+        return null;
+      }
+      const nuevoPagadoNeto = netoDeConIva(nuevoPagadoConIva);
+      const nuevoStatus = _status(cotizacionConIva, nuevoPagadoConIva);
+
+      return tx.update('deudas', req.params.id, {
+        pagadoConIva: nuevoPagadoConIva,
+        pagado:       nuevoPagadoNeto,
+        status:       nuevoStatus,
       });
-    }
-    const nuevoPagadoNeto = netoDeConIva(nuevoPagadoConIva);
-    const nuevoStatus = _status(cotizacionConIva, nuevoPagadoConIva);
-
-    const page = await updatePage(req.params.id, {
-      'Pagado con IVA': prop_number(nuevoPagadoConIva),
-      'Pagado':         prop_number(nuevoPagadoNeto),
-      'Status':         prop_select(nuevoStatus),
     });
-    res.json(toObj(page));
-  } catch (err) { res.status(500).json({ error: err.message }); }
+
+    if (errorNegocio) return res.status(400).json({ error: errorNegocio });
+    res.json(toObj(resultado));
+  } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
 });
 
 module.exports = router;

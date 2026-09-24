@@ -5,8 +5,10 @@
  */
 const request    = require('supertest');
 const mockNotion = require('../helpers/mock-notion');
+const mockDb     = require('../helpers/mock-db');
 
 jest.mock('../../api/notion', () => require('../helpers/mock-notion'));
+jest.mock('../../api/db', () => require('../helpers/mock-db'));
 jest.mock('../../api/_audit', () => ({ logAudit: jest.fn().mockResolvedValue(undefined), clientIp: () => '127.0.0.1' }));
 
 const { buildApp } = require('../helpers/test-app');
@@ -15,6 +17,8 @@ const { authenticator } = require('otplib');
 let app;
 beforeEach(() => {
   mockNotion.resetStore();
+
+  mockDb.resetStore();
   app = buildApp();
   global.fetch = jest.fn().mockResolvedValue({ ok: true, json: async () => ({}) });
 });
@@ -56,8 +60,8 @@ describe('POST /api/auth/reset-password', () => {
     await request(app).post('/api/auth/olvide-password')
       .send({ email: 'natalia@actideacontinnuo.com' });
     // Leer el token directamente del mock store
-    const users = await mockNotion.queryDB('usuarios', null);
-    return users[0].properties['ResetToken'].rich_text[0]?.plain_text;
+    const users = await mockDb.queryDB('usuarios', null);
+    return users[0].resetToken;
   }
 
   test('faltan campos → 400', async () => {
@@ -129,8 +133,8 @@ describe('Bloqueo de cuenta por intentos fallidos', () => {
       .send({ email: 'natalia@actideacontinnuo.com', password: 'AdminTest123!' });
     expect(ok.status).toBe(200);
 
-    const users = await mockNotion.queryDB('usuarios', null);
-    expect(users[0].properties['IntentosFallidos'].number).toBe(0);
+    const users = await mockDb.queryDB('usuarios', null);
+    expect(users[0].intentosFallidos).toBe(0);
   });
 });
 

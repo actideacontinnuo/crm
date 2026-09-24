@@ -1,32 +1,29 @@
 const express = require('express');
 const router  = express.Router();
-const {
-  queryDB,
-  read_title, read_text, read_select, read_checkbox, read_date,
-} = require('./notion');
+const { queryDB } = require('./db');
 
-function toObj(page) {
-  const p = page.properties;
+function toObj(row) {
+  const fecha = row.fecha ? new Date(row.fecha).toISOString() : null;
   return {
-    id:        page.id,
-    evento:    read_title(p['Evento']),
-    usuario:   read_text(p['Usuario']),
-    accion:    read_select(p['Accion']),
-    entidad:   read_text(p['Entidad']),
-    detalle:   read_text(p['Detalle']),
-    ip:        read_text(p['IP']),
-    exito:     read_checkbox(p['Exito']),
-    fueraDeHorario: read_checkbox(p['FueraDeHorario']),
-    fecha:     read_date(p['Fecha']),
+    id:        row.id,
+    evento:    `${row.accion} · ${row.usuario || 'anónimo'} · ${fecha || ''}`,
+    usuario:   row.usuario || '',
+    accion:    row.accion || '',
+    entidad:   row.entidad || '',
+    detalle:   row.detalle || '',
+    ip:        row.ip || '',
+    exito:     !!row.exito,
+    fueraDeHorario: !!row.fueraDeHorario,
+    fecha,
   };
 }
 
 // GET /api/auditoria?limit=200
 router.get('/', async (req, res) => {
   try {
-    const pages = await queryDB('auditoria', null, [{ property: 'Fecha', direction: 'descending' }]);
+    const rows = await queryDB('auditoria', null, { field: 'fecha', direction: 'descending' });
     const limit = Math.min(parseInt(req.query.limit) || 200, 1000);
-    res.json(pages.slice(0, limit).map(toObj));
+    res.json(rows.slice(0, limit).map(toObj));
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 

@@ -5,8 +5,10 @@
  */
 const request    = require('supertest');
 const mockNotion = require('../helpers/mock-notion');
+const mockDb     = require('../helpers/mock-db');
 
 jest.mock('../../api/notion', () => require('../helpers/mock-notion'));
+jest.mock('../../api/db', () => require('../helpers/mock-db'));
 jest.mock('../../api/_audit', () => ({ logAudit: jest.fn(), clientIp: () => '127.0.0.1' }));
 
 const { buildApp } = require('../helpers/test-app');
@@ -23,6 +25,8 @@ const ejecToken = () =>
 let app;
 beforeEach(() => {
   mockNotion.resetStore();
+
+  mockDb.resetStore();
   app = buildApp();
 });
 
@@ -119,7 +123,7 @@ describe('POST /api/auth/usuarios/:id/activar', () => {
   });
 
   test('desactivar a otro usuario impide su login', async () => {
-    mockNotion.addEjecUser(); // alexia / EjecTest123!
+    mockDb.addEjecUser(); // alexia / EjecTest123!
     const res = await request(app).post('/api/auth/usuarios/alexia/activar')
       .set('Authorization', `Bearer ${adminToken()}`).send({ activo: false });
     expect(res.status).toBe(200);
@@ -129,7 +133,7 @@ describe('POST /api/auth/usuarios/:id/activar', () => {
   });
 
   test('reactivar restaura el acceso', async () => {
-    mockNotion.addEjecUser();
+    mockDb.addEjecUser();
     await request(app).post('/api/auth/usuarios/alexia/activar')
       .set('Authorization', `Bearer ${adminToken()}`).send({ activo: false });
     await request(app).post('/api/auth/usuarios/alexia/activar')
@@ -142,7 +146,7 @@ describe('POST /api/auth/usuarios/:id/activar', () => {
 
 describe('set-password (asignar contraseña directa)', () => {
   test('admin asigna una contraseña elegida y el usuario entra con ella', async () => {
-    mockNotion.addEjecUser(); // alexia
+    mockDb.addEjecUser(); // alexia
     const res = await request(app).post('/api/auth/usuarios/alexia/set-password')
       .set('Authorization', `Bearer ${adminToken()}`)
       .send({ password: 'ClaveElegida2026!', forzarCambio: false });
@@ -154,7 +158,7 @@ describe('set-password (asignar contraseña directa)', () => {
   });
 
   test('forzarCambio por defecto (true) marca cambio obligatorio', async () => {
-    mockNotion.addEjecUser();
+    mockDb.addEjecUser();
     await request(app).post('/api/auth/usuarios/alexia/set-password')
       .set('Authorization', `Bearer ${adminToken()}`).send({ password: 'OtraClave2026!' });
     const login = await request(app).post('/api/auth/login')
@@ -189,7 +193,7 @@ describe('resetear-password y desbloquear', () => {
   });
 
   test('resetear genera temporal válida y el usuario entra con ella', async () => {
-    mockNotion.addEjecUser();
+    mockDb.addEjecUser();
     const res = await request(app).post('/api/auth/usuarios/alexia/resetear-password')
       .set('Authorization', `Bearer ${adminToken()}`);
     expect(res.status).toBe(200);
@@ -213,7 +217,7 @@ describe('resetear-password y desbloquear', () => {
   });
 
   test('desbloquear limpia intentos y bloqueo', async () => {
-    mockNotion.addEjecUser();
+    mockDb.addEjecUser();
     // Bloquear a alexia con 5 intentos fallidos
     for (let i = 0; i < 5; i++) {
       await request(app).post('/api/auth/login').send({ usuario: 'alexia', password: 'mal' });

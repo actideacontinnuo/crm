@@ -4,13 +4,15 @@
  * Prospecto. Se monta una app mínima propia (en vez de usar
  * tests/helpers/test-app.js) porque ese helper mockea api/_audit como no-op
  * para TODAS las suites — aquí necesitamos el logAudit real (respaldado por
- * el mock de Notion) porque el propio historial de "empresas vistas" se
+ * el mock de la base) porque el propio historial de "empresas vistas" se
  * apoya en logAudit + queryDB('auditoria').
  */
 const request    = require('supertest');
 const mockNotion = require('../helpers/mock-notion');
+const mockDb     = require('../helpers/mock-db');
 
 jest.mock('../../api/notion', () => mockNotion);
+jest.mock('../../api/db', () => mockDb);
 jest.mock('node-fetch');
 const fetch = require('node-fetch');
 
@@ -40,6 +42,7 @@ let app;
 const ORIGINAL_ENV = { ...process.env };
 beforeEach(() => {
   mockNotion.resetStore();
+  mockDb.resetStore();
   app = buildAppConAuditoriaReal();
   fetch.mockReset();
   process.env = { ...ORIGINAL_ENV, APOLLO_API_KEY: 'apollo-test' };

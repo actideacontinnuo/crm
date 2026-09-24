@@ -1,16 +1,12 @@
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
-const {
-  notion, queryDB, createPage, updatePage,
-  prop_title, prop_text, prop_select, prop_date, prop_files,
-  read_title, read_text, read_select, read_date, read_files,
-  uploadFileToNotion,
-} = require('./notion');
-const { filtroRolesNotion, assertRolAccess } = require('./_guard');
+const { queryDB, getRow, createRow, updateRow, subirArchivo, urlFirmada } = require('./db');
+const { assertRolAccess, perteneceAlRegistro } = require('./_guard');
+const BUCKET = 'cotizaciones';
 
 // Cotizaciones: SOLO archivos. Cada cotización es un PDF + un Excel guardados en
-// Notion. No hay cotizador, secciones ni cálculos: el documento es la fuente.
+// Supabase Storage (bucket privado). No hay cotizador, secciones ni cálculos: el documento es la fuente.
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 20 * 1024 * 1024 }, // 20 MB por archivo (límite single_part de Notion)
@@ -25,40 +21,40 @@ const upload = multer({
   },
 });
 
-function toObj(page) {
-  const p = page.properties;
+async function toObj(row) {
+  const [pdfUrl, excelUrl] = await Promise.all([urlFirmada(BUCKET, row.pdfUrl), urlFirmada(BUCKET, row.excelUrl)]);
   return {
-    id:        page.id,
-    cotId:     read_title(p['ID Cot']),
-    opId:      read_text(p['OP ID']),
-    clienteId: read_text(p['Cliente ID']),
-    version:   read_text(p['Versión']),
-    fecha:     read_date(p['Fecha']),
-    status:    read_select(p['Status']),
-    ejec:      read_select(p['Ejecutivo']),          // legado (compatibilidad)
-    propietario:  read_select(p['Propietario']),      // heredados de la OP (o del cliente)
-    ejecCuenta:   read_select(p['EjecutivoCuenta']),
-    ejecAsignado: read_select(p['EjecutivoAsignado']),
-    pdf:       read_files(p['PDF']),   // [{ name, url }]
-    excel:     read_files(p['Excel']),
+    id:        row.id,
+    cotId:     row.cotId || '',
+    opId:      row.opId || '',
+    clienteId: row.clienteId || '',
+    version:   row.version || '',
+    fecha:     row.fecha ?? null,
+    status:    row.status || '',
+    ejec:      row.ejec || '',          // legado (compatibilidad)
+    propietario:  row.propietario || '', // heredados de la OP (o del cliente)
+    ejecCuenta:   row.ejecCuenta || '',
+    ejecAsignado: row.ejecAsignado || '',
+    pdf:       pdfUrl   ? [{ name: row.pdfNombre || 'archivo',   url: pdfUrl }]   : [],
+    excel:     excelUrl ? [{ name: row.excelNombre || 'archivo', url: excelUrl }] : [],
   };
 }
 
-function toProps(data) {
-  const props = {};
-  if (data.cotId     !== undefined) props['ID Cot']     = prop_title(data.cotId);
-  if (data.opId      !== undefined) props['OP ID']      = prop_text(data.opId);
-  if (data.clienteId !== undefined) props['Cliente ID'] = prop_text(data.clienteId);
-  if (data.version   !== undefined) props['Versión']    = prop_text(data.version);
-  if (data.fecha     !== undefined) props['Fecha']      = prop_date(data.fecha);
-  if (data.status    !== undefined) props['Status']     = prop_select(data.status);
-  if (data.ejec         !== undefined) props['Ejecutivo']         = prop_select(data.ejec);
-  if (data.propietario  !== undefined) props['Propietario']       = prop_select(data.propietario);
-  if (data.ejecCuenta   !== undefined) props['EjecutivoCuenta']   = prop_select(data.ejecCuenta);
-  if (data.ejecAsignado !== undefined) props['EjecutivoAsignado'] = prop_select(data.ejecAsignado);
-  if (data.pdfFiles   !== undefined) props['PDF']   = prop_files(data.pdfFiles);
-  if (data.excelFiles !== undefined) props['Excel'] = prop_files(data.excelFiles);
-  return props;
+function toRow(data) {
+  const row = {};
+  if (data.cotId     !== undefined) row.cotId     = data.cotId;
+  if (data.opId      !== undefined) row.opId      = data.opId || null;
+  if (data.clienteId !== undefined) row.clienteId = data.clienteId || null;
+  if (data.version   !== undefined) row.version   = data.version;
+  if (data.fecha     !== undefined) row.fecha     = data.fecha || null;
+  if (data.status    !== undefined) row.status    = data.status;
+  if (data.ejec         !== undefined) row.ejec         = data.ejec;
+  if (data.propietario  !== undefined) row.propietario  = data.propietario;
+  if (data.ejecCuenta   !== undefined) row.ejecCuenta   = data.ejecCuenta;
+  if (data.ejecAsignado !== undefined) row.ejecAsignado = data.ejecAsignado;
+  if (data.pdfArchivo)   { row.pdfUrl   = data.pdfArchivo.ruta;   row.pdfNombre   = data.pdfArchivo.name; }
+  if (data.excelArchivo) { row.excelUrl = data.excelArchivo.ruta; row.excelNombre = data.excelArchivo.name; }
+  return row;
 }
 
 // Los 3 roles de una cotización se HEREDAN — nunca se capturan a mano ni se
@@ -72,24 +68,21 @@ async function _heredarRoles(opId, clienteId) {
   const vacio = { propietario: '', ejecCuenta: '', ejecAsignado: '', ejec: '' };
   try {
     if (opId) {
-      const op = await notion.pages.retrieve({ page_id: opId });
-      const p = op.properties;
+      const op = await getRow('ops', opId);
       return {
-        propietario:  read_select(p['Propietario']),
-        ejecCuenta:   read_select(p['EjecutivoCuenta']),
-        ejecAsignado: read_select(p['EjecutivoAsignado']),
-        ejec:         read_select(p['Ejecutivo']),
+        propietario:  op.propietario || '',
+        ejecCuenta:   op.ejecCuenta || '',
+        ejecAsignado: op.ejecAsignado || '',
+        ejec:         op.ejec || '',
       };
     }
     if (clienteId) {
-      const cli = await notion.pages.retrieve({ page_id: clienteId });
-      const p = cli.properties;
-      const ejecAsignado = read_select(p['EjecutivoAsignado']);
+      const cli = await getRow('clientes', clienteId);
       return {
-        propietario:  read_select(p['Propietario']),
-        ejecCuenta:   read_select(p['EjecutivoCuenta']),
-        ejecAsignado,
-        ejec:         ejecAsignado,
+        propietario:  cli.propietario || '',
+        ejecCuenta:   cli.ejecCuenta || '',
+        ejecAsignado: cli.ejecAsignado || '',
+        ejec:         cli.ejecAsignado || '',
       };
     }
   } catch (_) { /* OP/cliente inválido — se deja vacío, no se puede heredar */ }
@@ -98,19 +91,18 @@ async function _heredarRoles(opId, clienteId) {
 
 router.get('/', async (req, res) => {
   try {
-    const filter = req.rolFilter ? filtroRolesNotion(req.rolFilter) : null;
-    const pages = await queryDB('cotizaciones', filter, [{ property: 'Fecha', direction: 'descending' }]);
-    res.json(pages.map(toObj));
+    let rows = await queryDB('cotizaciones', null, { field: 'fecha', direction: 'descending' });
+    if (req.rolFilter) rows = rows.filter(r => perteneceAlRegistro(r, req.rolFilter));
+    res.json(await Promise.all(rows.map(toObj)));
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 router.get('/:id', async (req, res) => {
   try {
-    const page = await notion.pages.retrieve({ page_id: req.params.id });
-    const obj = toObj(page);
-    if (!assertRolAccess(req, res, obj)) return;
-    res.json(obj);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+    const row = await getRow('cotizaciones', req.params.id);
+    if (!assertRolAccess(req, res, row)) return;
+    res.json(await toObj(row));
+  } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
 });
 
 // Alta de cotización: multipart con campos de texto + los archivos "pdf" y "excel".
@@ -132,10 +124,9 @@ router.post('/', upload.fields([{ name: 'pdf', maxCount: 1 }, { name: 'excel', m
       if (!pertenece) return res.status(403).json({ error: 'No tienes permiso para subir cotizaciones a esta OP/cliente' });
     }
 
-    // Subir cada archivo a Notion en paralelo
-    const [pdfId, excelId] = await Promise.all([
-      pdfFile   ? uploadFileToNotion(pdfFile.buffer, pdfFile.originalname, pdfFile.mimetype)     : null,
-      excelFile ? uploadFileToNotion(excelFile.buffer, excelFile.originalname, excelFile.mimetype) : null,
+    const [pdfRuta, excelRuta] = await Promise.all([
+      pdfFile   ? subirArchivo(BUCKET, pdfFile.buffer, pdfFile.originalname, pdfFile.mimetype)     : null,
+      excelFile ? subirArchivo(BUCKET, excelFile.buffer, excelFile.originalname, excelFile.mimetype) : null,
     ]);
 
     const data = {
@@ -146,12 +137,12 @@ router.post('/', upload.fields([{ name: 'pdf', maxCount: 1 }, { name: 'excel', m
       fecha:     req.body.fecha || new Date().toISOString().split('T')[0],
       status:    req.body.status || 'Enviada',
       ...roles,
-      pdfFiles:   pdfId   ? [{ id: pdfId,   name: pdfFile.originalname }]   : [],
-      excelFiles: excelId ? [{ id: excelId, name: excelFile.originalname }] : [],
+      pdfArchivo:   pdfRuta   ? { ruta: pdfRuta,   name: pdfFile.originalname }   : null,
+      excelArchivo: excelRuta ? { ruta: excelRuta, name: excelFile.originalname } : null,
     };
 
-    const page = await createPage('cotizaciones', toProps(data));
-    res.json(toObj(page));
+    const created = await createRow('cotizaciones', toRow(data));
+    res.json(await toObj(created));
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -160,9 +151,8 @@ router.post('/', upload.fields([{ name: 'pdf', maxCount: 1 }, { name: 'excel', m
 // que en la OP de la que vienen.
 router.patch('/:id', upload.fields([{ name: 'pdf', maxCount: 1 }, { name: 'excel', maxCount: 1 }]), async (req, res) => {
   try {
-    const existing = await notion.pages.retrieve({ page_id: req.params.id });
-    const obj = toObj(existing);
-    if (!assertRolAccess(req, res, obj)) return;
+    const existing = await getRow('cotizaciones', req.params.id);
+    if (!assertRolAccess(req, res, existing)) return;
 
     const body = { ...req.body };
     delete body.propietario; delete body.ejecCuenta; delete body.ejecAsignado; delete body.ejec;
@@ -170,17 +160,17 @@ router.patch('/:id', upload.fields([{ name: 'pdf', maxCount: 1 }, { name: 'excel
     const pdfFile   = req.files?.pdf?.[0];
     const excelFile = req.files?.excel?.[0];
     if (pdfFile) {
-      const id = await uploadFileToNotion(pdfFile.buffer, pdfFile.originalname, pdfFile.mimetype);
-      body.pdfFiles = [{ id, name: pdfFile.originalname }];
+      const ruta = await subirArchivo(BUCKET, pdfFile.buffer, pdfFile.originalname, pdfFile.mimetype);
+      body.pdfArchivo = { ruta, name: pdfFile.originalname };
     }
     if (excelFile) {
-      const id = await uploadFileToNotion(excelFile.buffer, excelFile.originalname, excelFile.mimetype);
-      body.excelFiles = [{ id, name: excelFile.originalname }];
+      const ruta = await subirArchivo(BUCKET, excelFile.buffer, excelFile.originalname, excelFile.mimetype);
+      body.excelArchivo = { ruta, name: excelFile.originalname };
     }
 
-    const page = await updatePage(req.params.id, toProps(body));
-    res.json(toObj(page));
-  } catch (err) { res.status(500).json({ error: err.message }); }
+    const updated = await updateRow('cotizaciones', req.params.id, toRow(body));
+    res.json(await toObj(updated));
+  } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
 });
 
 // Errores de multer (tipo no permitido, archivo > 20 MB) → 400 legible.

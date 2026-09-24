@@ -1,4 +1,4 @@
-const { createPage, prop_title, prop_text, prop_select, prop_checkbox, prop_date } = require('./notion');
+const { createRow } = require('./db');
 
 // Horario laboral considerado normal: Lunes-Sábado 7:00–22:00 (hora del servidor)
 function esFueraDeHorario(date = new Date()) {
@@ -13,16 +13,15 @@ function esFueraDeHorario(date = new Date()) {
 async function logAudit({ usuario, accion, entidad = '', detalle = '', ip = '', exito = true }) {
   try {
     const now = new Date();
-    await createPage('auditoria', {
-      'Evento':          prop_title(`${accion} · ${usuario || 'anónimo'} · ${now.toISOString()}`),
-      'Usuario':         prop_text(usuario || ''),
-      'Accion':          prop_select(accion),
-      'Entidad':         prop_text(entidad),
-      'Detalle':         prop_text(detalle),
-      'IP':              prop_text(ip),
-      'Exito':           prop_checkbox(exito),
-      'FueraDeHorario':  prop_checkbox(esFueraDeHorario(now)),
-      'Fecha':           prop_date(now.toISOString()),
+    await createRow('auditoria', {
+      usuario:        usuario || '',
+      accion,
+      entidad,
+      detalle,
+      ip,
+      exito,
+      fueraDeHorario: esFueraDeHorario(now),
+      fecha:          now.toISOString(),
     });
   } catch (err) {
     console.error('⚠️  No se pudo escribir en el log de auditoría:', err.message);

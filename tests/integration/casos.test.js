@@ -4,8 +4,10 @@
  */
 const request    = require('supertest');
 const mockNotion = require('../helpers/mock-notion');
+const mockDb     = require('../helpers/mock-db');
 
 jest.mock('../../api/notion', () => require('../helpers/mock-notion'));
+jest.mock('../../api/db', () => require('../helpers/mock-db'));
 jest.mock('../../api/_audit', () => ({ logAudit: jest.fn(), clientIp: () => '127.0.0.1' }));
 
 const { buildApp } = require('../helpers/test-app');
@@ -19,6 +21,8 @@ function adminToken() {
 let app;
 beforeEach(() => {
   mockNotion.resetStore();
+
+  mockDb.resetStore();
   app = buildApp();
 });
 
@@ -94,17 +98,17 @@ describe('CRUD de casos', () => {
 });
 
 describe('Errores', () => {
-  test('GET /:id con id inexistente → 500 controlado', async () => {
+  test('GET /:id con id inexistente → 404 (Postgres distingue "no existe")', async () => {
     const res = await request(app).get('/api/casos/no-existe')
       .set('Authorization', `Bearer ${adminToken()}`);
-    expect(res.status).toBe(500);
+    expect(res.status).toBe(404);
     expect(res.body.error).toBeDefined();
   });
 
-  test('PATCH con id inexistente → 500 controlado', async () => {
+  test('PATCH con id inexistente → 404 (Postgres distingue "no existe")', async () => {
     const res = await request(app).patch('/api/casos/no-existe')
       .set('Authorization', `Bearer ${adminToken()}`)
       .send({ status: 'Cerrado' });
-    expect(res.status).toBe(500);
+    expect(res.status).toBe(404);
   });
 });
