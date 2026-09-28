@@ -1,5 +1,10 @@
-const { queryDB } = require('../api/db');
+const { queryDB, subirArchivo } = require('../api/db');
 const { logAudit } = require('../api/_audit');
+
+// Bucket PRIVADO de Supabase Storage donde vive cada respaldo mensual — nadie
+// externo puede leerlo (a diferencia del correo, que depende de Resend estar
+// configurado). Es la fuente de verdad del respaldo; el correo es opcional.
+const BUCKET_RESPALDOS = 'respaldos';
 
 // Entidades de negocio a respaldar. Usuarios se excluye su PasswordHash por seguridad.
 const ENTIDADES = ['prospectos', 'clientes', 'ops', 'cotizaciones', 'pagos', 'proveedores', 'deudas', 'casos', 'tickets', 'objetivos'];
@@ -54,18 +59,33 @@ async function sendBackupEmail(jsonData) {
   return { sent: true };
 }
 
+// Sube el respaldo al bucket privado 'respaldos' — es lo único que garantiza
+// que el respaldo exista, sin depender de que Resend esté configurado.
+async function guardarBackupEnStorage(jsonData) {
+  const nombre = `actidea-backup-${jsonData.generadoEn.slice(0, 10)}.json`;
+  try {
+    const ruta = await subirArchivo(BUCKET_RESPALDOS, Buffer.from(JSON.stringify(jsonData, null, 2)), nombre, 'application/json');
+    return { guardado: true, ruta };
+  } catch (err) {
+    return { guardado: false, reason: err.message };
+  }
+}
+
 async function runBackup({ trigger = 'manual', usuario = 'sistema' } = {}) {
   const data = await buildBackupJson();
+  const storageResult = await guardarBackupEnStorage(data);
+  // El correo es un aviso opcional — si no está configurado, el respaldo ya
+  // quedó a salvo en Supabase Storage de todos modos.
   const emailResult = await sendBackupEmail(data);
 
   await logAudit({
     usuario,
     accion: 'backup_generado',
-    detalle: `trigger=${trigger} · email_enviado=${emailResult.sent} ${emailResult.reason || ''}`.trim(),
-    exito: true,
+    detalle: `trigger=${trigger} · guardado_en_supabase=${storageResult.guardado} ${storageResult.reason || ''} · email_enviado=${emailResult.sent} ${emailResult.reason || ''}`.trim(),
+    exito: storageResult.guardado,
   });
 
-  return { data, emailResult };
+  return { data, emailResult, storageResult };
 }
 
-module.exports = { runBackup, buildBackupJson, sendBackupEmail };
+module.exports = { runBackup, buildBackupJson, sendBackupEmail, guardarBackupEnStorage };
