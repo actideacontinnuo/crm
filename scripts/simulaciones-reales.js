@@ -2,7 +2,8 @@
 // Todo se marca con el prefijo "SIM-". Uso:
 //   node scripts/simulaciones-reales.js            → corre, reporta y ARCHIVA lo creado
 //   node scripts/simulaciones-reales.js --keep     → corre y deja los datos (para revisarlos en pantalla)
-//   node scripts/simulaciones-reales.js --limpiar  → archiva todo lo marcado "SIM-" y verifica la base
+//   node scripts/simulaciones-reales.js --prod     → igual, pero contra el servidor DESPLEGADO en Railway (usuarios temporales sim_*, login real)
+//   node scripts/simulaciones-reales.js --limpiar  → archiva todo lo marcado "SIM-" (y usuarios sim_*) y verifica la base
 // No envía correos. Nunca borra: archiva (deleted_at), igual que la app.
 require('dotenv').config();
 const { spawn } = require('child_process');
@@ -10,20 +11,34 @@ const path = require('path');
 const jwt = require('jsonwebtoken');
 const db = require('../api/db');
 
-const PORT = 3132, B = `http://localhost:${PORT}`, SECRET = 'sim-local-secret';
+const PROD = process.argv.includes('--prod');
+const PORT = 3132, B = PROD ? 'https://actidea-os.up.railway.app' : `http://localhost:${PORT}`, SECRET = 'sim-local-secret';
 const MES = new Date().toISOString().slice(0, 7); // fechas dentro del mes actual: así también se prueban los KPIs del periodo
 const KEEP = process.argv.includes('--keep'), SOLO_LIMPIAR = process.argv.includes('--limpiar');
 const TABLAS_SIM = { clientes: 'nombre', prospectos: 'empresa', proveedores: 'nombre', ops: 'descripcion', deudas: 'concepto', pagos: 'concepto', cotizaciones: 'cot_id', casos: 'titulo', tickets: 'tipo' };
-const BASE_ESPERADA = { usuarios: 6, clientes: 16, prospectos: 139, proveedores: 8, ops: 0, cotizaciones: 0, deudas: 5, pagos: 2, casos: 0, tickets: 0, objetivos: 0 };
+const BASE_ESPERADA = { usuarios: 6, clientes: 16, prospectos: 139, proveedores: 8, ops: 0, cotizaciones: 0, deudas: 0, pagos: 0, casos: 0, tickets: 0, objetivos: 1 };
 
-const tk = u => jwt.sign(u, SECRET, { expiresIn: '30m' });
-const T = {
-  natalia: tk({ id: 'natalia', nombre: 'Natalia', role: 'admin', ejec: 'Natalia Gama' }),
-  oscar:   tk({ id: 'oscar', nombre: 'Oscar', role: 'administracion', ejec: 'Oscar' }),
-  ximena:  tk({ id: 'ximena', nombre: 'Ximena', role: 'ejecutivo', ejec: 'Ximena' }),
-  alexia:  tk({ id: 'alexia', nombre: 'Alexia', role: 'ejecutivo', ejec: 'Alexia' }),
-  eduardo: tk({ id: 'eduardo', nombre: 'Eduardo', role: 'administracion', ejec: 'Eduardo Gama' }),
+const PERFILES = {
+  natalia: { rol: 'admin', nombre: 'Natalia', ejec: 'Natalia Gama' },
+  oscar:   { rol: 'administracion', nombre: 'Oscar', ejec: 'Oscar' },
+  ximena:  { rol: 'ejecutivo', nombre: 'Ximena', ejec: 'Ximena' },
+  alexia:  { rol: 'ejecutivo', nombre: 'Alexia', ejec: 'Alexia' },
+  eduardo: { rol: 'administracion', nombre: 'Eduardo', ejec: 'Eduardo Gama' },
 };
+const T = {};
+async function prepararTokens() {
+  if (!PROD) { for (const [k, p] of Object.entries(PERFILES)) T[k] = jwt.sign({ id: k, nombre: p.nombre, role: p.rol, ejec: p.ejec }, SECRET, { expiresIn: '30m' }); return; }
+  // Producción: usuarios temporales con contraseña aleatoria + login REAL por la API desplegada.
+  const bcrypt = require('bcryptjs'); const crypto = require('crypto');
+  for (const [k, p] of Object.entries(PERFILES)) {
+    const pass = crypto.randomBytes(18).toString('base64url') + 'Aa1!';
+    await db.pool.query('insert into usuarios (usuario, nombre, email, password_hash, rol, ejec, activo, must_change_password) values ($1,$2,$3,$4,$5,$6,true,false)', ['sim_' + k, 'SIM ' + p.nombre, `sim_${k}@example.invalid`, bcrypt.hashSync(pass, 10), p.rol, p.ejec]);
+    const r = await fetch(B + '/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ usuario: 'sim_' + k, password: pass }) });
+    const j = await r.json();
+    if (!j.token) throw new Error(`login real de sim_${k} falló: ${JSON.stringify(j)}`);
+    T[k] = j.token;
+  }
+}
 let pasan = 0; const inconsistencias = []; let escenario = '';
 const ok = (c, msg, det) => {
   if (c) { pasan++; console.log('   ✔', msg); }
@@ -33,12 +48,14 @@ const igual = (a, b) => Math.abs(Number(a) - Number(b)) < 0.005;
 async function call(method, p, body, token = T.natalia, form) {
   const opt = { method, headers: { Authorization: 'Bearer ' + token } };
   if (form) opt.body = form; else if (body !== undefined && body !== null) { opt.headers['Content-Type'] = 'application/json'; opt.body = JSON.stringify(body); }
-  const r = await fetch(B + p, opt); let j = null; try { j = await r.json(); } catch {} return { s: r.status, b: j };
+  let r; for (let i = 0; i < 6; i++) { r = await fetch(B + p, opt); if (r.status !== 429) break; await new Promise(x => setTimeout(x, 20000)); }
+  let j = null; try { j = await r.json(); } catch {} return { s: r.status, b: j };
 }
 async function conteos() { const o = {}; for (const t of Object.keys(BASE_ESPERADA)) o[t] = (await db.pool.query(`select count(*)::int n from ${t} where deleted_at is null`)).rows[0].n; return o; }
 async function archivarSim() {
   let n = 0;
   for (const [t, c] of Object.entries(TABLAS_SIM)) { const r = await db.pool.query(`update ${t} set deleted_at = now() where ${c} like 'SIM-%' and deleted_at is null`); n += r.rowCount; }
+  const u = await db.pool.query("update usuarios set deleted_at = now() where usuario like 'sim\\_%' and deleted_at is null"); n += u.rowCount;
   return n;
 }
 
@@ -282,8 +299,8 @@ async function cruzada(t0) {
   const aud = (await call('GET', '/api/auditoria?limit=1000')).b.filter(e => new Date(e.fecha) >= t0);
   ok(aud.filter(e => e.accion === 'op_creada').length >= esp.length - 0, 'auditoría registra op_creada por cada OP', aud.filter(e => e.accion === 'op_creada').length);
   ok(aud.filter(e => e.accion === 'cobro_registrado').length >= 8, 'auditoría registra cobros pagados', aud.filter(e => e.accion === 'cobro_registrado').length);
-  const bk = (await call('POST', '/api/backup/export')).b.backup.entidades;
-  ok(bk.ops.filter(o => OPS[o.id]).length === esp.length && bk.deudas.filter(d => OPS[d.opId]).length === dSim.length, 'el respaldo contiene todas las OPs y deudas simuladas');
+  if (!PROD) { const bk = (await call('POST', '/api/backup/export')).b.backup.entidades;
+  ok(bk.ops.filter(o => OPS[o.id]).length === esp.length && bk.deudas.filter(d => OPS[d.opId]).length === dSim.length, 'el respaldo contiene todas las OPs y deudas simuladas'); }
   const dupOps = new Set(ops.map(o => o.numero).filter(Boolean)); ok(dupOps.size === ops.filter(o => o.numero).length, 'números de OP únicos');
 }
 
@@ -292,9 +309,10 @@ async function cruzada(t0) {
   if (SOLO_LIMPIAR) { const n = await archivarSim(); const d = await conteos(); console.log(`Archivadas ${n} filas SIM-.`); console.log('Base:', JSON.stringify(d)); console.log(JSON.stringify(d) === JSON.stringify(BASE_ESPERADA) ? '✔ Base idéntica a la original' : '✘ Base distinta de la original'); await db.pool.end(); return; }
   console.log('Base antes:', JSON.stringify(antes));
   const t0 = new Date(Date.now() - 2000);
-  const srv = spawn('node', ['server.js'], { cwd: path.join(__dirname, '..'), env: { ...process.env, PORT, JWT_SECRET: SECRET, NODE_ENV: 'test', RESEND_API_KEY: '', BACKUP_EMAIL_TO: '' }, stdio: 'ignore' });
+  const srv = PROD ? { kill() {} } : spawn('node', ['server.js'], { cwd: path.join(__dirname, '..'), env: { ...process.env, PORT, JWT_SECRET: SECRET, NODE_ENV: 'test', RESEND_API_KEY: '', BACKUP_EMAIL_TO: '' }, stdio: 'ignore' });
   for (let i = 0; i < 40; i++) { try { if ((await fetch(B + '/api/health')).ok) break; } catch {} await new Promise(r => setTimeout(r, 500)); }
-  try { await sim1(); await sim2(); await sim3(); await sim4(); await sim5(); await cruzada(t0); }
+  if (PROD) { const h = await (await fetch(B + '/api/health')).json(); console.log('Servidor de producción:', B, '· build', String(h.build).slice(0, 7)); }
+  try { await prepararTokens(); await sim1(); await sim2(); await sim3(); await sim4(); await sim5(); await cruzada(t0); }
   catch (e) { inconsistencias.push('EXCEPCIÓN: ' + e.stack); console.log('EXCEPCIÓN', e.stack); }
   finally {
     if (!KEEP) { const n = await archivarSim(); console.log(`\n[Limpieza] archivadas ${n} filas SIM-`); const d = await conteos(); ok(JSON.stringify(d) === JSON.stringify(antes), 'la base quedó idéntica a como estaba'); }
