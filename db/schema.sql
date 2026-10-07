@@ -330,3 +330,66 @@ create unique index if not exists ux_objetivos_anio    on objetivos(anio)    whe
 alter table prospectos add column if not exists motivo_perdida text;
 alter table prospectos add column if not exists detalle_perdida text;
 alter table prospectos add column if not exists fecha_cierre date;
+
+-- ── Seguridad: RLS activo en todas las tablas, sin políticas ──
+-- La aplicación se conecta como 'postgres' (ignora RLS), así que no se afecta.
+-- Con RLS activo y sin políticas, la API pública de Supabase (clave anon) no puede leer ni escribir nada.
+alter table usuarios     enable row level security;
+alter table clientes     enable row level security;
+alter table prospectos   enable row level security;
+alter table ops          enable row level security;
+alter table cotizaciones enable row level security;
+alter table proveedores  enable row level security;
+alter table deudas       enable row level security;
+alter table pagos        enable row level security;
+alter table casos        enable row level security;
+alter table tickets      enable row level security;
+alter table objetivos    enable row level security;
+alter table auditoria    enable row level security;
+alter table seguridad    enable row level security;
+
+-- ── Archivar / restaurar una OP completa con una sola línea (SQL Editor de Supabase) ──
+--   select archivar_op('NUMERO-DE-LA-OP');
+--   select restaurar_op('NUMERO-DE-LA-OP');
+create or replace function archivar_op(p_numero text) returns text
+language plpgsql security invoker set search_path = public as $$
+declare
+  v_id uuid; v_ts timestamptz := now();
+  n_t int; n_d int; n_p int; n_c int; n_k int;
+begin
+  select id into v_id from ops where numero = p_numero and deleted_at is null;
+  if v_id is null then raise exception 'No existe una OP activa con el número %', p_numero; end if;
+  update tickets set deleted_at = v_ts where deleted_at is null
+    and cotizacion_id in (select id from cotizaciones where op_id = v_id and deleted_at is null);
+  get diagnostics n_t = row_count;
+  update deudas       set deleted_at = v_ts where deleted_at is null and op_id = v_id; get diagnostics n_d = row_count;
+  update pagos        set deleted_at = v_ts where deleted_at is null and op_id = v_id; get diagnostics n_p = row_count;
+  update cotizaciones set deleted_at = v_ts where deleted_at is null and op_id = v_id; get diagnostics n_c = row_count;
+  update casos        set deleted_at = v_ts where deleted_at is null and op_id = v_id; get diagnostics n_k = row_count;
+  update ops          set deleted_at = v_ts where id = v_id;
+  return format('OP %s archivada junto con %s deudas, %s pagos, %s cotizaciones, %s casos y %s tickets.', p_numero, n_d, n_p, n_c, n_k, n_t);
+end $$;
+
+create or replace function restaurar_op(p_numero text) returns text
+language plpgsql security invoker set search_path = public as $$
+declare
+  v_id uuid; v_ts timestamptz;
+  n_t int; n_d int; n_p int; n_c int; n_k int;
+begin
+  select id, deleted_at into v_id, v_ts from ops where numero = p_numero and deleted_at is not null order by deleted_at desc limit 1;
+  if v_id is null then raise exception 'No hay una OP archivada con el número %', p_numero; end if;
+  update ops set deleted_at = null where id = v_id;
+  -- solo se restauran los registros archivados junto con la OP (mismo momento, margen de 5 segundos)
+  update tickets set deleted_at = null where deleted_at between v_ts - interval '5 seconds' and v_ts + interval '5 seconds'
+    and cotizacion_id in (select id from cotizaciones where op_id = v_id);
+  get diagnostics n_t = row_count;
+  update deudas       set deleted_at = null where op_id = v_id and deleted_at between v_ts - interval '5 seconds' and v_ts + interval '5 seconds'; get diagnostics n_d = row_count;
+  update pagos        set deleted_at = null where op_id = v_id and deleted_at between v_ts - interval '5 seconds' and v_ts + interval '5 seconds'; get diagnostics n_p = row_count;
+  update cotizaciones set deleted_at = null where op_id = v_id and deleted_at between v_ts - interval '5 seconds' and v_ts + interval '5 seconds'; get diagnostics n_c = row_count;
+  update casos        set deleted_at = null where op_id = v_id and deleted_at between v_ts - interval '5 seconds' and v_ts + interval '5 seconds'; get diagnostics n_k = row_count;
+  return format('OP %s restaurada junto con %s deudas, %s pagos, %s cotizaciones, %s casos y %s tickets.', p_numero, n_d, n_p, n_c, n_k, n_t);
+end $$;
+
+-- Las funciones no deben poder llamarse desde la API pública de Supabase.
+revoke all on function archivar_op(text)   from public, anon, authenticated;
+revoke all on function restaurar_op(text)  from public, anon, authenticated;
