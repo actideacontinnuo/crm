@@ -24,9 +24,11 @@ async function renderProspectos() {
     hideSpinner();
   }
 
+  // Los prospectos PERDIDOS no estorban en la vista normal: solo aparecen al
+  // filtrar por "Perdidos" (así no se mezclan con el pipeline activo).
   const filtered = list.filter(p =>
     (!q  || (p.empresa + p.contacto + p.evento).toLowerCase().includes(q)) &&
-    (!st || p.status === st) &&
+    (st ? p.status === st : p.status !== 'Perdido') &&
     (!ej || p.ejec === ej)
   );
 
@@ -39,7 +41,7 @@ async function renderProspectos() {
           <div class="av">${esc((p.contacto||'?').split(' ').map(x=>x[0]).join('').slice(0,2))}</div>
           <div><div style="font-size:12px">${esc(p.contacto)}</div><div style="font-size:10px;color:var(--gray400)">${esc(p.cargo)}</div></div>
         </div></td>
-        <td>${pillHTML(p.status)}</td>
+        <td>${pillHTML(p.status)}${p.status === 'Perdido' ? `<div style="font-size:10px;color:var(--gray400);margin-top:3px">${esc(p.motivoPerdida || '')}${p.fechaCierre ? ' · ' + esc(p.fechaCierre) : ''}</div>` : ''}</td>
         <td><div style="font-size:12px">${esc(p.ejec)}</div></td>
         <td class="mono" style="color:${p.seguimiento && p.seguimiento <= today ? 'var(--red)' : ''}">${esc(p.seguimiento) || '—'}</td>
         <td><span class="tag tag-gray">${esc(p.fuente) || '—'}</span></td>
@@ -110,7 +112,12 @@ async function openEditarProspecto() {
   const fuente = document.getElementById('np-fuente');
   if (fuente) { for (let i = 0; i < fuente.options.length; i++) if (fuente.options[i].value === p.fuente) fuente.selectedIndex = i; }
   const status = document.getElementById('np-status');
-  if (status) { for (let i = 0; i < status.options.length; i++) if (status.options[i].value === p.status) status.selectedIndex = i; }
+  if (status) {
+    // Un prospecto Perdido/Convertido no tiene su estatus en la lista: se agrega
+    // para que editar otros datos no lo "reabra" sin querer.
+    if (![...status.options].some(o => o.value === p.status)) { const o = document.createElement('option'); o.value = o.textContent = p.status; o.dataset.temporal = '1'; status.appendChild(o); }
+    for (let i = 0; i < status.options.length; i++) if (status.options[i].value === p.status) status.selectedIndex = i;
+  }
 
   // Mark as edit mode
   STATE.editingProspId = id;
@@ -178,6 +185,7 @@ async function saveProspecto() {
     }
 
     // Reset form and state
+    document.querySelectorAll('#np-status option[data-temporal]').forEach(o => o.remove());
     closeM('nuevo-prospecto');
     STATE.editingProspId = null;
     document.querySelector('#m-nuevo-prospecto .modal-eye').textContent   = 'NUEVO PROSPECTO';
@@ -217,7 +225,13 @@ async function openDetalleProspecto(id) {
     <div class="info-cell"><div class="info-cell-label">EMAIL</div><div class="info-cell-val" style="font-size:12px">${esc(p.email) || '—'}</div></div>
     <div class="info-cell"><div class="info-cell-label">EJECUTIVO</div><div class="info-cell-val">${esc(p.ejec)}</div></div>
     <div class="info-cell"><div class="info-cell-label">FUENTE</div><div class="info-cell-val">${esc(p.fuente) || '—'}</div></div>
-    <div class="info-cell"><div class="info-cell-label">SEGUIMIENTO</div><div class="info-cell-val">${esc(p.seguimiento) || '—'}</div></div>`;
+    <div class="info-cell"><div class="info-cell-label">SEGUIMIENTO</div><div class="info-cell-val">${esc(p.seguimiento) || '—'}</div></div>
+    ${p.status === 'Perdido' ? `<div class="info-cell" style="grid-column:1/-1;background:var(--red-dim,#fdecea)"><div class="info-cell-label">MOTIVO DE PÉRDIDA · ${esc(p.fechaCierre) || ''}</div><div class="info-cell-val">${esc(p.motivoPerdida) || '—'}</div>${p.detallePerdida ? `<div style="font-size:12px;margin-top:3px">${esc(p.detallePerdida)}</div>` : ''}</div>` : ''}`;
+  const _perdido = p.status === 'Perdido', _convertido = p.status === 'Convertido';
+  const _show = (id, v) => { const el = document.getElementById(id); if (el) el.style.display = v ? '' : 'none'; };
+  _show('dp-btn-perder', !_perdido && !_convertido);
+  _show('dp-btn-reabrir', _perdido);
+  _show('dp-btn-convertir', !_perdido && !_convertido);
 
   _renderNotasProsp(p.notas || []);
   document.getElementById('dp-nueva-nota').value = '';
@@ -386,6 +400,68 @@ async function moveKanbanCard(id, newStatus) {
     updateBadges();
   } catch (e) {
     toast('Error al mover tarjeta', 'red');
+  } finally {
+    hideSpinner();
+  }
+}
+
+
+// ── Cerrar un prospecto como PERDIDO (con motivo) y reabrirlo ──
+let _MOTIVOS_PERDIDA = null;
+async function abrirPerderProspecto() {
+  const id = STATE.selProsp;
+  if (!id) return;
+  try {
+    if (!_MOTIVOS_PERDIDA) _MOTIVOS_PERDIDA = await db.prospectos.motivos();
+  } catch (e) { toast('No se pudieron cargar los motivos', 'red'); return; }
+  const p = await db.prospectos.get(id);
+  document.getElementById('pp-empresa').textContent = p.empresa;
+  const sel = document.getElementById('pp-motivo');
+  sel.innerHTML = '<option value="">Selecciona un motivo…</option>' + _MOTIVOS_PERDIDA.map(m => `<option value="${esc(m)}">${esc(m)}</option>`).join('');
+  sel.onchange = () => {
+    document.getElementById('pp-detalle-label').textContent = sel.value === 'Otro' ? 'DETALLE (OBLIGATORIO)' : 'DETALLE (OPCIONAL)';
+  };
+  document.getElementById('pp-detalle-label').textContent = 'DETALLE (OPCIONAL)';
+  document.getElementById('pp-detalle').value = '';
+  document.getElementById('pp-error').style.display = 'none';
+  closeM('detalle-prospecto');
+  setTimeout(() => openM('perdido-prospecto'), 200);
+}
+
+async function confirmarPerderProspecto() {
+  const motivo  = document.getElementById('pp-motivo').value;
+  const detalle = document.getElementById('pp-detalle').value.trim();
+  const err = document.getElementById('pp-error');
+  const falla = msg => { err.textContent = msg; err.style.display = 'block'; };
+  if (!motivo) return falla('Selecciona el motivo de pérdida.');
+  if (motivo === 'Otro' && !detalle) return falla('Cuando el motivo es "Otro", explica brevemente qué pasó.');
+  showSpinner();
+  try {
+    await db.prospectos.perder(STATE.selProsp, motivo, detalle);
+    closeM('perdido-prospecto');
+    toast('✓ Prospecto cerrado como perdido');
+    renderProspectos();
+    updateBadges();
+    if (typeof renderKanban === 'function' && STATE.prospView === 'kanban') renderKanban();
+  } catch (e) {
+    let msg = e.message; try { msg = JSON.parse(msg).error || msg; } catch {}
+    falla(msg);
+  } finally {
+    hideSpinner();
+  }
+}
+
+async function reabrirProspecto() {
+  if (!STATE.selProsp) return;
+  showSpinner();
+  try {
+    await db.prospectos.reabrir(STATE.selProsp);
+    closeM('detalle-prospecto');
+    toast('✓ Prospecto reabierto');
+    renderProspectos();
+    updateBadges();
+  } catch (e) {
+    toast('Error al reabrir el prospecto', 'red');
   } finally {
     hideSpinner();
   }

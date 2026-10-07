@@ -255,6 +255,7 @@
       <option value="Contactado">CONTACTADO</option>
       <option value="En conversación">EN CONVERSACIÓN</option>
       <option value="Listo p/ cotizar">LISTO P/ COTIZAR</option>
+      <option value="Perdido">PERDIDOS</option>
     </select>
     <select class="fsel" id="prosp-ejec" onchange="renderProspectos()">
       <option value="">TODOS LOS EJECUTIVOS</option>
@@ -531,7 +532,29 @@
     <button class="btn btn-ghost" onclick="closeM('detalle-prospecto')">Cerrar</button>
     <button class="btn btn-ghost" onclick="addNotaProspecto()">Guardar nota</button>
     <button class="btn btn-ghost" onclick="openEditarProspecto()">✏️ Editar</button>
-    <button class="btn btn-primary" onclick="abrirCalificacionProspecto()">Convertir a Cliente →</button>
+    <button class="btn btn-ghost" id="dp-btn-perder" onclick="abrirPerderProspecto()" style="color:var(--red)">Cerrar como perdido</button>
+    <button class="btn btn-ghost" id="dp-btn-reabrir" onclick="reabrirProspecto()" style="display:none">↺ Reabrir</button>
+    <button class="btn btn-primary" id="dp-btn-convertir" onclick="abrirCalificacionProspecto()">Convertir a Cliente →</button>
+  </div>
+</div></div>
+
+
+<!-- CERRAR PROSPECTO COMO PERDIDO -->
+<div class="modal-overlay" id="m-perdido-prospecto" onclick="closeM('perdido-prospecto')">
+<div class="modal" onclick="event.stopPropagation()" style="width:480px">
+  <div class="modal-hdr">
+    <div><div class="modal-eye">CIERRE DE PROSPECTO</div><div class="modal-title" id="pp-empresa">Cerrar como perdido</div></div>
+    <button class="modal-close" onclick="closeM('perdido-prospecto')">✕</button>
+  </div>
+  <div class="modal-body">
+    <div style="font-size:12px;color:var(--gray400);margin-bottom:14px">El prospecto sale del pipeline y se archiva con su motivo. No se borra: puedes reabrirlo cuando quieras.</div>
+    <div class="fg"><label class="fl">MOTIVO DE PÉRDIDA *</label><select class="fsel-full" id="pp-motivo"></select></div>
+    <div class="fg"><label class="fl" id="pp-detalle-label">DETALLE (OPCIONAL)</label><textarea class="fta" id="pp-detalle" rows="3" placeholder="¿Qué pasó? Esto ayuda a entender por qué se pierden prospectos."></textarea></div>
+    <div id="pp-error" style="display:none;color:var(--red);font-size:12px;margin-top:6px"></div>
+  </div>
+  <div class="modal-footer">
+    <button class="btn btn-ghost" onclick="closeM('perdido-prospecto')">Cancelar</button>
+    <button class="btn btn-primary" onclick="confirmarPerderProspecto()">Cerrar como perdido</button>
   </div>
 </div></div>
 

@@ -3,6 +3,19 @@ const router = express.Router();
 const { queryDB, getRow, createRow, updateRow, archiveRow } = require('./db');
 const { assertRolAccess, perteneceAlRegistro } = require('./_guard');
 const { aplicarReglasComision, obtenerRosterEjecutivos } = require('./_roles');
+const { logAudit, clientIp } = require('./_audit');
+
+// Motivos válidos para cerrar un prospecto como perdido — lista cerrada para
+// poder medir después por qué se pierden (Reportes/Comercial).
+const MOTIVOS_PERDIDA = [
+  'Precio',
+  'Eligió a la competencia',
+  'No tiene presupuesto',
+  'Dejó de responder',
+  'Evento cancelado o pospuesto',
+  'No era el perfil adecuado',
+  'Otro',
+];
 
 function toObj(row) {
   let notas = row.notas;
@@ -37,6 +50,10 @@ function toObj(row) {
     tamanoEmpresa:  row.tamanoEmpresa || null,
     origenCarga:    row.origenCarga || null,
     correoGenerado: !!row.correoGenerado,
+    // Cierre como perdido (null mientras el prospecto siga abierto)
+    motivoPerdida:  row.motivoPerdida || null,
+    detallePerdida: row.detallePerdida || null,
+    fechaCierre:    row.fechaCierre ?? null,
   };
 }
 
@@ -69,6 +86,10 @@ router.get('/', async (req, res) => {
     res.json(objs);
   } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
 });
+
+// Catálogo de motivos para que el frontend arme su lista sin duplicarla
+// (va ANTES de '/:id' para que no se interprete como un id).
+router.get('/motivos-perdida', (_req, res) => res.json(MOTIVOS_PERDIDA));
 
 router.get('/:id', async (req, res) => {
   try {
@@ -105,6 +126,13 @@ router.patch('/:id', async (req, res) => {
     if (!assertRolAccess(req, res, existingObj)) return;
 
     const body = { ...req.body };
+    // El cierre como perdido (y su reapertura) solo se hace por sus rutas dedicadas
+    // — así nunca queda un 'Perdido' sin motivo, ni se reabre sin querer al editar.
+    delete body.motivoPerdida; delete body.detallePerdida; delete body.fechaCierre;
+    if (body.status === 'Perdido' && existingObj.status !== 'Perdido') {
+      return res.status(400).json({ error: 'Para marcar un prospecto como perdido usa "Cerrar como perdido" e indica el motivo.' });
+    }
+    if (existingObj.status === 'Perdido') delete body.status;
     // Datos de contacto: inmutables para ejecutivos/administración; el admin sí corrige
     if (req.rolFilter) {
       delete body.empresa; delete body.contacto; delete body.tel; delete body.email;
@@ -123,6 +151,44 @@ router.patch('/:id', async (req, res) => {
       body.ejecCuenta   = r.ejecCuenta;
     }
     res.json(toObj(await updateRow('prospectos', req.params.id, toRow(body))));
+  } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
+});
+
+router.post('/:id/perder', async (req, res) => {
+  try {
+    const existingObj = toObj(await getRow('prospectos', req.params.id));
+    if (!assertRolAccess(req, res, existingObj)) return;
+    if (existingObj.status === 'Perdido') return res.status(400).json({ error: 'Este prospecto ya está cerrado como perdido.' });
+    if (existingObj.status === 'Convertido') return res.status(400).json({ error: 'Este prospecto ya se convirtió en cliente; no puede cerrarse como perdido.' });
+
+    const motivo  = String(req.body.motivo || '').trim();
+    const detalle = String(req.body.detalle || '').trim();
+    if (!MOTIVOS_PERDIDA.includes(motivo)) return res.status(400).json({ error: 'Selecciona un motivo de pérdida válido.' });
+    if (motivo === 'Otro' && !detalle) return res.status(400).json({ error: 'Cuando el motivo es "Otro", explica brevemente qué pasó.' });
+
+    const hoy = new Date().toISOString().slice(0, 10);
+    const nota = `Cerrado como PERDIDO (${motivo})${detalle ? ': ' + detalle : ''} · ${new Date().toLocaleDateString('es-MX')}`;
+    const updated = await updateRow('prospectos', req.params.id, {
+      status: 'Perdido', motivoPerdida: motivo, detallePerdida: detalle || null, fechaCierre: hoy,
+      notas: JSON.stringify([...existingObj.notas, nota]),
+    });
+    logAudit({ usuario: req.user?.ejec || req.user?.nombre || req.user?.id, accion: 'prospecto_perdido', entidad: existingObj.empresa, detalle: motivo, ip: clientIp(req), exito: true });
+    res.json(toObj(updated));
+  } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
+});
+
+router.post('/:id/reabrir', async (req, res) => {
+  try {
+    const existingObj = toObj(await getRow('prospectos', req.params.id));
+    if (!assertRolAccess(req, res, existingObj)) return;
+    if (existingObj.status !== 'Perdido') return res.status(400).json({ error: 'Solo se pueden reabrir prospectos cerrados como perdidos.' });
+    const nota = `Reabierto (antes perdido por: ${existingObj.motivoPerdida || 's/m'}) · ${new Date().toLocaleDateString('es-MX')}`;
+    const updated = await updateRow('prospectos', req.params.id, {
+      status: 'Nuevo', motivoPerdida: null, detallePerdida: null, fechaCierre: null,
+      notas: JSON.stringify([...existingObj.notas, nota]),
+    });
+    logAudit({ usuario: req.user?.ejec || req.user?.nombre || req.user?.id, accion: 'prospecto_reabierto', entidad: existingObj.empresa, ip: clientIp(req), exito: true });
+    res.json(toObj(updated));
   } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
 });
 

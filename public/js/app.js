@@ -331,6 +331,7 @@ function pillHTML(status) {
     'Aprobado': 'aprobado', 'Pendiente aprobación': 'pendiente',
     'Abierto': 'vencido', 'En proceso': 'pendiente', 'Cerrado': 'cerrado',
     'Cancelado': 'cerrado',
+    'Perdido': 'vencido', 'Convertido': 'aprobado',
   };
   return `<span class="pill ${map[status] || 'nuevo'}"><span class="pill-dot"></span>${status}</span>`;
 }
@@ -726,9 +727,10 @@ async function updateBadges() {
       db.casos.list(),
     ]);
 
-    const urgentes = prospectos.filter(p => p.status === 'Listo p/ cotizar').length;
+    const abiertos = prospectos.filter(p => p.status !== 'Perdido' && p.status !== 'Convertido');
+    const urgentes = abiertos.filter(p => p.status === 'Listo p/ cotizar').length;
     const badgeProsp = document.getElementById('badge-prospectos');
-    if (badgeProsp) badgeProsp.textContent = urgentes || prospectos.length;
+    if (badgeProsp) badgeProsp.textContent = urgentes || abiertos.length;
 
     const opsActivas = ops.filter(o => o.status === 'En Producción').length;
     const badgeOps = document.getElementById('badge-ops');
@@ -1069,7 +1071,7 @@ async function generarNotificaciones() {
     const en7 = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10);
     pagos.filter(p => p.status === 'Vencido')
       .forEach(p => add('pago-' + p.id, 'Cobro vencido: ' + p.concepto + ' (' + fmx(p.monto) + ')'));
-    prospectos.filter(p => p.seguimiento === hoy)
+    prospectos.filter(p => p.seguimiento === hoy && p.status !== 'Perdido' && p.status !== 'Convertido')
       .forEach(p => add('seg-' + p.id + '-' + hoy, 'Seguimiento HOY: ' + p.empresa + ' · ' + (p.ejec || '')));
     ops.filter(o => o.status === 'En Producción' && o.fechaEvento && o.fechaEvento >= hoy && o.fechaEvento <= en7)
       .forEach(o => add('op-' + o.id, 'Evento próximo: ' + o.numero + ' · ' + o.desc + ' (' + o.fechaEvento + ')'));

@@ -124,8 +124,8 @@ async function renderDashboard() {
   const vencidos      = pagos.filter(p => p.status === 'Vencido').length;
   // Pipeline: ya no hay campo "Estimado" en prospectos (se retiró) — se muestra
   // por CONTEO de oportunidades, no por monto (no hay base real para un $).
-  // Un prospecto ya Convertido en cliente deja de ser oportunidad abierta.
-  const prospAbiertos = prospectos.filter(p => p.status !== 'Convertido');
+  // Un prospecto Convertido en cliente o cerrado como Perdido deja de ser oportunidad abierta.
+  const prospAbiertos = prospectos.filter(p => p.status !== 'Convertido' && p.status !== 'Perdido');
   const prospListos   = prospAbiertos.filter(p => p.status === 'Listo p/ cotizar').length;
   const hoy = new Date().toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).toUpperCase();
 
@@ -195,8 +195,10 @@ async function renderDashboard() {
         cliente_actualizado: (a) => `actualizó al cliente <strong>${esc(a.entidad)}</strong>`,
         op_creada:           (a) => `abrió la OP <strong>${esc(a.entidad)}</strong>`,
         cobro_registrado:    (a) => `registró un cobro de <strong>${fmxK(Number(a.entidad) || 0)}</strong>`,
+        prospecto_perdido:   (a) => `cerró como perdido a <strong>${esc(a.entidad)}</strong> (${esc(a.detalle || 's/m')})`,
+        prospecto_reabierto: (a) => `reabrió al prospecto <strong>${esc(a.entidad)}</strong>`,
       };
-      const iconos = { cliente_actualizado: 'blue', op_creada: 'green', cobro_registrado: 'green' };
+      const iconos = { cliente_actualizado: 'blue', op_creada: 'green', cobro_registrado: 'green', prospecto_perdido: 'red', prospecto_reabierto: 'blue' };
 
       actividad = (audit || [])
         .filter(a => a.usuario && !misIdentidades.includes(a.usuario.toLowerCase()) && verbos[a.accion])

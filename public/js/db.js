@@ -102,6 +102,9 @@ const db = {
     create: async (data) => { const r = await API.post('/prospectos', data); _invalidate('prospectos'); return r; },
     update: async (id, data) => { const r = await API.patch('/prospectos/' + id, data); _invalidate('prospectos'); return r; },
     delete: async (id) => { const r = await API.delete('/prospectos/' + id); _invalidate('prospectos'); return r; },
+    perder:  async (id, motivo, detalle) => { const r = await API.post('/prospectos/' + id + '/perder', { motivo, detalle }); _invalidate('prospectos'); return r; },
+    reabrir: async (id) => { const r = await API.post('/prospectos/' + id + '/reabrir', {}); _invalidate('prospectos'); return r; },
+    motivos: () => API.get('/prospectos/motivos-perdida'),
   },
   clientes: {
     list: () => _cached('clientes', () => API.get('/clientes')),

@@ -325,3 +325,8 @@ alter table objetivos drop constraint if exists objetivos_anio_key;
 create unique index if not exists ux_usuarios_usuario  on usuarios(usuario)  where deleted_at is null;
 create unique index if not exists ux_ops_numero        on ops(numero)        where deleted_at is null;
 create unique index if not exists ux_objetivos_anio    on objetivos(anio)    where deleted_at is null;
+
+-- ── Cierre de prospectos como PERDIDOS (con motivo) ──────────
+alter table prospectos add column if not exists motivo_perdida text;
+alter table prospectos add column if not exists detalle_perdida text;
+alter table prospectos add column if not exists fecha_cierre date;
