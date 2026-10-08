@@ -243,9 +243,25 @@ async function openDetalleProspecto(id) {
   openM('detalle-prospecto');
 }
 
+// Una nota puede ser texto simple (las que se escriben en el OS) o un objeto
+// { texto, fecha } (las que dejó la carga automática de prospectos). Se muestran
+// las dos formas; antes las de objeto salían como "[object Object]".
+function _textoNota(n) {
+  if (n == null) return '';
+  if (typeof n === 'string') return n;
+  if (typeof n === 'object') {
+    const texto = n.texto || n.nota || n.text || '';
+    let fecha = '';
+    if (n.fecha) { const d = new Date(n.fecha); fecha = isNaN(d) ? String(n.fecha) : d.toLocaleDateString('es-MX'); }
+    return texto ? (fecha ? texto + ' · ' + fecha : texto) : '';
+  }
+  return String(n);
+}
+
 function _renderNotasProsp(notas) {
-  document.getElementById('dp-notas').innerHTML = notas.length
-    ? notas.map(n => `<div class="seg-row"><div class="seg-dot"></div><div style="font-size:12.5px">${esc(n)}</div></div>`).join('')
+  const lista = (notas || []).map(_textoNota).filter(Boolean);
+  document.getElementById('dp-notas').innerHTML = lista.length
+    ? lista.map(t => `<div class="seg-row"><div class="seg-dot"></div><div style="font-size:12.5px;overflow-wrap:anywhere">${esc(t)}</div></div>`).join('')
     : '<div style="color:var(--gray400);font-size:12px;padding:8px 0">Sin notas registradas</div>';
 }
 

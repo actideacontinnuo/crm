@@ -7,6 +7,13 @@
    Se carga DESPUÉS de main.css y solo actúa por debajo de cada punto de corte.
    ════════════════════════════════════════════════════════════ */
 
+
+/* Pie de las ventanas: si hay muchos botones se acomodan en varias líneas
+   (antes, alineados a la derecha en una sola fila, lo que sobraba se iba a la
+   izquierda y quedaba cortado e inalcanzable). Vale en TODOS los tamaños. */
+.modal-footer{flex-wrap:wrap;}
+.modal-footer .btn{white-space:nowrap;}
+
 /* Botón de menú y fondo del cajón: ocultos en escritorio */
 .t-menu{display:none;width:40px;height:40px;border-radius:10px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.05);color:#fff;cursor:pointer;align-items:center;justify-content:center;flex-shrink:0;padding:0;}
 .t-menu:hover{background:rgba(255,255,255,.1);}
