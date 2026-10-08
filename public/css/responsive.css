@@ -1,0 +1,157 @@
+/* ════════════════════════════════════════════════════════════
+   RESPONSIVE — tableta y celular
+   Antes el OS solo funcionaba en escritorio: el menú lateral fijo (236px)
+   se comía casi toda la pantalla de un teléfono y el contenido quedaba
+   fuera de la vista. Aquí: menú tipo cajón, tablas con scroll propio,
+   ventanas a pantalla completa y controles del tamaño de un dedo.
+   Se carga DESPUÉS de main.css y solo actúa por debajo de cada punto de corte.
+   ════════════════════════════════════════════════════════════ */
+
+/* Botón de menú y fondo del cajón: ocultos en escritorio */
+.t-menu{display:none;width:40px;height:40px;border-radius:10px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.05);color:#fff;cursor:pointer;align-items:center;justify-content:center;flex-shrink:0;padding:0;}
+.t-menu:hover{background:rgba(255,255,255,.1);}
+.sidebar-backdrop{display:none;position:fixed;inset:0;top:var(--topbar);background:rgba(15,15,15,.55);backdrop-filter:blur(2px);z-index:240;opacity:0;transition:opacity .22s var(--ease);}
+.sidebar-backdrop.show{opacity:1;}
+
+/* Enfoque visible para quien navega con teclado */
+.nav-item:focus-visible,.u-avatar:focus-visible,.t-menu:focus-visible,.t-logo:focus-visible,.kpi:focus-visible,.tbl tbody tr:focus-visible{outline:2px solid var(--red);outline-offset:-2px;border-radius:6px;}
+.btn:focus-visible,.modal-close:focus-visible,.fi:focus-visible,.fsel:focus-visible,.fsel-full:focus-visible{outline:2px solid var(--red);outline-offset:2px;}
+
+/* ─────────── TABLETA Y PANTALLAS CHICAS (≤ 1100px) ─────────── */
+@media (max-width:1100px){
+  .t-menu{display:inline-flex;}
+  .sidebar-backdrop{display:block;pointer-events:none;}
+  .sidebar-backdrop.show{pointer-events:auto;}
+
+  /* El menú lateral pasa a ser un cajón que se desliza desde la izquierda */
+  .sidebar{width:min(300px,86vw);transform:translateX(-102%);transition:transform .26s var(--ease-out);z-index:250;box-shadow:none;visibility:hidden;}
+  .sidebar.open{transform:none;box-shadow:12px 0 40px -8px rgba(0,0,0,.55);visibility:visible;}
+  .nav-item{padding-block:13px;}
+
+  .main{margin-left:0;padding:24px 22px 56px;min-width:0;}
+  .panel-hdr{flex-wrap:wrap;gap:10px;}
+  .topbar{padding:0 16px;gap:12px;}
+  .t-sep,.t-tag{display:none;}
+  .t-search{flex:1 1 auto;min-width:0;max-width:340px;}
+
+  .dash-grid{grid-template-columns:1fr;}
+  /* Filas de 4 tarjetas → 2 columnas; filas de 3 se quedan en 3 (en 2 dejaban un hueco) */
+  .kpis:has(> .kpi:nth-child(4)){grid-template-columns:repeat(2,1fr);}
+  .grid3{grid-template-columns:repeat(2,1fr);}
+  .grid2{grid-template-columns:1fr;}
+  .ph{flex-wrap:wrap;gap:16px;align-items:flex-start;}
+  .ph-title{font-size:40px;}
+
+  /* Tablas: nunca se recortan; desplazan de lado dentro de su propio marco */
+  .tbl-wrap,.panel{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+  .tbl{min-width:680px;}
+  /* Sombras laterales: avisan que la tabla se puede desplazar */
+  .tbl-wrap{background:
+    linear-gradient(to right,var(--white) 30%,rgba(255,255,255,0)) 0 0 / 40px 100% no-repeat local,
+    linear-gradient(to left,var(--white) 30%,rgba(255,255,255,0)) 100% 0 / 40px 100% no-repeat local,
+    radial-gradient(farthest-side at 0 50%,rgba(15,15,15,.16),transparent) 0 0 / 12px 100% no-repeat scroll,
+    radial-gradient(farthest-side at 100% 50%,rgba(15,15,15,.16),transparent) 100% 0 / 12px 100% no-repeat scroll,
+    var(--white);}
+
+  /* Tablas dentro de ventanas: se ajustan al ancho (no llevan el mínimo de las tablas de pantalla) */
+  .modal-body .tbl{min-width:0;}
+  .modal-body{overflow-x:auto;}
+
+  /* Ventanas: nunca más anchas que la pantalla */
+  .modal,.modal[style]{max-width:calc(100vw - 24px);}
+  .modal-xl,.modal-wide{width:calc(100vw - 24px);}
+}
+
+/* ─────────── CELULAR (≤ 720px) ─────────── */
+@media (max-width:720px){
+  html{-webkit-text-size-adjust:100%;}
+  .main{padding:16px 14px 48px;}
+  .topbar{padding:0 10px;gap:8px;}
+  .t-logo img{height:28px !important;}
+  .t-search input{padding-block:9px;font-size:16px;}
+  .t-right{gap:6px !important;}
+  .t-right .u-name,.t-right .u-role{display:none;}
+  .t-right > div:has(> .u-name){display:none;}
+
+  /* Encabezado de pantalla: título arriba, acciones abajo ocupando el ancho */
+  .ph{flex-direction:column;margin-bottom:18px;padding-bottom:16px;}
+  .ph-title{font-size:34px;line-height:.9;}
+  .ph-actions{width:100%;}
+  .ph-actions .btn{flex:1 1 auto;}
+
+  .kpis{gap:10px;}
+  .kpis:has(> .kpi:nth-child(4)){grid-template-columns:repeat(2,1fr);}
+  .kpi{padding:14px 14px 12px;border-radius:12px;}
+  .kpi-value{font-size:30px;}
+  .kpi-label{font-size:8.5px;letter-spacing:.1em;}
+  .grid3,.fgrid,.fgrid3,.info-grid{grid-template-columns:1fr;}
+
+  /* Rejillas definidas "en línea" dentro de pantallas y ventanas: se reacomodan solas */
+  .main [style*="grid-template-columns"],.modal-body [style*="grid-template-columns"]{grid-template-columns:repeat(auto-fit,minmax(150px,1fr)) !important;}
+  #kanban-board{display:flex !important;overflow-x:auto;gap:10px;padding-bottom:8px;-webkit-overflow-scrolling:touch;scroll-snap-type:x proximity;}
+  #kanban-board > div{flex:0 0 78vw;max-width:300px;scroll-snap-align:start;}
+
+  /* Barra de búsqueda y filtros: cada control en su renglón o a mitad de ancho */
+  .toolbar{gap:8px;}
+  .search-wrap{max-width:none;flex:1 1 100%;}
+  .toolbar .fsel{flex:1 1 100%;min-width:0;}
+  .toolbar .vsel{flex:1 1 100%;min-width:0;}
+  .toolbar .vsel .vsel-btn{flex:1;justify-content:center;}
+  .vtabs{overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;}
+  .vtabs::-webkit-scrollbar{display:none;}
+  .vtab{white-space:nowrap;padding:12px 14px;}
+
+  /* Controles del tamaño de un dedo (y 16px en campos: iOS no hace zoom al enfocar) */
+  .btn{min-height:44px;}
+  .btn-sm{min-height:40px;}
+  .btn-xs{min-height:36px;padding:0 12px;}
+  .btn-icon{width:44px;}
+  .fi,.fsel-full,.fsel{height:44px;font-size:16px;}
+  .fta{font-size:16px;}
+  .search-wrap input{height:44px;font-size:16px;}
+  .vsel-btn{min-height:40px;}
+  .modal-close{width:40px;height:40px;}
+  /* Acceso: campos a 16px (iOS no hace zoom) y enlace de contraseña legible y fácil de tocar */
+  .login-input{font-size:16px;padding-block:14px;}
+  .login-hint{font-size:13px !important;color:rgba(255,255,255,.62) !important;display:inline-block;padding:10px 4px;}
+  .td-acciones{gap:6px;}
+  .vsel-btn{padding:9px 11px;letter-spacing:.06em;}
+  .vsel{max-width:100%;overflow-x:auto;}
+
+  /* Ventanas: hoja que sube desde abajo, a todo el ancho */
+  .modal-overlay{align-items:flex-end;padding:0 !important;}
+  .modal,.modal[style],.modal-xl,.modal-wide{width:100% !important;max-width:100% !important;max-height:94vh;max-height:94dvh;border-radius:18px 18px 0 0;}
+  .modal-hdr{padding:16px 18px;}
+  .modal-body{padding:18px;}
+  .modal-body .tbl th,.modal-body .tbl td{padding:10px 8px;font-size:12px;}
+  .modal-footer{padding:12px 18px calc(12px + env(safe-area-inset-bottom,0px));flex-wrap:wrap;}
+  .modal-footer .btn{flex:1 1 auto;}
+  .modal-title{font-size:25px;}
+
+  /* Avisos y paneles flotantes ocupan el ancho útil */
+  #notif-panel{position:fixed !important;left:10px !important;right:10px !important;top:calc(var(--topbar) + 6px) !important;width:auto !important;}
+  #avatar-menu{right:-4px !important;max-width:calc(100vw - 20px);}
+  .toast{left:12px;right:12px;bottom:calc(14px + env(safe-area-inset-bottom,0px));}
+}
+
+/* ─────────── CELULAR ANGOSTO (≤ 560px): filas de 3 tarjetas pasan a una columna ─────────── */
+@media (max-width:560px){
+  .kpis:not(:has(> .kpi:nth-child(4))){grid-template-columns:1fr;}
+}
+
+/* ─────────── CELULAR MUY ANGOSTO (≤ 400px) ─────────── */
+@media (max-width:400px){
+  .kpis,.kpis:has(> .kpi:nth-child(4)){grid-template-columns:1fr;}
+  .ph-title{font-size:30px;}
+}
+
+/* Pantallas bajitas (teléfono acostado): el menú no puede pasar de la altura útil */
+@media (max-height:520px) and (max-width:1100px){
+  .sidebar{overflow-y:auto;}
+  .modal{max-height:96vh;}
+}
+
+/* Quien prefiere menos movimiento */
+@media (prefers-reduced-motion:reduce){
+  .sidebar,.sidebar-backdrop{transition:none;}
+}

@@ -17,7 +17,7 @@ async function abrirArchivar(entidad, id) {
   if (!id) return;
   _arch = { entidad, id, puede: false };
   document.getElementById('arch-titulo').textContent = 'Revisando…';
-  document.getElementById('arch-cuerpo').innerHTML = '<div style="color:var(--gray400);font-size:13px;padding:8px 0">Calculando qué pasará al archivar…</div>';
+  document.getElementById('arch-cuerpo').innerHTML = '<div style="color:var(--gray400);font-size:13px;padding:8px 0">Calculando qué pasará al eliminar…</div>';
   document.getElementById('arch-motivo-wrap').style.display = 'none';
   document.getElementById('arch-btn').disabled = true;
   document.getElementById('arch-error').style.display = 'none';

@@ -396,7 +396,46 @@ function hideSpinner() {
 // ══════════════════════════════════════
 // NAVIGATION
 // ══════════════════════════════════════
+// ── Menú lateral como cajón (tableta y celular) ──
+function _sidebarModoCajon() { return window.matchMedia('(max-width:1100px)').matches; }
+function toggleSidebar() {
+  const sb = document.getElementById('sidebar');
+  if (!sb) return;
+  sb.classList.contains('open') ? cerrarSidebar() : abrirSidebar();
+}
+function abrirSidebar() {
+  const sb = document.getElementById('sidebar'), bd = document.getElementById('sidebar-backdrop'), bt = document.getElementById('btn-menu');
+  if (!sb) return;
+  sb.classList.add('open');
+  if (bd) bd.classList.add('show');
+  if (bt) { bt.setAttribute('aria-expanded', 'true'); bt.setAttribute('aria-label', 'Cerrar menú de navegación'); }
+  if (_sidebarModoCajon()) document.body.style.overflow = 'hidden';
+}
+function cerrarSidebar() {
+  const sb = document.getElementById('sidebar'), bd = document.getElementById('sidebar-backdrop'), bt = document.getElementById('btn-menu');
+  if (!sb || !sb.classList.contains('open')) return;
+  sb.classList.remove('open');
+  if (bd) bd.classList.remove('show');
+  if (bt) { bt.setAttribute('aria-expanded', 'false'); bt.setAttribute('aria-label', 'Abrir menú de navegación'); }
+  if (!document.querySelector('.modal-overlay.open')) document.body.style.overflow = '';
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape') cerrarSidebar(); });
+window.addEventListener('resize', () => { if (!_sidebarModoCajon()) cerrarSidebar(); });
+
+// ── Que los controles que son <div> también se puedan usar con teclado (Enter o Espacio) ──
+function habilitarTecladoEnControles() {
+  document.querySelectorAll('.nav-item[onclick], .u-avatar[onclick], .t-logo[onclick]').forEach(el => {
+    if (el.dataset.kb) return;
+    el.dataset.kb = '1';
+    el.setAttribute('role', 'button');
+    el.setAttribute('tabindex', '0');
+    el.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); el.click(); } });
+  });
+}
+document.addEventListener('DOMContentLoaded', habilitarTecladoEnControles);
+
 function nav(view) {
+  cerrarSidebar();
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
 
