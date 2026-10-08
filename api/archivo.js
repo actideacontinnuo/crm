@@ -13,7 +13,7 @@ const dinero = n => '$' + Number(n || 0).toLocaleString('es-MX', { maximumFracti
 
 // Defensa en profundidad: aunque server.js ya filtra por rol, la ruta lo vuelve a exigir.
 router.use((req, res, next) => {
-  if (!esOficinaTotal(req.user)) return res.status(403).json({ error: 'Solo Dirección y Administración pueden archivar o restaurar registros.' });
+  if (!esOficinaTotal(req.user)) return res.status(403).json({ error: 'Solo Dirección y Administración pueden eliminar o restaurar registros.' });
   next();
 });
 
@@ -49,14 +49,14 @@ async function plan(entidad, id) {
 
   if (entidad === 'cliente') {
     const ops = await queryDB('ops', { clienteId: id });
-    if (ops.length) bloqueos.push(`Tiene ${ops.length} OP(s) activa(s): ${ops.map(o => o.numero).join(', ')}. Archívalas primero.`);
+    if (ops.length) bloqueos.push(`Tiene ${ops.length} OP(s) activa(s): ${ops.map(o => o.numero).join(', ')}. Elimínalas primero.`);
     for (const c of await queryDB('cotizaciones', { clienteId: id })) { hijos.push(item('cotizaciones', c.id, c.cotId)); await ticketsDe(c.id); }
     for (const k of await queryDB('casos', { clienteId: id })) hijos.push(item('casos', k.id, k.titulo));
   }
 
   if (entidad === 'proveedor') {
     const deudas = await queryDB('deudas', { proveedorId: id });
-    if (deudas.length) bloqueos.push(`Tiene ${deudas.length} pago(s) a proveedor registrado(s). Archiva primero esos pagos, o pide apoyo técnico para pasarlos al proveedor correcto.`);
+    if (deudas.length) bloqueos.push(`Tiene ${deudas.length} pago(s) a proveedor registrado(s). Elimina primero esos pagos, o pide apoyo técnico para pasarlos al proveedor correcto.`);
   }
 
   if (entidad === 'op') {
@@ -84,7 +84,7 @@ async function plan(entidad, id) {
   if (entidad === 'deuda') {
     const op = row.opId ? await getRow('ops', row.opId).catch(() => null) : null;
     if (op) efectos.push(`El costo de la OP ${op.numero} bajará ${dinero(row.monto)} (neto) y su utilidad subirá lo mismo.`);
-    if (Number(row.pagadoConIva) > 0) efectos.push(`Ya tiene ${dinero(row.pagadoConIva)} abonados. Archivarla no revierte el dinero que ya se pagó; úsalo solo si el registro está duplicado o capturado por error.`);
+    if (Number(row.pagadoConIva) > 0) efectos.push(`Ya tiene ${dinero(row.pagadoConIva)} abonados. Eliminarla no revierte el dinero que ya se pagó; úsalo solo si el registro está duplicado o capturado por error.`);
   }
 
   const cuenta = {};
@@ -106,7 +106,7 @@ router.get('/impacto/:entidad/:id', async (req, res) => {
 router.post('/archivar/:entidad/:id', async (req, res) => {
   try {
     const motivo = String(req.body?.motivo || '').trim();
-    if (motivo.length < 5) return res.status(400).json({ error: 'Escribe el motivo del archivado (mínimo 5 caracteres).' });
+    if (motivo.length < 5) return res.status(400).json({ error: 'Escribe el motivo de la eliminación (mínimo 5 caracteres).' });
     if (motivo.length > 300) return res.status(400).json({ error: 'El motivo es demasiado largo (máximo 300 caracteres).' });
     const p = await plan(req.params.entidad, req.params.id);
     if (p.bloqueos.length) return res.status(409).json({ error: p.bloqueos.join(' ') });

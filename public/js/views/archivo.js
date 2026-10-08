@@ -13,7 +13,7 @@ function _archError(e) {
 }
 
 async function abrirArchivar(entidad, id) {
-  if (!soyOficinaTotal()) { toast('Solo Dirección y Oscar pueden archivar registros', 'red'); return; }
+  if (!soyOficinaTotal()) { toast('Solo Dirección y Oscar pueden eliminar registros', 'red'); return; }
   if (!id) return;
   _arch = { entidad, id, puede: false };
   document.getElementById('arch-titulo').textContent = 'Revisando…';
@@ -28,23 +28,23 @@ async function abrirArchivar(entidad, id) {
     const imp = await db.archivo.impacto(entidad, id);
     _arch.puede = imp.puedeArchivar;
     document.getElementById('arch-titulo').textContent = imp.etiqueta || imp.tipo;
-    document.getElementById('arch-eye').textContent = 'ARCHIVAR ' + String(imp.tipo || '').toUpperCase();
+    document.getElementById('arch-eye').textContent = 'ELIMINAR ' + String(imp.tipo || '').toUpperCase();
     const bloques = [];
     if (imp.bloqueos.length) {
       bloques.push(`<div style="background:var(--red-dim,#fdecea);border:1px solid var(--red-border,#f3c2bd);border-radius:8px;padding:12px 14px;margin-bottom:12px">
-        <div style="font-weight:700;font-size:12px;color:var(--red);margin-bottom:4px">NO SE PUEDE ARCHIVAR TODAVÍA</div>
+        <div style="font-weight:700;font-size:12px;color:var(--red);margin-bottom:4px">NO SE PUEDE ELIMINAR TODAVÍA</div>
         ${imp.bloqueos.map(b => `<div style="font-size:13px">${esc(b)}</div>`).join('')}
       </div>`);
     }
     if (imp.arrastra.length) {
-      bloques.push(`<div style="margin-bottom:12px"><div class="sect-label">SE ARCHIVARÁ JUNTO CON</div>
+      bloques.push(`<div style="margin-bottom:12px"><div class="sect-label">SE ELIMINARÁ JUNTO CON</div>
         <ul style="margin:6px 0 0;padding-left:18px;font-size:13px">${imp.arrastra.map(a => `<li>${esc(a.texto)}</li>`).join('')}</ul></div>`);
     }
     if (imp.efectos.length) {
       bloques.push(`<div style="margin-bottom:12px"><div class="sect-label">QUÉ CAMBIARÁ EN LAS CIFRAS</div>
         <ul style="margin:6px 0 0;padding-left:18px;font-size:13px">${imp.efectos.map(x => `<li>${esc(x)}</li>`).join('')}</ul></div>`);
     }
-    bloques.push(`<div style="font-size:12px;color:var(--gray400)">No se borra nada: el registro sale del OS pero se conserva, y se puede restaurar desde el menú de tu avatar → <strong>Archivados</strong>.</div>`);
+    bloques.push(`<div style="font-size:12px;color:var(--gray400)">El registro sale del OS, pero queda guardado y se puede restaurar desde el menú de tu avatar → <strong>Eliminados</strong>.</div>`);
     document.getElementById('arch-cuerpo').innerHTML = bloques.join('');
     if (imp.puedeArchivar) {
       document.getElementById('arch-motivo').value = '';
@@ -61,14 +61,14 @@ async function confirmarArchivar() {
   if (!_arch || !_arch.puede) return;
   const motivo = document.getElementById('arch-motivo').value.trim();
   const err = document.getElementById('arch-error');
-  if (motivo.length < 5) { err.textContent = 'Escribe el motivo del archivado (por ejemplo: "duplicado" o "capturado por error").'; err.style.display = 'block'; return; }
+  if (motivo.length < 5) { err.textContent = 'Escribe el motivo de la eliminación (por ejemplo: "duplicado" o "capturado por error").'; err.style.display = 'block'; return; }
   err.style.display = 'none';
   document.getElementById('arch-btn').disabled = true;
   showSpinner();
   try {
     const r = await db.archivo.archivar(_arch.entidad, _arch.id, motivo);
     closeM('archivar');
-    toast('✓ Archivado: ' + (r.etiqueta || r.tipo));
+    toast('✓ Eliminado: ' + (r.etiqueta || r.tipo));
     _arch = null;
     const vista = document.querySelector('.view.active')?.id?.replace('view-', '');
     if (vista) nav(vista);
@@ -99,7 +99,7 @@ async function abrirArchivados() {
         </div>
         <button class="btn btn-ghost btn-xs" onclick="restaurarArchivado('${a.grupo}')">↺ Restaurar</button>
       </div>`).join('')
-      : '<div style="padding:16px 4px;color:var(--gray400);font-size:13px">No hay nada archivado desde el OS.</div>';
+      : '<div style="padding:16px 4px;color:var(--gray400);font-size:13px">No hay nada eliminado desde el OS.</div>';
   } catch (e) {
     document.getElementById('archivados-lista').innerHTML = `<div style="padding:12px;color:var(--red);font-size:12px">${esc(_archError(e))}</div>`;
   }

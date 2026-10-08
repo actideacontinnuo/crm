@@ -514,7 +514,7 @@ const AUD_ACCION_LABEL = {
   login_exitoso: '✓ Login exitoso', login_fallido: '✗ Login fallido', cuenta_bloqueada: 'Cuenta bloqueada',
   password_cambiado: 'Contraseña cambiada', password_reseteado: 'Contraseña reseteada (admin)',
   '2fa_activado': '2FA activado', '2fa_desactivado': '2FA desactivado',
-  registro_archivado: '🗄 Archivó un registro', registro_restaurado: '↺ Restauró un registro', crear: '+ Creó registro', editar: '✎ Editó registro', eliminar: '✕ Eliminó registro', backup_generado: 'Respaldo generado',
+  registro_archivado: '🗑 Eliminó un registro', registro_restaurado: '↺ Restauró un registro', crear: '+ Creó registro', editar: '✎ Editó registro', eliminar: '✕ Eliminó registro', backup_generado: 'Respaldo generado',
 };
 
 async function abrirAuditoria() {
