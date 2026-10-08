@@ -72,7 +72,7 @@ async function run(cli, sql, params) {
 // Nombres de tabla — lista blanca (nunca se interpola un nombre de tabla que
 // no venga de aquí, para que no haya forma de inyectar SQL por esta vía).
 const TABLES = new Set(['usuarios', 'clientes', 'prospectos', 'ops', 'cotizaciones',
-  'proveedores', 'deudas', 'pagos', 'casos', 'tickets', 'objetivos', 'auditoria', 'seguridad']);
+  'proveedores', 'deudas', 'pagos', 'casos', 'tickets', 'objetivos', 'auditoria', 'seguridad', 'archivados']);
 function _tabla(t) {
   if (!TABLES.has(t)) throw new Error(`Tabla desconocida: ${t}`);
   return t;
@@ -188,6 +188,64 @@ async function sumWhere(table, sumField, where = {}) {
 }
 
 
+// ─── Archivado con constancia ───────────────────────────────
+// Archiva varios registros de golpe (todo o nada) y deja constancia en 'archivados':
+// quién, cuándo y por qué. 'raiz' es lo que el usuario archivó; 'hijos' lo que arrastra
+// (p. ej. las deudas y pagos de una OP). Todo comparte un 'grupo' para poder restaurarlo junto.
+async function archivarConConstancia({ raiz, hijos = [], motivo, usuario }) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const grupo = (await run(client, 'select gen_random_uuid() g')).rows[0].g;
+    const items = [{ ...raiz, esRaiz: true }, ...hijos.map(h => ({ ...h, esRaiz: false }))];
+    let total = 0;
+    for (const it of items) {
+      const t = _tabla(it.tabla);
+      const r = await run(client, `UPDATE ${t} SET deleted_at = now() WHERE id = $1 AND deleted_at IS NULL`, [it.id]);
+      if (!r.rowCount) {
+        if (it.esRaiz) { const e = new Error('Registro no encontrado'); e.status = 404; throw e; }
+        continue;
+      }
+      await run(client,
+        'INSERT INTO archivados (grupo, tabla, registro_id, etiqueta, es_raiz, motivo, usuario) VALUES ($1,$2,$3,$4,$5,$6,$7)',
+        [grupo, it.tabla, it.id, it.etiqueta || null, it.esRaiz, motivo, usuario || null]);
+      total++;
+    }
+    await client.query('COMMIT');
+    return { grupo, total };
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    throw traducirError(err);
+  } finally { client.release(); }
+}
+
+// Devuelve al OS todo lo que se archivó junto (un grupo) y lo marca como restaurado.
+async function restaurarGrupo(grupo) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const filas = (await run(client, 'SELECT tabla, registro_id FROM archivados WHERE grupo = $1 AND restaurado_en IS NULL FOR UPDATE', [grupo])).rows;
+    if (!filas.length) { const e = new Error('No hay nada pendiente de restaurar en ese archivado'); e.status = 404; throw e; }
+    for (const f of filas) {
+      await run(client, `UPDATE ${_tabla(f.tabla)} SET deleted_at = NULL WHERE id = $1 AND deleted_at IS NOT NULL`, [f.registro_id]);
+    }
+    await run(client, 'UPDATE archivados SET restaurado_en = now() WHERE grupo = $1 AND restaurado_en IS NULL', [grupo]);
+    await client.query('COMMIT');
+    return { restaurados: filas.length };
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    throw traducirError(err);
+  } finally { client.release(); }
+}
+
+// Lo archivado desde el OS que sigue sin restaurarse (solo las filas raíz, con cuántas arrastró cada una).
+async function listarArchivados(limite = 200) {
+  const res = await run(pool,
+    `SELECT a.*, (SELECT count(*)::int FROM archivados h WHERE h.grupo = a.grupo AND NOT h.es_raiz) AS arrastrados
+       FROM archivados a WHERE a.es_raiz AND a.restaurado_en IS NULL ORDER BY a.fecha DESC LIMIT $1`, [limite]);
+  return res.rows.map(rowToCamel);
+}
+
 // ── Archivos (Supabase Storage, bucket PRIVADO) ─────────────
 // Se guarda la RUTA en la base; el navegador solo recibe URLs firmadas que caducan.
 const _sbHeaders = () => ({ Authorization: 'Bearer ' + process.env.SUPABASE_SECRET_KEY, apikey: process.env.SUPABASE_SECRET_KEY });
@@ -210,7 +268,7 @@ async function urlFirmada(bucket, ruta, segundos = 3600) {
   return `${process.env.SUPABASE_URL}/storage/v1${signedURL}`;
 }
 
-module.exports = { traducirError, subirArchivo, urlFirmada,
+module.exports = { traducirError, subirArchivo, urlFirmada, archivarConConstancia, restaurarGrupo, listarArchivados,
   pool, queryDB, getRow, createRow, updateRow, archiveRow, transaccion, sumWhere,
   toCamel, toSnake,
 };

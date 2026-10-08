@@ -121,6 +121,7 @@ app.use('/api/tickets',      rolFilterCliente());
 // Oscar gestiona todo desde el CRM sin entrar a la base de datos; eliminar sigue siendo solo admin.
 app.use('/api/pagos',        oficinaOnly);
 app.use('/api/deudas',       oficinaOnly);
+app.use('/api/archivo',      oficinaOnly);
 
 // Proveedores: cualquiera ve/edita, pero solo Admin puede eliminar
 app.use('/api/proveedores',  deleteAdminOnly);
@@ -137,6 +138,7 @@ app.use('/api/cotizaciones', require('./api/cotizaciones'));
 app.use('/api/pagos',        require('./api/pagos'));
 app.use('/api/proveedores',  require('./api/proveedores'));
 app.use('/api/deudas',       require('./api/deudas'));
+app.use('/api/archivo',      require('./api/archivo'));
 app.use('/api/casos',        require('./api/casos'));
 app.use('/api/tickets',      require('./api/tickets'));
 app.use('/api/vision',       require('./api/vision'));

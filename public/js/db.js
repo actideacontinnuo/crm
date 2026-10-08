@@ -96,6 +96,12 @@ function _cached(key, fetchFn) {
 }
 
 const db = {
+  archivo: {
+    impacto:   (entidad, id) => API.get('/archivo/impacto/' + entidad + '/' + id),
+    archivar:  async (entidad, id, motivo) => { const r = await API.post('/archivo/archivar/' + entidad + '/' + id, { motivo }); _invalidate('prospectos','clientes','ops','cotizaciones','pagos','proveedores','deudas','casos','tickets'); return r; },
+    lista:     () => API.get('/archivo/lista'),
+    restaurar: async (grupo) => { const r = await API.post('/archivo/restaurar/' + grupo, {}); _invalidate('prospectos','clientes','ops','cotizaciones','pagos','proveedores','deudas','casos','tickets'); return r; },
+  },
   prospectos: {
     list: () => _cached('prospectos', () => API.get('/prospectos')),
     get: (id) => API.get('/prospectos/' + id),

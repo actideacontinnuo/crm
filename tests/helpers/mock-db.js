@@ -154,7 +154,53 @@ async function sumWhere(table, sumField, where = {}) {
 async function subirArchivo(_b, _buf, filename) { _maybeFail(); return 'mock-' + String(filename || 'f').replace(/\W/g, '').slice(0, 8); }
 async function urlFirmada(_b, ruta) { return ruta ? 'https://mock.storage/' + ruta : null; }
 
+
+// ── Archivado con constancia (espejo en memoria de api/db.js) ──
+async function archivarConConstancia({ raiz, hijos = [], motivo, usuario }) {
+  _maybeFail();
+  const grupo = require('crypto').randomUUID();
+  const items = [{ ...raiz, esRaiz: true }, ...hijos.map(h => ({ ...h, esRaiz: false }))];
+  const ts = new Date().toISOString();
+  const aplicar = [];
+  for (const it of items) {
+    const row = _tabla(it.tabla).find(r => r.id === it.id && !r.deletedAt);
+    if (!row) { if (it.esRaiz) { const e = new Error('Registro no encontrado'); e.status = 404; throw e; } continue; }
+    aplicar.push([row, it]);
+  }
+  for (const [row, it] of aplicar) {
+    row.deletedAt = ts;
+    _tabla('archivados').push({ id: _id(), grupo, tabla: it.tabla, registroId: it.id, etiqueta: it.etiqueta || null, esRaiz: it.esRaiz, motivo, usuario: usuario || null, fecha: ts, restauradoEn: null, deletedAt: null });
+  }
+  return { grupo, total: aplicar.length };
+}
+async function restaurarGrupo(grupo) {
+  _maybeFail();
+  const filas = _tabla('archivados').filter(a => a.grupo === grupo && !a.restauradoEn);
+  if (!filas.length) { const e = new Error('No hay nada pendiente de restaurar en ese archivado'); e.status = 404; throw e; }
+  for (const a of filas) {
+    if (a.tabla !== 'ops') continue;
+    const o = _tabla('ops').find(r => r.id === a.registroId);
+    if (o && _tabla('ops').some(r => r.id !== o.id && !r.deletedAt && r.numero === o.numero)) {
+      const e = new Error('Ya existe un registro con ese valor'); e.status = 409; throw e;
+    }
+  }
+  const ts = new Date().toISOString();
+  for (const a of filas) {
+    const row = _tabla(a.tabla).find(r => r.id === a.registroId);
+    if (row) row.deletedAt = null;
+    a.restauradoEn = ts;
+  }
+  return { restaurados: filas.length };
+}
+async function listarArchivados(limite = 200) {
+  _maybeFail();
+  return _tabla('archivados').filter(a => a.esRaiz && !a.restauradoEn)
+    .sort((a, b) => b.fecha.localeCompare(a.fecha)).slice(0, limite)
+    .map(a => ({ ...a, arrastrados: _tabla('archivados').filter(h => h.grupo === a.grupo && !h.esRaiz).length }));
+}
+
 module.exports = {
+  archivarConConstancia, restaurarGrupo, listarArchivados,
   subirArchivo, urlFirmada,
   resetStore,
   setFailNext,

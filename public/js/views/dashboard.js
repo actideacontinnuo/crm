@@ -196,9 +196,11 @@ async function renderDashboard() {
         op_creada:           (a) => `abrió la OP <strong>${esc(a.entidad)}</strong>`,
         cobro_registrado:    (a) => `registró un cobro de <strong>${fmxK(Number(a.entidad) || 0)}</strong>`,
         prospecto_perdido:   (a) => `cerró como perdido a <strong>${esc(a.entidad)}</strong> (${esc(a.detalle || 's/m')})`,
+        registro_archivado:  (a) => `archivó <strong>${esc(a.entidad)}</strong> (${esc(a.detalle || '')})`,
+        registro_restaurado: (a) => `restauró <strong>${esc(a.entidad)}</strong>`,
         prospecto_reabierto: (a) => `reabrió al prospecto <strong>${esc(a.entidad)}</strong>`,
       };
-      const iconos = { cliente_actualizado: 'blue', op_creada: 'green', cobro_registrado: 'green', prospecto_perdido: 'red', prospecto_reabierto: 'blue' };
+      const iconos = { cliente_actualizado: 'blue', op_creada: 'green', cobro_registrado: 'green', prospecto_perdido: 'red', prospecto_reabierto: 'blue', registro_archivado: 'amber', registro_restaurado: 'blue' };
 
       actividad = (audit || [])
         .filter(a => a.usuario && !misIdentidades.includes(a.usuario.toLowerCase()) && verbos[a.accion])

@@ -7,7 +7,7 @@ const { logAudit } = require('../api/_audit');
 const BUCKET_RESPALDOS = 'respaldos';
 
 // Entidades de negocio a respaldar. Usuarios se excluye su PasswordHash por seguridad.
-const ENTIDADES = ['prospectos', 'clientes', 'ops', 'cotizaciones', 'pagos', 'proveedores', 'deudas', 'casos', 'tickets', 'objetivos'];
+const ENTIDADES = ['prospectos', 'clientes', 'ops', 'cotizaciones', 'pagos', 'proveedores', 'deudas', 'casos', 'tickets', 'objetivos', 'archivados'];
 
 async function buildBackupJson() {
   const data = { generadoEn: new Date().toISOString(), entidades: {} };

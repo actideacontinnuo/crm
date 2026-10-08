@@ -393,3 +393,23 @@ end $$;
 -- Las funciones no deben poder llamarse desde la API pública de Supabase.
 revoke all on function archivar_op(text)   from public, anon, authenticated;
 revoke all on function restaurar_op(text)  from public, anon, authenticated;
+
+-- ── Bitácora de archivados hechos desde el OS (quién, cuándo, por qué) ──
+-- Cada archivado crea un 'grupo': la fila raíz (lo que el usuario archivó) más lo que arrastró
+-- (p. ej. las deudas y pagos de una OP). Restaurar el grupo devuelve todo junto.
+create table if not exists archivados (
+  id            uuid primary key default gen_random_uuid(),
+  grupo         uuid not null,
+  tabla         text not null,
+  registro_id   uuid not null,
+  etiqueta      text,
+  es_raiz       boolean not null default false,
+  motivo        text not null,
+  usuario       text,
+  fecha         timestamptz not null default now(),
+  restaurado_en timestamptz,
+  deleted_at    timestamptz
+);
+create index if not exists idx_archivados_grupo on archivados(grupo);
+create index if not exists idx_archivados_pendientes on archivados(fecha desc) where es_raiz and restaurado_en is null;
+alter table archivados enable row level security;

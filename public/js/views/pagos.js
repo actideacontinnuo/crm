@@ -135,6 +135,7 @@ async function renderPagos() {
                   ? `<button class="btn btn-primary btn-xs" onclick="event.stopPropagation();abrirAbonoDeuda('${m.id}')">Abonar</button>`
                   : `<button class="btn btn-primary btn-xs" onclick="event.stopPropagation();openDetallePago('${m.id}')">Registrar</button>`)
               : `<button class="btn btn-ghost btn-xs" onclick="event.stopPropagation();${verHandler}">Ver</button>`}
+            ${soyOficinaTotal() ? `<button class="btn btn-ghost btn-xs" style="color:var(--red)" title="Archivar este registro" onclick="event.stopPropagation();abrirArchivar('${m.source === 'deudas' ? 'deuda' : 'pago'}','${m.id}')">Archivar</button>` : ''}
           </td>
         </tr>`;
       }).join('')

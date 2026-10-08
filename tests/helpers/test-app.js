@@ -86,6 +86,7 @@ function buildApp() {
   app.use('/api/tickets',      rolFilterCliente());
   app.use('/api/pagos',        oficinaOnly);
   app.use('/api/deudas',       oficinaOnly);
+  app.use('/api/archivo',      oficinaOnly);
   app.use('/api/proveedores',  deleteAdminOnly);
   app.use('/api/auditoria',    adminOnly);
   app.use('/api/backup',       adminOnly);
@@ -98,6 +99,7 @@ function buildApp() {
   app.use('/api/pagos',        require('../../api/pagos'));
   app.use('/api/proveedores',  require('../../api/proveedores'));
   app.use('/api/deudas',       require('../../api/deudas'));
+  app.use('/api/archivo',      require('../../api/archivo'));
   app.use('/api/casos',        require('../../api/casos'));
   app.use('/api/tickets',      require('../../api/tickets'));
   app.use('/api/vision',       require('../../api/vision'));
